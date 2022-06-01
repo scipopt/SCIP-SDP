@@ -99,6 +99,7 @@
 #define DEFAULT_USEPRESOLVING       FALSE    /**< whether presolving of SDP-solver should be used */
 #define DEFAULT_USESCALING          TRUE     /**< whether the SDP-solver should use scaling */
 #define DEFAULT_SCALEOBJ            FALSE    /**< whether the objective should be scaled in order to get a more stable behavior */
+#define DEFAULT_CONFLICTCONSS       FALSE    /**< whether conflict constraints should be generated */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
@@ -136,6 +137,7 @@ struct SCIP_RelaxData
    SCIP_Bool             usepresolving;      /**< whether presolving of SDP-solver should be used */
    SCIP_Bool             usescaling;         /**< whether the SDP-solver should use scaling */
    SCIP_Bool             scaleobj;           /**< whether the objective should be scaled in order to get a more stable behavior */
+   SCIP_Bool             conflictconss;      /**< whether conflict constraints should be generated */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -1660,55 +1662,58 @@ SCIP_RETCODE calcRelax(
    if ( rootnode || ! relaxdata->warmstart || ((relaxdata->warmstartiptype == 2) &&
          SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && ((SCIPsdpiDoesWarmstartNeedPrimal() && ! relaxdata->ipXexists) || (! relaxdata->ipZexists))) )
    {
-      SCIP_Real* conflictcut = NULL;
-      SCIP_Real conflictcutlhs;
-      SCIP_Bool success;
-
       SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
-      SCIP_CALL( computeConflictCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, conflictcut, &conflictcutlhs, &success) );
-
-      /* generate constraint if dual cut is valid */
-      if ( success )
+      if ( relaxdata->conflictconss )
       {
-         char consname[SCIP_MAXSTRLEN];
-         SCIP_CONS* cons;
-         SCIP_VAR** consvars;
-         SCIP_Real* consvals;
-         int cnt = 0;
+         SCIP_Real* conflictcut = NULL;
+         SCIP_Real conflictcutlhs;
+         SCIP_Bool success;
 
-         SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
+         SCIP_CALL( computeConflictCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, conflictcut, &conflictcutlhs, &success) );
 
-         for (i = 0; i < nvars; ++i)
+         /* generate constraint if dual cut is valid */
+         if ( success )
          {
-            if ( ! SCIPisZero(scip, conflictcut[i]) )
+            char consname[SCIP_MAXSTRLEN];
+            SCIP_CONS* cons;
+            SCIP_VAR** consvars;
+            SCIP_Real* consvals;
+            int cnt = 0;
+
+            SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
+
+            for (i = 0; i < nvars; ++i)
             {
-               consvars[cnt] = vars[i];
-               consvals[cnt++] = conflictcut[i];
+               if ( ! SCIPisZero(scip, conflictcut[i]) )
+               {
+                  consvars[cnt] = vars[i];
+                  consvals[cnt++] = conflictcut[i];
+               }
             }
-         }
-         (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "conflictcut#%d", SCIPrelaxGetNCalls(relax));
-         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
-               FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
-         SCIP_CALL( SCIPaddCons(scip, cons) );
+            (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "conflictcut#%d", SCIPrelaxGetNCalls(relax));
+            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
+                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+            SCIP_CALL( SCIPaddCons(scip, cons) );
 
 #ifdef SCIP_DEBUG
-         SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
-         SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-         SCIPinfoMessage(scip, NULL, "\n");
+            SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
+            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+            SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
-         SCIPfreeBufferArray(scip, &consvals);
-         SCIPfreeBufferArray(scip, &consvars);
+            SCIPfreeBufferArray(scip, &consvals);
+            SCIPfreeBufferArray(scip, &consvars);
+         }
+         SCIPfreeBufferArray(scip, &conflictcut);
       }
 
-      SCIPfreeBufferArray(scip, &conflictcut);
    }
    else if ( relaxdata->warmstart && (relaxdata->warmstartprimaltype != 2) && (relaxdata->warmstartiptype == 2) && SCIPisEQ(scip, relaxdata->warmstartipfactor, 1.0) )
    {
@@ -5242,6 +5247,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/scaleobj",
          "whether the objective should be scaled in order to get a more stable behavior",
          &(relaxdata->scaleobj), TRUE, DEFAULT_SCALEOBJ, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictconss",
+         "whether conflict constraints should be generated",
+         &(relaxdata->conflictconss), TRUE, DEFAULT_CONFLICTCONSS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled",
