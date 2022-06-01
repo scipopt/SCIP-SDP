@@ -2590,6 +2590,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          int redsize;
          int redrow;
          int redcol;
+         int idx = 0;
          int i;
 
          redsize = blocksize - nremovedinds[b];
@@ -2598,22 +2599,21 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
 
          /* fill in matrix */
-         for (i = 0; i < blocksize; ++i)
+         for (j = 0; j < blocksize; ++j)
          {
-            if ( indchanges[b][i] >= 0 )
+            if ( indchanges[b][j] >= 0 )
             {
-               redrow = i - indchanges[b][i];
-               assert( 0 <= redrow && redrow < redsize );
-               for (j = i; j < blocksize; ++j)
+               redcol = j - indchanges[b][j];
+               assert( 0 <= redcol && redcol < redsize );
+
+               for (i = j; i < blocksize; ++i)
                {
-                  if ( indchanges[b][j] >= 0 )
+                  if ( indchanges[b][i] >= 0 )
                   {
-                     int idx;
-                     redcol = j - indchanges[b][j];
-                     assert( 0 <= redcol && redcol < redsize );
-                     idx = redrow * (redsize - redrow - 1) + redcol;
+                     redrow = i - indchanges[b][i];
+                     assert( 0 <= redrow && redrow < redsize );
                      assert( 0 <= idx && idx < redsize * (redsize + 1)/2 );
-                     val = X[idx];
+                     val = X[idx++];
                      primalmatrices[b][i * blocksize + j] = val;
                      primalmatrices[b][j * blocksize + i] = val;
                   }
