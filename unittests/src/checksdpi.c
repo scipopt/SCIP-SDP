@@ -1096,3 +1096,82 @@ Test(checksdpi, test10)
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 4, lhs, rhs, 4) );
 }
+
+
+/** Test 10
+ *
+ *  inf   x1
+ *        [1,  0] x1 - [1 2]  psd
+ *        [0,  1]      [2 4]
+ *        = A1 x1 - A0
+ *
+ *  The constant matrix has eigenvalues 0 and 5. Thus, the optimal solution is x1 = 5.
+ *
+ *  The dual is
+ *  sup  <A0,X>
+ *       <A1,X> = 1
+ *       X psd.
+ *
+ *  This problem is also feasible with optimal solution X = [0.2 0.4][0.4 0.8].
+ */
+Test(checksdpi, test11)
+{
+   /* data with fixed values: */
+   SCIP_Real obj = 1.0;
+   int nsdpblocks = 1;
+   int sdpblocksizes[1] = {2};
+   int sdpnblockvars[1] = {1};
+   int sdpconstnblocknonz[1] = {3};
+   int sdpconstnnonz = 3;
+   int sdpnnonz = 2;
+   int* sdpnblockvarnonz;
+   int* sdpvar;
+   int** sdprow;
+   int** sdpcol;
+   SCIP_Real** sdpval;
+
+   int sdpnblockvarnonzs[1] = {2};
+   int sdpvars[1] = {0};
+   int sdprowss[2] = {0, 1};
+   int sdpcolss[2] = {0, 1};
+   SCIP_Real sdpvalss[2] = {1.0, 1.0};
+
+   int sdpconstrowss[3] = {0, 1, 1};
+   int sdpconstcolss[3] = {0, 0, 1};
+   SCIP_Real sdpconstvalss[3] = {1.0, 2.0, 4.0};
+
+   /* data to be filled */
+   int* sdprows;
+   int* sdpcols;
+   SCIP_Real* sdpvals;
+   int* sdpconstrows;
+   int* sdpconstcols;
+   SCIP_Real* sdpconstvals;
+
+   SCIP_Real lb;
+   SCIP_Real ub;
+
+   /* expected solutions */
+   SCIP_Real exp_dualsol[1] = {5.0};
+   SCIP_Real exp_primalmatrix[4] = {0.2, 0.4, 0.4, 0.8};
+
+   sdpnblockvarnonz = &sdpnblockvarnonzs[0];
+   sdpvar = &sdpvars[0];
+   sdprows = &sdprowss[0];
+   sdpcols = &sdpcolss[0];
+   sdpvals = &sdpvalss[0];
+   sdprow = &sdprows;
+   sdpcol = &sdpcols;
+   sdpval = &sdpvals;
+   sdpconstrows = &sdpconstrowss[0];
+   sdpconstcols = &sdpconstcolss[0];
+   sdpconstvals = &sdpconstvalss[0];
+
+   /* fill data */
+   lb = -SCIPsdpiInfinity(sdpi);
+   ub = SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performSDPTest(1, &obj, &lb, &ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
+         &sdpconstrows, &sdpconstcols, &sdpconstvals, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
+         0, NULL, NULL, 0, NULL, NULL, NULL, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL, exp_primalmatrix) );
+}
