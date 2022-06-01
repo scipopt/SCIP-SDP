@@ -1263,7 +1263,7 @@ SCIP_RETCODE computeDualCut(
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Real*            dualcut,            /**< coefficients of cut */
-   SCIP_Real*            dualcutrhs,         /**< rhs of cut */
+   SCIP_Real*            dualcutlhs,         /**< lhs of cut */
    SCIP_Bool*            success             /**< pointer to return whether computation was successful */
    )
 {
@@ -1278,7 +1278,7 @@ SCIP_RETCODE computeDualCut(
    assert( scip != NULL );
    assert( sdpi != NULL );
    assert( dualcut != NULL );
-   assert( dualcutrhs != NULL );
+   assert( dualcutlhs != NULL );
    assert( success != NULL );
 
    *success = TRUE;
@@ -1287,7 +1287,7 @@ SCIP_RETCODE computeDualCut(
    assert( nvars >= 0 );
 
    /* prepare cut */
-   *dualcutrhs = 0.0;
+   *dualcutlhs = 0.0;
    for (j = 0; j < nvars; ++j)
       dualcut[j] = 0.0;
 
@@ -1369,15 +1369,14 @@ SCIP_RETCODE computeDualCut(
                else
                   c += 2.0 * sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
             }
-            *dualcutrhs += c;
+            *dualcutlhs += c;
 
             /* compute minimal eigenvalue of primal matrix (matrix will be destroyed) */
             SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, primalmatrices[b], 1, &eigenvalue, NULL) );
 
             /* possibly correct the fact that the primal matrix might be psd only up to a certain precision */
             SCIPdebugMsg(scip, "Correcting rhs of generated cut by %g.\n", MIN(eigenvalue, 0.0));
-            printf("Correcting rhs of generated cut by %g.\n", MIN(eigenvalue, 0.0));
-            *dualcutrhs += MIN(eigenvalue, 0.0);
+            *dualcutlhs -= MIN(eigenvalue, 0.0);
          }
       }
 
@@ -1447,16 +1446,16 @@ SCIP_RETCODE computeDualCut(
                if ( ! SCIProwIsLocal(row) )
                {
                   /* make sure that the primal values are >= 0 */
-                  primallhsval = MAX(lhsvals[i], 0.0);
-                  primalrhsval = MAX(rhsvals[i], 0.0);
+                  /* primallhsval = MAX(lhsvals[i], 0.0); */
+                  /* primalrhsval = MAX(rhsvals[i], 0.0); */
                   assert( SCIPisFeasGE(scip, primallhsval, 0.0) );
                   assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
 
                   if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
-                     *dualcutrhs -= rowlhs * primallhsval;
+                     *dualcutlhs += rowlhs * primallhsval;
 
                   if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
-                     *dualcutrhs += rowrhs * primalrhsval;
+                     *dualcutlhs -= rowrhs * primalrhsval;
 
                   for (j = 0; j < rownnonz; j++)
                   {
@@ -1467,10 +1466,10 @@ SCIP_RETCODE computeDualCut(
                         assert( 0 <= varidx && varidx < nvars );
 
                         if ( ! SCIPisFeasZero(scip, primallhsval) )
-                           dualcut[varidx] -= rowvals[j] * primallhsval;
+                           dualcut[varidx] += rowvals[j] * primallhsval;
 
                         if ( ! SCIPisFeasZero(scip, primalrhsval) )
-                           dualcut[varidx] += rowvals[j] * primalrhsval;
+                           dualcut[varidx] -= rowvals[j] * primalrhsval;
                      }
                   }
                }
@@ -1523,16 +1522,16 @@ SCIP_RETCODE computeDualCut(
             assert( SCIPisFeasGE(scip, primallbval, 0.0) );
             if ( ! SCIPisFeasZero(scip, primallbval) && ! SCIPisInfinity(scip, -lb) )
             {
-               dualcut[i] -= primallbval;
-               *dualcutrhs -= lb * primallbval;
+               dualcut[i] += primallbval;
+               *dualcutlhs += lb * primallbval;
             }
 
             primalubval = MAX(ubvals[i], 0.0); /* make sure value is >= 0 */
             assert( SCIPisFeasGE(scip, primalubval, 0.0) );
             if ( ! SCIPisFeasZero(scip, primalubval) && ! SCIPisInfinity(scip, ub) )
             {
-               dualcut[i] += primalubval;
-               *dualcutrhs += ub * primalubval;
+               dualcut[i] -= primalubval;
+               *dualcutlhs -= ub * primalubval;
             }
          }
       }
@@ -1662,7 +1661,7 @@ SCIP_RETCODE calcRelax(
          SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) && ((SCIPsdpiDoesWarmstartNeedPrimal() && ! relaxdata->ipXexists) || (! relaxdata->ipZexists))) )
    {
       SCIP_Real* dualcut = NULL;
-      SCIP_Real dualcutrhs;
+      SCIP_Real dualcutlhs;
       SCIP_Bool success;
 
       SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
@@ -1670,7 +1669,7 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
       SCIP_CALL( SCIPallocBufferArray(scip, &dualcut, nvars) );
-      SCIP_CALL( computeDualCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, dualcut, &dualcutrhs, &success) );
+      SCIP_CALL( computeDualCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, dualcut, &dualcutlhs, &success) );
 
       /* generate constraint if dual cut is valid */
       if ( success )
@@ -1693,7 +1692,7 @@ SCIP_RETCODE calcRelax(
             }
          }
          (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "dualcut#%d", SCIPrelaxGetNCalls(relax));
-         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, -SCIPinfinity(scip), dualcutrhs,
+         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, dualcutlhs, SCIPinfinity(scip),
                TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, cons) );
 
