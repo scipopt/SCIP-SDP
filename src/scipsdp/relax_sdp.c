@@ -1696,11 +1696,11 @@ SCIP_RETCODE calcRelax(
                TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, cons) );
 
-
+#ifdef SCIP_DEBUG
          SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
          SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
          SCIPinfoMessage(scip, NULL, "\n");
-
+#endif
 
          SCIP_CALL( SCIPreleaseCons(scip, &cons) );
 
