@@ -1698,7 +1698,6 @@ SCIP_RETCODE calcRelax(
             (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "conflictcut#%d", SCIPrelaxGetNCalls(relax));
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
                   FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
-            SCIP_CALL( SCIPaddCons(scip, cons) );
 
 #ifdef SCIP_DEBUG
             SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
@@ -1706,7 +1705,17 @@ SCIP_RETCODE calcRelax(
             SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-            SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+            /* add constraint as a conflict (will add and release constraint) */
+            if ( cnt > 0 )
+            {
+               SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, FALSE) );
+               cons = NULL;
+            }
+            else
+            {
+               SCIP_CALL( SCIPaddCons(scip, cons) );
+               SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+            }
 
             SCIPfreeBufferArray(scip, &consvals);
             SCIPfreeBufferArray(scip, &consvars);
