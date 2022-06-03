@@ -2398,9 +2398,49 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
    SCIP_Real*            lhsvals,            /**< array to store the values of the variables corresponding to LP lhs */
    SCIP_Real*            rhsvals             /**< array to store the values of the variables corresponding to LP rhs */
    )
-{  /*lint --e{715}*/
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+{
+   SCIP_Real* primalvals;
+   int nprimalvals;
+   int ind = 0;
+   int i;
+
+   assert( sdpisolver != NULL );
+   CHECK_IF_SOLVED( sdpisolver );
+   assert( lplhs != NULL );
+   assert( lprhs != NULL );
+   assert( lhsvals != NULL );
+   assert( rhsvals != NULL );
+
+   if ( nlpcons <= 0 )
+      return SCIP_OKAY;
+
+   /* get primal solution for LP part from DSDP */
+   DSDP_CALL( LPConeGetXArray(sdpisolver->lpcone, &primalvals, &nprimalvals) );
+
+   /* loop through LP rows */
+   for (i = 0; i < nlpcons; i++)
+   {
+      if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
+      {
+         lhsvals[i] = primalvals[ind];
+         ++ind;
+      }
+      else
+         lhsvals[i] = 0.0;
+
+      if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
+      {
+         rhsvals[i] = primalvals[ind];
+         ++ind;
+      }
+      else
+         rhsvals[i] = 0.0;
+
+      assert( ind <= nprimalvals );
+   }
+   assert( ind == nprimalvals );
+
+   return SCIP_OKAY;
 }
 
 /** return number of nonzeros for each block of the primal solution matrix X (including lp block) */
@@ -2446,8 +2486,72 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    SCIP_Real**           primalmatrices      /**< pointer to store values of the primal matrix */
    )
 {  /*lint --e{715}*/
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   int b;
+
+   assert( sdpisolver != NULL );
+   assert( nsdpblocks == 0 || sdpblocksizes != NULL );
+   assert( indchanges != NULL );
+   assert( nremovedinds != NULL );
+   assert( blockindchanges != NULL );
+   assert( primalmatrices != NULL );
+
+   /* loop over all SDP blocks */
+   for (b = 0; b < nsdpblocks; b++)
+   {
+      int blocksize;
+      int j;
+
+      assert( primalmatrices[b] != NULL );
+
+      blocksize = sdpblocksizes[b];
+
+      /* initialize solution matrix with 0s */
+      for (j = 0; j < blocksize * blocksize; ++j)
+         primalmatrices[b][j] = 0.0;
+
+      /* treat blocks that were not removed */
+      if ( blockindchanges[b] >= 0 )
+      {
+         SCIP_Real* X;   /* the upper triangular entries of matrix X */
+         SCIP_Real val;
+         int redsize;
+         int redrow;
+         int redcol;
+         int idx = 0;
+         int n;
+         int i;
+
+         redsize = blocksize - nremovedinds[b];
+
+         DSDP_CALL( SDPConeGetXArray(sdpisolver->sdpcone, b - blockindchanges[b], &X, &n) );
+         assert( n == redsize * (redsize + 1)/2 );
+
+         /* fill in matrix */
+         for (j = 0; j < blocksize; ++j)
+         {
+            if ( indchanges[b][j] >= 0 )
+            {
+               redcol = j - indchanges[b][j];
+               assert( 0 <= redcol && redcol < redsize );
+
+               for (i = j; i < blocksize; ++i)
+               {
+                  if ( indchanges[b][i] >= 0 )
+                  {
+                     redrow = i - indchanges[b][i];
+                     assert( 0 <= redrow && redrow < redsize );
+                     assert( 0 <= idx && idx < redsize * (redsize + 1)/2 );
+                     val = X[idx++];
+                     primalmatrices[b][i * blocksize + j] = val;
+                     primalmatrices[b][j * blocksize + i] = val;
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   return SCIP_OKAY;
 }
 
 /** return the maximum absolute value of the optimal primal matrix */
