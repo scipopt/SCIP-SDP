@@ -1454,8 +1454,8 @@ SCIP_RETCODE computeConflictCut(
                if ( ! SCIProwIsLocal(row) )
                {
                   /* make sure that the primal values are >= 0 */
-                  /* primallhsval = MAX(lhsvals[i], 0.0); */
-                  /* primalrhsval = MAX(rhsvals[i], 0.0); */
+                  primallhsval = MAX(lhsvals[i], 0.0);
+                  primalrhsval = MAX(rhsvals[i], 0.0);
                   assert( SCIPisFeasGE(scip, primallhsval, 0.0) );
                   assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
 
