@@ -1347,10 +1347,13 @@ SCIP_RETCODE computeConflictCut(
                   assert( 0 <= row && row < blocksize );
                   assert( 0 <= col && col < blocksize );
 
-                  if ( row == col )
-                     p += sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
-                  else
-                     p += 2.0 * sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                  if ( ! SCIPisFeasZero(scip, primalmatrices[b][row * blocksize + col]) )
+                  {
+                     if ( row == col )
+                        p += sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                     else
+                        p += 2.0 * sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                  }
                }
                var = SCIPsdpVarmapperGetSCIPvar(varmapper, v);
                varidx = SCIPvarGetProbindex(var);
@@ -1366,10 +1369,13 @@ SCIP_RETCODE computeConflictCut(
                assert( 0 <= row && row < blocksize );
                assert( 0 <= col && col < blocksize );
 
-               if ( row == col )
-                  c += sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
-               else
-                  c += 2.0 * sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
+               if ( ! SCIPisFeasZero(scip, primalmatrices[b][row * blocksize + col]) )
+               {
+                  if ( row == col )
+                     c += sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
+                  else
+                     c += 2.0 * sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
+               }
             }
             *conflictcutlhs += c;
 
