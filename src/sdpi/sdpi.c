@@ -849,8 +849,8 @@ SCIP_RETCODE prepareLPData(
    /* init row indices */
    for (i = 0; i < sdpi->nvars; ++i)
    {
-      sdpi->sdpilbrowidx[i] = -1;
-      sdpi->sdpiubrowidx[i] = -1;
+      sdpi->sdpilbrowidx[i] = 0;
+      sdpi->sdpiubrowidx[i] = 0;
    }
 
    currentrow = sdpi->lprow[0];
