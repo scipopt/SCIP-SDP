@@ -1393,7 +1393,7 @@ SCIP_RETCODE computeConflictCut(
 
             /* possibly correct the fact that the primal matrix might be psd only up to a certain precision */
             SCIPdebugMsg(scip, "Correcting rhs of generated cut by %g.\n", MIN(eigenvalue, 0.0));
-            *conflictcutlhs -= MIN(eigenvalue, 0.0);
+            *conflictcutlhs += MIN(eigenvalue, 0.0);
          }
       }
 
