@@ -331,6 +331,7 @@ SCIP_RETCODE SCIPsdpiGetSDPdata(
    int**                 sdpblocksizes,      /**< sizes of the SDP-blocks */
    int**                 sdpnblockvars,      /**< number of variables in each SDP-block */
    int***                sdpnblockvarnonz,   /**< sdpnblockvarnonz[i][j] = nonzeros of j-th variable in i-th block (length of row/col/val[i][j]) */
+   int***                sdpvar,             /**< sdpvar[b][j] = sdp-index of j-th variable in block b */
    int****               sdprow,             /**< sdprow[b][v][j] = row of j-th nonzero of variable v in block b */
    int****               sdpcol,             /**< sdprow[b][v][j] = column of j-th nonzero of variable v in block b */
    SCIP_Real****         sdpval,             /**< sdpval[i][j][k] = value of j-th nonzero of variable v in block b */

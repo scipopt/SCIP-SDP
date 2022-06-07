@@ -1301,6 +1301,7 @@ SCIP_RETCODE computeConflictCut(
       int* sdpblocksizes;
       int* sdpnblockvars;
       int** sdpnblockvarnonz;
+      int** sdpvar;
       int*** sdprow;
       int*** sdpcol;
       SCIP_Real*** sdpval;
@@ -1309,7 +1310,7 @@ SCIP_RETCODE computeConflictCut(
       int** sdpconstcol;
       SCIP_Real** sdpconstval;
 
-      SCIP_CALL( SCIPsdpiGetSDPdata(sdpi, &sdpblocksizes, &sdpnblockvars, &sdpnblockvarnonz, &sdprow, &sdpcol, &sdpval, &sdpconstnblocknonz, &sdpconstrow, &sdpconstcol, &sdpconstval) );
+      SCIP_CALL( SCIPsdpiGetSDPdata(sdpi, &sdpblocksizes, &sdpnblockvars, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval, &sdpconstnblocknonz, &sdpconstrow, &sdpconstcol, &sdpconstval) );
 
       SCIP_CALL( SCIPallocBufferArray(scip, &primalmatrices, nsdpblocks) );
       for (b = 0; b < nsdpblocks; ++b)
@@ -1355,7 +1356,7 @@ SCIP_RETCODE computeConflictCut(
                         p += 2.0 * sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
                   }
                }
-               var = SCIPsdpVarmapperGetSCIPvar(varmapper, v);
+               var = SCIPsdpVarmapperGetSCIPvar(varmapper, sdpvar[b][v]);
                varidx = SCIPvarGetProbindex(var);
                assert( 0 <= varidx && varidx < nvars );
                conflictcut[varidx] += p;
