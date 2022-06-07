@@ -1331,6 +1331,7 @@ SCIP_RETCODE computeConflictCut(
             SCIP_Real c = 0.0;
             SCIP_VAR* var;
             SCIP_Real eigenvalue;
+            SCIP_Real primalval;
             int row;
             int col;
             int blocksize;
@@ -1351,12 +1352,14 @@ SCIP_RETCODE computeConflictCut(
                   assert( 0 <= row && row < blocksize );
                   assert( 0 <= col && col < blocksize );
 
-                  if ( ! SCIPisFeasZero(scip, primalmatrices[b][row * blocksize + col]) )
+                  primalval = primalmatrices[b][row * blocksize + col];
+                  assert( SCIPisEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
+                  if ( ! SCIPisFeasZero(scip, primalval) )
                   {
                      if ( row == col )
-                        p += sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                        p += sdpval[b][v][k] * primalval;
                      else
-                        p += 2.0 * sdpval[b][v][k] * primalmatrices[b][row * blocksize + col];
+                        p += 2.0 * sdpval[b][v][k] * primalval;
                   }
                }
                var = SCIPsdpVarmapperGetSCIPvar(varmapper, sdpvar[b][v]);
@@ -1374,12 +1377,13 @@ SCIP_RETCODE computeConflictCut(
                assert( 0 <= row && row < blocksize );
                assert( 0 <= col && col < blocksize );
 
-               if ( ! SCIPisFeasZero(scip, primalmatrices[b][row * blocksize + col]) )
+               primalval = primalmatrices[b][row * blocksize + col];
+               if ( ! SCIPisFeasZero(scip, primalval) )
                {
                   if ( row == col )
-                     c += sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
+                     c += sdpconstval[b][k] * primalval;
                   else
-                     c += 2.0 * sdpconstval[b][k] * primalmatrices[b][row * blocksize + col];
+                     c += 2.0 * sdpconstval[b][k] * primalval;
                }
             }
             *conflictcutlhs += c;
