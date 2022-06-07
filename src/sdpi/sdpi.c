@@ -4034,13 +4034,6 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    {
       SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
    }
-   /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
-    * infeasible. In both cases we should not return the solution (rather a ray). */
-   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
-   {
-      SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-      *success = FALSE;
-   }
    else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
    {
       int i;
@@ -4065,6 +4058,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
             assert( isFixed(sdpi, i) );
       }
       *success = TRUE;
+   }
+   /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
+    * infeasible. In both cases we should not return the solution (rather a ray). */
+   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+   {
+      SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
    }
    else
    {
@@ -4114,12 +4113,6 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
    {
       SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
    }
-   /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
-    * infeasible. In both cases we should not return the solution (rather a ray). */
-   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
-   {
-      SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-   }
    else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
    {
       /* in this case, no LP rows can exist, so return 0.0 for all (the LP rows might have been preprocesssed away) */
@@ -4129,6 +4122,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
          lhsvals[i] = 0.0;
       }
       *success = TRUE;
+   }
+   /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
+    * infeasible. In both cases we should not return the solution (rather a ray). */
+   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+   {
+      SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
    }
    else
    {
@@ -4296,6 +4295,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
       SCIPdebugMessage("Solved one variable SDP, no primal solution available.\n");
+   }
+   /* If the dual is infeasible, there is no feasible solution; If the primal is infeasible, the dual is unbounded or
+    * infeasible. In both cases we should not return the solution (rather a ray). */
+   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+   {
+      SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
    }
    else
    {
