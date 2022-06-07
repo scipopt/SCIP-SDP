@@ -1271,6 +1271,7 @@ SCIP_RETCODE computeConflictCut(
 {
    SCIP_Real** primalmatrices;
    SCIP_ROW** rows;
+   SCIP_VAR** vars;
    int nsdpblocks;
    int nrows;
    int nvars;
@@ -1287,6 +1288,8 @@ SCIP_RETCODE computeConflictCut(
 
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
+   vars = SCIPgetVars(scip);
+   assert( vars != NULL );
 
    /* prepare cut */
    *conflictcutlhs = 0.0;
@@ -1359,6 +1362,7 @@ SCIP_RETCODE computeConflictCut(
                var = SCIPsdpVarmapperGetSCIPvar(varmapper, sdpvar[b][v]);
                varidx = SCIPvarGetProbindex(var);
                assert( 0 <= varidx && varidx < nvars );
+               assert( vars[varidx] == var );
                conflictcut[varidx] += p;
             }
 
@@ -1479,6 +1483,7 @@ SCIP_RETCODE computeConflictCut(
                         assert( SCIPcolGetVar(rowcols[j]) != NULL );
                         varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
                         assert( 0 <= varidx && varidx < nvars );
+                        assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
 
                         if ( ! SCIPisFeasZero(scip, primallhsval) )
                            conflictcut[varidx] += rowvals[j] * primallhsval;
@@ -1503,12 +1508,9 @@ SCIP_RETCODE computeConflictCut(
    /* add variable bounds */
    if ( nvars > 0 && *success )
    {
-      SCIP_VAR** vars;
       SCIP_Real* lbvals;
       SCIP_Real* ubvals;
       int i;
-
-      vars = SCIPgetVars(scip);
 
       SCIP_CALL( SCIPallocBufferArray(scip, &lbvals, nvars) );
       SCIP_CALL( SCIPallocBufferArray(scip, &ubvals, nvars) );
@@ -1592,7 +1594,7 @@ SCIP_RETCODE calcRelax(
 
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
-   vars = SCIPgetVars (scip);
+   vars = SCIPgetVars(scip);
 
    sdpi = relaxdata->sdpi;
    assert( sdpi != NULL );
