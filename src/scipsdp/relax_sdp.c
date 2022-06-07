@@ -1435,24 +1435,30 @@ SCIP_RETCODE computeConflictCut(
             rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
             rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
-            /* try to tighten cut */
+            /* possibly check whether tightened cut is redundant */
             if ( tightenrows )
             {
                SCIP_CALL( SCIPduplicateBufferArray(scip, &rowvals, SCIProwGetVals(row), rownnonz) );
                SCIP_CALL( SCIPduplicateBufferArray(scip, &rowcols, SCIProwGetCols(row), rownnonz) );
 
+               /* The tightened rows are only locally valid, so we use the original data below and only retain whether the row is redundant. */
                SCIP_CALL( tightenRowCoefs(scip, rowvals, rowcols, &rownnonz, &rowlhs, &rowrhs, &lhsredundant, &rhsredundant, &ntightenedrows) );
-            }
-            else
-            {
-               rowvals = SCIProwGetVals(row);
-               rowcols = SCIProwGetCols(row);
+
+               SCIPfreeBufferArray(scip, &rowcols);
+               SCIPfreeBufferArray(scip, &rowvals);
             }
 
             if ( (! lhsredundant || ! rhsredundant) )
             {
                if ( ! SCIProwIsLocal(row) )
                {
+                  /* (re)init row data */
+                  rownnonz = SCIProwGetNNonz(row);
+                  rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
+                  rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+                  rowvals = SCIProwGetVals(row);
+                  rowcols = SCIProwGetCols(row);
+
                   /* make sure that the primal values are >= 0 */
                   primallhsval = MAX(lhsvals[i], 0.0);
                   primalrhsval = MAX(rhsvals[i], 0.0);
@@ -1482,12 +1488,6 @@ SCIP_RETCODE computeConflictCut(
                   }
                }
                ++nactiverows;
-            }
-
-            if ( tightenrows )
-            {
-               SCIPfreeBufferArray(scip, &rowcols);
-               SCIPfreeBufferArray(scip, &rowvals);
             }
          }
 
