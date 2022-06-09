@@ -108,6 +108,9 @@
 #define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximum obj with when computing minimum eigenvalue for warmstart-projection in the primal */
 #define WARMSTART_PREOPT_MIN_Z_LPVAL 0.01    /**< minimal (diagonal) entry for LP block of dual matrix for preoptimal warmstarts */
 
+/* undefine the following if variable bounds should be used for generating a conflict cut: */
+/* #define CONFLICT_USE_VARIABLE_BOUNDS */
+
 
 /*
  * Data structures
@@ -1510,6 +1513,7 @@ SCIP_RETCODE computeConflictCut(
    }
 
    /* add variable bounds */
+#ifdef CONFLICT_USE_VARIABLE_BOUNDS
    if ( nvars > 0 && *success )
    {
       SCIP_Real* lbvals;
@@ -1554,6 +1558,7 @@ SCIP_RETCODE computeConflictCut(
       SCIPfreeBufferArray(scip, &ubvals);
       SCIPfreeBufferArray(scip, &lbvals);
    }
+#endif
 
    return SCIP_OKAY;
 }
