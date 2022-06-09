@@ -1274,7 +1274,9 @@ SCIP_RETCODE computeConflictCut(
 {
    SCIP_Real** primalmatrices;
    SCIP_ROW** rows;
+#ifndef NDEBUG
    SCIP_VAR** vars;
+   #endif
    int nsdpblocks;
    int nrows;
    int nvars;
@@ -1291,8 +1293,10 @@ SCIP_RETCODE computeConflictCut(
 
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
+#ifndef NDEBUG
    vars = SCIPgetVars(scip);
    assert( vars != NULL );
+#endif
 
    /* prepare cut */
    *conflictcutlhs = 0.0;
