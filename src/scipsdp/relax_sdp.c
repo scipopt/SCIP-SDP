@@ -1489,10 +1489,10 @@ SCIP_RETCODE computeConflictCut(
                         assert( 0 <= varidx && varidx < nvars );
                         assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
 
-                        if ( ! SCIPisFeasZero(scip, primallhsval) )
+                        if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
                            conflictcut[varidx] += rowvals[j] * primallhsval;
 
-                        if ( ! SCIPisFeasZero(scip, primalrhsval) )
+                        if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
                            conflictcut[varidx] -= rowvals[j] * primalrhsval;
                      }
                   }
