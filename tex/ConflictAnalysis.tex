@@ -1,0 +1,244 @@
+\documentclass[10pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[american]{babel}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{dsfont}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage[lined,ruled,noend,linesnumbered]{algorithm2e}
+\usepackage[color=red!50!blue!50,textsize=footnotesize,textwidth=4cm]{todonotes}
+\usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue]{hyperref}
+% \usepackage[tmargin=2.5cm,bmargin=2.5cm,lmargin=2.8cm,rmargin=2.8cm]{geometry}
+\usepackage{cleveref}
+\usepackage{xspace}
+
+% operators
+\DeclareMathOperator{\conv}{conv}
+\DeclareMathOperator{\cone}{cone}
+\DeclareMathOperator{\aff}{aff}
+\DeclareMathOperator{\lin}{lin}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator{\supp}{supp}
+\DeclareMathOperator{\relint}{relint}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\Diag}{Diag}
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\tr}{tr}
+\renewcommand{\Re}{\text{Re}}
+
+% macros
+\newcommand{\suchthat}{\,:\,}
+\newcommand{\abs}[1]{\lvert{#1}\rvert}
+\newcommand{\card}[1]{\lvert{#1}\rvert}
+\newcommand{\ceil}[1]{\lceil{#1}\rceil}
+\newcommand{\floor}[1]{\lfloor{#1}\rfloor}
+\newcommand{\define}{\coloneqq}
+\newcommand{\enifed}{\eqqcolon}
+\newcommand{\norm}[1]{\lVert{#1}\rVert}
+\newcommand{\Norm}[2]{\lVert{#1}\rVert_{#2}}
+\newcommand{\skal}[2]{\langle{#1},{#2}\rangle}
+\newcommand{\order}[1]{O\left({#1}\right)}
+\newcommand{\T}{^{\top}}
+
+% sets
+\newcommand{\R}{\mathds{R}}
+\newcommand{\Z}{\mathds{Z}}
+\newcommand{\Q}{\mathds{Q}}
+\newcommand{\N}{\mathds{N}}
+\newcommand{\C}{\mathds{C}}
+\newcommand{\E}{\mathds{E}}
+\newcommand{\ones}{\mathds{1}}
+\renewcommand{\P}{\mathds{P}}
+\renewcommand{\E}{\mathds{E}}
+
+% environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{question}[theorem]{Question}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% adjust itemize
+\setlist[itemize]{topsep=0.5ex,partopsep=0ex,parsep=0ex,itemsep=0.5ex}
+
+% other defines
+\newcommand{\MP}[1]{\todo{#1}}
+\newcommand{\MPin}[1]{\todo[inline]{#1}}
+
+
+% title
+\title{Conflict Analysis for Mixed-integer SDPs}
+\author{Marc E. Pfetsch\thanks{Department of Mathematics, TU Darmstadt, Germany}}
+\date{June 2022}
+
+% -------------------------------------------------------------------------
+% -------------------------------------------------------------------------
+\begin{document}
+
+\maketitle
+
+% -------------------------------------------------------------------------
+\section{Introduction}
+
+We consider mixed-integer SDPs of the following form:
+\begin{equation}\label{MISDP}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - A^0 \succeq 0, \\
+    & D y \geq d,\\
+    & \ell \leq y \leq u,\\
+    & y_i \in \Z,\quad i \in I.
+  \end{aligned}
+\end{equation}
+In each node, we solve the following relaxations with local bounds $\ell$
+and $u$:
+\begin{equation}\label{SDP-D}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - A^0 \succeq 0, \\
+    & D y \geq d,\\
+    & \ell \leq y \leq u,
+  \end{aligned}
+\end{equation}
+where for simplicity of exposition, we assume that all entries of $\ell$
+and $u$ are finite.
+
+The general idea of conflict analysis is to generate globally valid
+constraints as follows. Let any $\hat{X} \succeq 0$ and $\hat{z} \geq 0$ be
+given. Then because $A(y) \define \sum_{j=1}^m A^j\, y_j - A^0$ is positive
+semidefinite for all feasible $y \in \R^m$, we have
+$\skal{A(y)}{\hat{X}} \geq 0$.  Similarly, the aggregated inequalities
+$\hat{z}\T D \geq \hat{z}\T d$ hold. Together this yields:
+\begin{align}
+  & \skal{A(y)}{\hat{X}} + \hat{z}\T D \geq \hat{z}\T d\notag\\
+  \Leftrightarrow\quad
+  & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D + \geq
+    \skal{A^0}{\hat{X}} + \hat{z}\T d,\label{eq:ConflictCut}
+\end{align}
+which is valid for all feasible $y$. Clearly,
+Inequality~\eqref{eq:ConflictCut} is redundant for continuous $y$, but it
+might allow to cut off certain mixed-integer solutions~$y$. In the implementation,
+we only propagate bounds using~\eqref{eq:ConflictCut}.
+
+
+More generally, we can also use the variable bounds $\ell \leq y$ and
+$y \leq u$. If $\hat{r}^\ell$, $\hat{r}^u \geq 0$ are the corresponding
+multiliers, this yields:
+\begin{align}
+  & \skal{A(y)}{\hat{X}} + \hat{z}\T D + (\hat{r}^\ell)\T y - (\hat{r}^u)\T y
+    \geq \hat{z}\T d + (\hat{r}^\ell)\T \ell + (\hat{r}^u)\T u\notag\\
+  \Leftrightarrow
+  & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D +
+    (\hat{r}^\ell)\T y - (\hat{r}^u)\T y \geq \skal{A^0}{\hat{X}} +
+    \hat{z}\T d + (\hat{r}^\ell)\T \ell + (\hat{r}^u)\T u,\label{eq:ConflictCut2}
+\end{align}
+which is again valid for all feasible $y$.
+
+
+% -------------------------------------------------------------------------
+\section{Generation of Conflict Constraints}
+
+Let $X$ be the dual variables for the SDP-constraint $A(y) \succeq 0$, $z$
+be the dual variables for $Dy \geq d$, and $r^\ell$ and $r^u$ be the dual
+variables for the bound constraints $y \geq \ell$ and $-y \geq -u$,
+respectively. Then the corresponding primal problem for~\eqref{SDP-D} is:
+\begin{equation}\label{SDP-P}
+  \begin{aligned}
+     \sup \quad & \skal{A^0}{X} + z\T d + \ell\T r^\ell - u\T r^u\\
+     \text{s.t.} \quad & \skal{A^j}{X} + D\T z + r^\ell_j - r^u_j = b_j && \forall \, j \in [m],\\
+     & X \succeq 0,\; z, \; r^\ell,\; r^u \geq 0.
+  \end{aligned}
+\end{equation}
+Any feasible solution can be used to construct~\eqref{eq:ConflictCut}
+or~\eqref{eq:ConflictCut2}.
+
+Similarly, a primal ray $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$,
+i.e.,
+\begin{equation}\label{eq:ray}
+\begin{aligned}
+  & \skal{A^j}{\hat{X}} + D\T \hat{z} + \hat{r}^\ell_j - \hat{r}^u_j = 0 && \forall\; j \in [m],\\
+  & \skal{A^0}{\hat{X}} + d\T \hat{z} + \ell\T \hat{r}^\ell - u\T \hat{r}^u > 0,
+\end{aligned}
+\end{equation}
+yields an inequality as in~\eqref{eq:ConflictCut}
+or~\eqref{eq:ConflictCut2}.
+
+If $\ell \leq u$ and~\eqref{eq:ray} has a feasible solution
+$(\tilde{X}, \tilde{r}^\ell, \tilde{r}^u)$, then
+$(\hat{X}, \hat{r}^\ell, \hat{r}^u)$ with $\hat{X} = \tilde{X}$ and
+$\hat{r}^\ell_j = - \min\,\{\skal{A^j}{\tilde{X}}, 0\} \geq 0$ and
+$\hat{r}^u_j = \max\,\{\skal{A^j}{\tilde{X}}, 0\} \geq 0$ is feasible
+for~\eqref{eq:ray}. Indeed, it is clear that the equations
+of~\eqref{eq:ray} are satisfied. Therefore consider the contribution to
+$\ell\T \hat{r}^\ell - u\T \hat{r}^u$ in component $j$:
+\begin{align*}
+  \ell_j \hat{r}^\ell_j - u_j \hat{r}^u_j & = - \ell_j\, \min\,\{\skal{A^j}{\tilde{X}}, 0\} - u_j\, \max\,\{\skal{A^j}{\tilde{X}}, 0\}\\
+  & = - \ell_j\, \min\,\{\tilde{r}^u_j - \tilde{r}^\ell_j, 0\} - u_j\, \max\,\{\tilde{r}^u_j - \tilde{r}^\ell_j, 0\}\\
+  & = \begin{cases}
+    - \ell_j\, (\tilde{r}^u_j - \tilde{r}^\ell_j) & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
+    - u_j\, (\tilde{r}^u_j - \tilde{r}^\ell_j) & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
+  \end{cases}\\
+  & = \begin{cases}
+    - \ell_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
+    - u_j\, \tilde{r}^u_j + u_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
+  \end{cases}\\
+  & \geq \begin{cases}
+    - u_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if }  \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
+    - u_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
+  \end{cases}\\
+  & = \ell_j \tilde{r}^\ell_j - u_j \tilde{r}^u_j.
+\end{align*}
+Therefore the inequality in~\eqref{eq:ray} holds as well.
+
+This implies that
+\begin{align*}
+  0 & < \skal{A^0}{\hat{X}} + \ell\T \hat{r}^\ell - u\T \hat{r}^u\\
+  & = \skal{A^0}{\hat{X}} + \sum_{j=1}^m \ell_j \hat{r}^\ell_j -
+    \sum_{j=1}^m u_j \hat{r}^u_j\\
+  & = \skal{A^0}{\hat{X}} - \sum_{j: \skal{A^j}{\hat{X}} < 0} \ell_j \skal{A^j}{\hat{X}} -
+    \sum_{j: \skal{A^j}{\hat{X}} > 0} u_j \skal{A^j}{\hat{X}}.
+\end{align*}
+This implies
+\begin{align*}
+  \sum_{j: \skal{A^j}{\hat{X}} < 0} \ell_j \skal{A^j}{\hat{X}} +
+    \sum_{j: \skal{A^j}{\hat{X}} > 0} u_j \skal{A^j}{\hat{X}} < \skal{A^0}{\hat{X}}.
+\end{align*}
+However, any feasible solution $\hat{y}$ satisfies $A(\hat{y}) \succeq 0$ and $\ell
+\leq \hat{y} \leq u$ and therefore
+\begin{align*}
+  0 & \leq \skal{A(\hat{y})}{\hat{X}} =
+      \sum_{j=1}^m \skal{A^j}{\hat{X}}\, \hat{y}_j + \sum_{j=1}^m
+      \skal{A^j}{\hat{X}}\, \hat{y}_j - \skal{A^0}{\hat{X}}\\
+    & \leq \sum_{j: \skal{A^j}{\hat{X}} < 0} \skal{A^j}{\hat{X}}\, \ell_j +
+    \sum_{j: \skal{A^j}{\hat{X}} > 0} \skal{A^j}{\hat{X}} u_j -
+      \skal{A^0}{\hat{X}},
+\end{align*}
+a contradition. This implies that the valid linear inequality
+$\skal{A(\hat{y})}{\hat{X}} \geq 0$ shows infeasibility with respect to the
+local bounds.
+
+
+% -------------------------------------------------------------------------
+\section{Infeasibility Proof Analysis}
+
+\end{document}
+
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
