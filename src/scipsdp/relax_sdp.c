@@ -100,6 +100,9 @@
 #define DEFAULT_USESCALING          TRUE     /**< whether the SDP-solver should use scaling */
 #define DEFAULT_SCALEOBJ            FALSE    /**< whether the objective should be scaled in order to get a more stable behavior */
 #define DEFAULT_CONFLICTCONSS       FALSE    /**< whether conflict constraints should be generated */
+#define DEFAULT_CONFLICTFEAS        FALSE    /**< whether conflict constraints should be generated for feasible subproblems */
+#define DEFAULT_CONFLICTOBJCUT      FALSE    /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
+#define DEFAULT_CONFLICTINFEAS      TRUE     /**< whether conflict constraints should be generated for infeasible subproblems */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
@@ -141,6 +144,9 @@ struct SCIP_RelaxData
    SCIP_Bool             usescaling;         /**< whether the SDP-solver should use scaling */
    SCIP_Bool             scaleobj;           /**< whether the objective should be scaled in order to get a more stable behavior */
    SCIP_Bool             conflictconss;      /**< whether conflict constraints should be generated */
+   SCIP_Bool             conflictfeas;       /**< whether conflict constraints should be generated for feasible subproblems */
+   SCIP_Bool             conflictobjcut;     /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
+   SCIP_Bool             conflictinfeas;     /**< whether conflict constraints should be generated for infeasible subproblems */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -1688,7 +1694,7 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
-      if ( relaxdata->conflictconss )
+      if ( relaxdata->conflictconss && ( ( SCIPsdpiIsDualFeasible(sdpi) && relaxdata->conflictfeas ) || ( SCIPsdpiIsDualInfeasible(sdpi) && relaxdata->conflictinfeas ) ) )
       {
          SCIP_Real* conflictcut = NULL;
          SCIP_Real conflictcutlhs;
@@ -5282,6 +5288,18 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictconss",
          "whether conflict constraints should be generated",
          &(relaxdata->conflictconss), TRUE, DEFAULT_CONFLICTCONSS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictfeas",
+         "whether conflict constraints should be generated for feasible subproblems",
+         &(relaxdata->conflictfeas), TRUE, DEFAULT_CONFLICTFEAS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictobjcut",
+         "whether an objective cut should be used to generate conflict constraints for feasible subproblems",
+         &(relaxdata->conflictobjcut), TRUE, DEFAULT_CONFLICTOBJCUT, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictinfeas",
+         "whether conflict constraints should be generated for infeasible subproblems",
+         &(relaxdata->conflictinfeas), TRUE, DEFAULT_CONFLICTINFEAS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled",
