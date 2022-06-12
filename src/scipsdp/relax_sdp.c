@@ -1273,6 +1273,7 @@ SCIP_RETCODE computeConflictCut(
    SCIP_Bool             tightenrows,        /**< whether rows should be tightened */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   SCIP_Bool             conflictobjcut,     /**< whether an objective cut should be used if the SDP was feasible */
    SCIP_Real*            conflictcut,        /**< coefficients of cut */
    SCIP_Real*            conflictcutlhs,     /**< lhs of cut */
    SCIP_Bool*            success             /**< pointer to return whether computation was successful */
@@ -1280,9 +1281,7 @@ SCIP_RETCODE computeConflictCut(
 {
    SCIP_Real** primalmatrices;
    SCIP_ROW** rows;
-#ifndef NDEBUG
    SCIP_VAR** vars;
-   #endif
    int nsdpblocks;
    int nrows;
    int nvars;
@@ -1299,10 +1298,8 @@ SCIP_RETCODE computeConflictCut(
 
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
-#ifndef NDEBUG
    vars = SCIPgetVars(scip);
    assert( vars != NULL );
-#endif
 
    /* prepare cut */
    *conflictcutlhs = 0.0;
@@ -1518,6 +1515,37 @@ SCIP_RETCODE computeConflictCut(
 
          SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &nlpcons) );
          assert( nlpcons == nactiverows );
+
+         /* possibly add objective cut */
+         if ( conflictobjcut )
+         {
+            SCIP_Real primalbound;
+            SCIP_Bool objintegral = TRUE;
+            SCIP_Real obj;
+
+            primalbound = SCIPgetCutoffbound(scip);
+            if ( ! SCIPisInfinity(scip, REALABS(primalbound)) )
+            {
+               for (j = 0; j < nvars; ++j)
+               {
+                  obj = SCIPvarGetObj(vars[j]);
+                  if ( ! SCIPisZero(scip, obj) )
+                  {
+                     conflictcut[j] -= obj;
+
+                     if ( ! SCIPvarIsIntegral(vars[j]) || ! SCIPisIntegral(scip, obj) )
+                        objintegral = FALSE;
+                  }
+               }
+
+               if ( objintegral )
+                  primalbound -= 1.0;
+               else
+                  primalbound -= SCIPfeastol(scip);
+
+               *conflictcutlhs -= primalbound;
+            }
+         }
       }
 
       SCIPfreeBufferArray(scip, &rhsvals);
@@ -1704,7 +1732,7 @@ SCIP_RETCODE calcRelax(
          SCIP_Bool success;
 
          SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
-         SCIP_CALL( computeConflictCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, conflictcut, &conflictcutlhs, &success) );
+         SCIP_CALL( computeConflictCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &success) );
 
          /* generate constraint if dual cut is valid */
          if ( success )
