@@ -1696,7 +1696,8 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
 
-      if ( relaxdata->conflictconss && ( ( SCIPsdpiIsDualFeasible(sdpi) && relaxdata->conflictfeas ) || ( SCIPsdpiIsDualInfeasible(sdpi) && relaxdata->conflictinfeas ) ) )
+      if ( SCIPsdpiWasSolved(sdpi) && relaxdata->conflictconss &&
+         ( ( SCIPsdpiIsDualFeasible(sdpi) && relaxdata->conflictfeas ) || ( SCIPsdpiIsDualInfeasible(sdpi) && relaxdata->conflictinfeas ) ) )
       {
          SCIP_Real* conflictcut = NULL;
          SCIP_Real conflictcutlhs;
