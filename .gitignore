@@ -34,6 +34,12 @@ RIP-MISDP-Paper/scripts/*.out
 RIP-MISDP-Paper/scripts/*.pdf
 RIP-MISDP-Paper/scripts/*.spl
 RIP-MISDP-Paper/scripts/*.tex.backup
+tex/*.aux
+tex/*.bbl
+tex/*.blg
+tex/*.log
+tex/*.out
+tex/*.pdf
 check/results/*
 instances/*.dat-s_misdp.sol
 instances/cblib
