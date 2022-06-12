@@ -1767,7 +1767,7 @@ SCIP_RETCODE calcRelax(
             /* add constraint as a conflict (will add and release constraint) */
             if ( cnt > 0 )
             {
-               SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, FALSE) );
+               SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut) );
                cons = NULL;
             }
             else
