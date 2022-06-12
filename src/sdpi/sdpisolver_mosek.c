@@ -2489,12 +2489,9 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
    /* loop through LP rows */
    for (i = 0; i < nlpcons; i++)
    {
-      SCIP_Real val;
-
       if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
       {
-         val = primalvars[ind] * sdpisolver->objscalefactor;
-         lhsvals[i] = val;
+         lhsvals[i] = primalvars[ind] * sdpisolver->objscalefactor;
          ++ind;
       }
       else
@@ -2502,8 +2499,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
 
       if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
       {
-         val = primalvars[ind] * sdpisolver->objscalefactor;
-         rhsvals[i] = val;
+         rhsvals[i] = primalvars[ind] * sdpisolver->objscalefactor;
          ++ind;
       }
       else
