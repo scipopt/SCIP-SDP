@@ -1409,6 +1409,7 @@ SCIP_RETCODE computeConflictCut(
             *conflictcutlhs += MIN(eigenvalue, 0.0);
          }
       }
+      assert( ! SCIPisInfinity(scip, REALABS(*conflictcutlhs)) );
 
       /* free memory */
       for (b = 0; b < nsdpblocks; ++b)
@@ -1472,7 +1473,7 @@ SCIP_RETCODE computeConflictCut(
 
             if ( (! lhsredundant || ! rhsredundant) )
             {
-               if ( ! SCIProwIsLocal(row) )
+               if ( ! SCIProwIsLocal(row) && ! SCIPisInfinity(scip, REALABS(lhsvals[i])) && ! SCIPisInfinity(scip, REALABS(rhsvals[i])) )
                {
                   /* (re)init row data */
                   rownnonz = SCIProwGetNNonz(row);
@@ -1513,6 +1514,7 @@ SCIP_RETCODE computeConflictCut(
                ++nactiverows;
             }
          }
+         assert( ! SCIPisInfinity(scip, REALABS(*conflictcutlhs)) );
 
          SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &nlpcons) );
          assert( nlpcons == nactiverows );
