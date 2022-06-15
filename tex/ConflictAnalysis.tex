@@ -92,7 +92,7 @@
 
 The original intention of conflict analysis was to derive useful
 information from infeasible subproblems in a branch-and-bound
-procedure. There are two types of conflict analysis: 
+procedure. There are two types of conflict analysis:
 \begin{itemize}
 \item If infeasibility was determined using propagation of variable bounds,
   one can use a graph-based conflict analysis. Here, a directed graph
@@ -118,6 +118,11 @@ procedure. There are two types of conflict analysis:
   analysis by Witzig~\cite{Wit22} (see also \cite{WitBH17}). We follow this
   approach in the following.
 \end{itemize}
+
+Very similar ideas are needed for an outer approximation algorithm, in
+which one adds aggregated inequalities that will cut off nodes that are
+infeasible or bound exceeding. Coey et al.~\cite{CoeLV20} describe such an
+algorithm for mixed-integer conic problems (including MISDP).
 
 
 
