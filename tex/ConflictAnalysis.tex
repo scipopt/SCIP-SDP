@@ -90,6 +90,37 @@
 
 \maketitle
 
+The original intention of conflict analysis was to derive useful
+information from infeasible subproblems in a branch-and-bound
+procedure. There are two types of conflict analysis: 
+\begin{itemize}
+\item If infeasibility was determined using propagation of variable bounds,
+  one can use a graph-based conflict analysis. Here, a directed graph
+  encodes the dependency of bound changes on each other, i.e., whether one
+  bound was used to strengthen the other bound. One can then try to find a
+  small subset of bound changes that arise from branching decisions that
+  still lead to infeasibility. One can then add constraints that enforce
+  that at least one branching decision is taken in a different
+  way. See~\cite{Ach07b,Ach07} for more information in the context of MIPs.
+
+  This kind of conflict analysis can also be used in the context of MISDPs
+  and has already been investigated in~\cite{MatP22}. Overall, this kind of
+  conflict analysis was not beneficial.
+\item If the relaxation is infeasible, there are two ways to derive
+  conflict information: The first is a greedy approach, which relaxes some
+  of the branching decisions leading to the current relaxation as long as
+  the relaxation remains infeasible. Then a constraint as in graph-based
+  conflict analysis can be derived. See~\cite{Ach07b,Ach07} for more
+  information in the context of MIPs.
+
+  The other method is to use dual information to derive valid inequalities,
+  which can then be propagated during the tree. This is called dual ray
+  analysis by Witzig~\cite{Wit22} (see also \cite{WitBH17}). We follow this
+  approach in the following.
+\end{itemize}
+
+
+
 % -------------------------------------------------------------------------
 \section{Introduction}
 
