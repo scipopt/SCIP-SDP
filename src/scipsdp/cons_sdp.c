@@ -649,7 +649,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 static
 SCIP_RETCODE isMatrixRankOne(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
    SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
    SCIP_SOL*             sol,                /**< solution to check for rank one */
    SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
@@ -1126,7 +1125,6 @@ SCIP_RETCODE addMultipleSparseCuts(
    assert( fullmatrix != NULL );
    assert( fullconstmatrix != NULL );
    assert( eigenvector != NULL );
-   assert( maxncuts > 0 );
    assert( vector != NULL );
    assert( ncuts != NULL );
    assert( result != NULL );
@@ -3702,7 +3700,6 @@ SCIP_RETCODE checkRank1QuadConss(
    SCIP_CONSDATA* consdata;
    SCIP_Real* matrix;
    SCIP_Real submatrix[3];
-   SCIP_Real minor;
    SCIP_Real tol;
    int blocksize;
    int i;
@@ -3710,7 +3707,6 @@ SCIP_RETCODE checkRank1QuadConss(
 
    assert( scip != NULL );
    assert( cons != NULL );
-   assert( sol != NULL );
    assert( isrankone != NULL );
 
    consdata = SCIPconsGetData(cons);
@@ -3740,6 +3736,8 @@ SCIP_RETCODE checkRank1QuadConss(
    {
       for (j = 0; j < i && *isrankone; ++j)
       {
+         SCIP_Real minor;
+
          submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
          submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
          submatrix[2] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
@@ -3755,11 +3753,10 @@ SCIP_RETCODE checkRank1QuadConss(
                SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
             }
          }
+         if ( sol != NULL )
+            SCIPupdateSolConsViolation(scip, sol, REALABS(minor), REALABS(minor) / (1.0 + consdata->maxrhsentry));
       }
    }
-
-   if ( sol != NULL )
-      SCIPupdateSolConsViolation(scip, sol, REALABS(minor), REALABS(minor) / (1.0 + consdata->maxrhsentry));
 
    SCIPfreeBufferArray(scip, &matrix);
 
@@ -5112,7 +5109,7 @@ SCIP_RETCODE propagate3Minors(
                   posrs = r * (r + 1)/2 + s;
 
                   /* skip positions covered by at least two variables */
-                  if ( consdata->matrixval[posrs] == SCIP_INVALID )
+                  if ( consdata->matrixval[posrs] == SCIP_INVALID ) /*lint !e777*/
                      continue;
 
                   var = consdata->matrixvar[posrs];
@@ -5241,7 +5238,7 @@ SCIP_RETCODE propagate3Minors(
                diagr = r * (r + 1)/2 + r;
 
                /* skip positions covered by at least two variables */
-               if ( consdata->matrixval[diagr] == SCIP_INVALID )
+               if ( consdata->matrixval[diagr] == SCIP_INVALID ) /*lint !e777*/
                   continue;
 
                var = consdata->matrixvar[diagr];
@@ -5270,7 +5267,7 @@ SCIP_RETCODE propagate3Minors(
                   diags = s * (s + 1)/2 + s;
 
                   /* skip positions covered by at least two variables */
-                  if ( consdata->matrixval[diags] == SCIP_INVALID )
+                  if ( consdata->matrixval[diags] == SCIP_INVALID ) /*lint !e777*/
                      continue;
 
                   var = consdata->matrixvar[diags];
@@ -5293,7 +5290,7 @@ SCIP_RETCODE propagate3Minors(
                   posrs = r * (r + 1)/2 + s;
 
                   /* skip positions covered by at least two variables */
-                  if ( consdata->matrixval[posrs] == SCIP_INVALID )
+                  if ( consdata->matrixval[posrs] == SCIP_INVALID ) /*lint !e777*/
                      continue;
 
                   var = consdata->matrixvar[posrs];
@@ -5328,7 +5325,7 @@ SCIP_RETCODE propagate3Minors(
                      diagt = t * (t + 1)/2 + t;
 
                      /* skip positions covered by at least two variables */
-                     if ( consdata->matrixval[diagt] == SCIP_INVALID )
+                     if ( consdata->matrixval[diagt] == SCIP_INVALID ) /*lint !e777*/
                         continue;
 
                      var = consdata->matrixvar[diagt];
@@ -6827,8 +6824,8 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
 
       assert( consdata->matrixvar[diags] != NULL );
       assert( consdata->matrixvar[diagt] != NULL );
-      assert( consdata->matrixval[diags] != SCIP_INVALID );
-      assert( consdata->matrixval[diagt] != SCIP_INVALID );
+      assert( consdata->matrixval[diags] != SCIP_INVALID ); /*lint !e777*/
+      assert( consdata->matrixval[diagt] != SCIP_INVALID ); /*lint !e777*/
 
       if ( consdata->matrixval[diags] > 0.0 )
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], bdchgidx) );
@@ -7370,7 +7367,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       if ( conshdlrdata->sdpconshdlrdata->quadconsrank1 && ! consdata->addedquadcons )
       {
          /* check quadratic constraints manually */
-         checkRank1QuadConss(scip, conshdlrdata, conss[i], sol, printreason, &rank1result);
+         SCIP_CALL( checkRank1QuadConss(scip, conshdlrdata, conss[i], sol, printreason, &rank1result) );
 
 #ifdef PRINTMATRICES
          SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
@@ -7379,7 +7376,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       else if ( ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
       {
          /* We need to check for rank-1. */
-         SCIP_CALL( isMatrixRankOne(scip, conshdlrdata, conss[i], sol, printreason, &rank1result) );
+         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, printreason, &rank1result) );
 #ifdef PRINTMATRICES
          SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
 #endif

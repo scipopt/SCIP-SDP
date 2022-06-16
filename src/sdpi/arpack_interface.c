@@ -99,7 +99,7 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< array for eigenvector */
    )
-{
+{  /*lint --e{715}*/
 #ifdef ARPACK
    int IPARAM[11];
    int IPNTR[11];
@@ -248,7 +248,7 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvectorOneVar(
    SCIP_Real*            eigenvalue,         /**< pointer to store eigenvalue */
    SCIP_Real*            eigenvector         /**< array for eigenvector */
    )
-{
+{  /*lint --e{715}*/
 #ifdef ARPACK
    int IPARAM[11];
    int IPNTR[11];
