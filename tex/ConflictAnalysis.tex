@@ -214,15 +214,24 @@ used to construct~\eqref{eq:ConflictCut} or~\eqref{eq:ConflictCut2}.
 Moreover, one can take an objective cutoff into account. Namely, assume
 that $y^\star$ is a feasible solution to~\eqref{MISDP}. We are then only
 interested in solutions that are at least as good, i.e.,
-$b\T y \leq b\T y^\star$ or $- b\T y \geq - b\T y^\star$. Adding this
-inequality to~\eqref{eq:ConflictCut} yields:
+$b\T y \leq b\T y^\star$ or $- b\T y \geq - \overline{b}$, where
+$\overline{b} = b\T y^\star - \varepsilon$ for $\varepsilon > 0$. Adding
+this inequality to~\eqref{eq:ConflictCut} yields:
 \begin{align*}
   & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D y - b\T y \geq
-    \skal{A^0}{\hat{X}} + \hat{z}\T d - b\T y^\star\\
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}\\
   \Leftrightarrow\quad
   & \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big) y_j \geq
-    \skal{A^0}{\hat{X}} + \hat{z}\T d - b\T y^\star.
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}.
 \end{align*}
+
+If the mixed-integer feasible point $y^\star$ was produced by the current
+node relaxation, then this cut will cut off~$y^\star$: First, by
+complementary slackness, the aggregated inequalities are satisfied with
+equality. Moreover, $b\T y \leq \overline{b} < b\T y^\star$ will be
+violated by construction. Thus, $y^\star$ is cut off. It remains to see
+whether propagation of the local bounds at this node will detect
+infeasibility.
 
 % -------------------------------------------------------------------------
 \subsection{Infeasible Problems}
