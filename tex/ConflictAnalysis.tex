@@ -90,40 +90,6 @@
 
 \maketitle
 
-The original intention of conflict analysis was to derive useful
-information from infeasible subproblems in a branch-and-bound
-procedure. There are two types of conflict analysis:
-\begin{itemize}
-\item If infeasibility was determined using propagation of variable bounds,
-  one can use a graph-based conflict analysis. Here, a directed graph
-  encodes the dependency of bound changes on each other, i.e., whether one
-  bound was used to strengthen the other bound. One can then try to find a
-  small subset of bound changes that arise from branching decisions that
-  still lead to infeasibility. One can then add constraints that enforce
-  that at least one branching decision is taken in a different
-  way. See~\cite{Ach07b,Ach07} for more information in the context of MIPs.
-
-  This kind of conflict analysis can also be used in the context of MISDPs
-  and has already been investigated in~\cite{MatP22}. Overall, this kind of
-  conflict analysis was not beneficial.
-\item If the relaxation is infeasible, there are two ways to derive
-  conflict information: The first is a greedy approach, which relaxes some
-  of the branching decisions leading to the current relaxation as long as
-  the relaxation remains infeasible. Then a constraint as in graph-based
-  conflict analysis can be derived. See~\cite{Ach07b,Ach07} for more
-  information in the context of MIPs.
-
-  The other method is to use dual information to derive valid inequalities,
-  which can then be propagated during the tree. This is called dual ray
-  analysis by Witzig~\cite{Wit22} (see also \cite{WitBH17}). We follow this
-  approach in the following.
-\end{itemize}
-
-Very similar ideas are needed for an outer approximation algorithm, in
-which one adds aggregated inequalities that will cut off nodes that are
-infeasible or bound exceeding. Coey et al.~\cite{CoeLV20} describe such an
-algorithm for mixed-integer conic problems (including MISDP).
-
 
 
 % -------------------------------------------------------------------------
@@ -164,12 +130,94 @@ respectively. Then the corresponding primal problem for~\eqref{SDP-D} is:
   \end{aligned}
 \end{equation}
 
+We will need the following result.
+
+\begin{lemma}\label{lemma:ComplemenatrySolution}
+  Let $\hat{r}^\ell$, $\hat{r}^u \in \R^m_+$ with
+  $\hat{r}^\ell - \hat{r}^u = \hat{s}$ for some $\hat{s} \in \R^m$. Then
+  there exists $r^\ell$, $r^u \in \R^m_+$ with $r^\ell - r^u = s$, such
+  that $r_j^\ell \cdot r_j^u = 0$ for all $j \in [m]$ and for
+  $\ell \leq u$:
+  \begin{equation}\label{eq:objpart}
+    \ell\T r^\ell - u\T r^u \geq \ell\T \hat{r}^\ell - u\T \hat{r}^u.
+  \end{equation}
+\end{lemma}
+
+\begin{proof}
+  Define
+  \[
+    r^\ell_j \define - \min\,\{\hat{s}_j, 0\} \geq 0,
+    \quad
+    r^u_j = \max\,\{\hat{s}_j, 0\} \geq 0.
+  \]
+  By construction $r^\ell_j \cdot r^u_j = 0$ for all
+  $j \in [m]$ and $r^\ell - r^u = s$. Then consider:
+  \begin{align*}
+    \ell_j r^\ell_j - u_j r^u_j & = - \ell_j\, \min\,\{\hat{s}_j, 0\} - u_j\, \max\,\{\hat{s}_j, 0\}\\
+    & = - \ell_j\, \min\,\{\hat{r}^u_j - \hat{r}^\ell_j, 0\} - u_j\, \max\,\{\hat{r}^u_j - \hat{r}^\ell_j, 0\}\\
+    & = \begin{cases}
+      - \ell_j\, (\hat{r}^u_j - \hat{r}^\ell_j) & \text{if } \hat{r}^u_j - \hat{r}^\ell_j < 0,\\
+      - u_j\, (\hat{r}^u_j - \hat{r}^\ell_j) & \text{if } \hat{r}^u_j - \hat{r}^\ell_j \geq 0,
+    \end{cases}\\
+    & = \begin{cases}
+      - \ell_j\, \hat{r}^u_j + \ell_j \hat{r}^\ell_j & \text{if } \hat{r}^u_j - \hat{r}^\ell_j < 0,\\
+      - u_j\, \hat{r}^u_j + u_j \hat{r}^\ell_j & \text{if } \hat{r}^u_j - \hat{r}^\ell_j \geq 0,
+    \end{cases}\\
+    & \geq \begin{cases}
+      - u_j\, \hat{r}^u_j + \ell_j \hat{r}^\ell_j & \text{if }  \hat{r}^u_j - \hat{r}^\ell_j < 0,\\
+      - u_j\, \hat{r}^u_j + \ell_j \hat{r}^\ell_j & \text{if } \hat{r}^u_j - \hat{r}^\ell_j \geq 0,
+    \end{cases}\\
+    & = \ell_j \hat{r}^\ell_j - u_j \hat{r}^u_j,
+  \end{align*}
+  which shows~\eqref{eq:objpart}.
+\end{proof}
+
+% -------------------------------------------------------------------------
+% -------------------------------------------------------------------------
+\section{Brief Literature Review for Conflict Analysis}
+
+The original intention of conflict analysis was to derive useful
+information from infeasible subproblems in a branch-and-bound
+procedure. There are three types of conflict analysis:
+\begin{itemize}
+\item If infeasibility was determined using propagation of variable bounds,
+  one can use a \emph{graph-based conflict analysis}. Here, a directed graph
+  encodes the dependency of bound changes on each other, i.e., whether one
+  bound was used to strengthen the other bound. One can then try to find a
+  small subset of bound changes that arise from branching decisions that
+  still lead to infeasibility. One can then add constraints enforcing
+  that at least one branching decision is taken in a different
+  way. See~\cite{Ach07b,Ach07} for more information in the context of MIPs.
+
+  This kind of conflict analysis can also be used in the context of MISDPs
+  and has already been investigated in~\cite{MatP22}. Overall, this kind of
+  conflict analysis was not beneficial.
+\item If the relaxation is infeasible, there is a \emph{greedy approach},
+  which relaxes some of the branching decisions defining the current node
+  as long as the relaxation remains infeasible. Then a constraint as in
+  graph-based conflict analysis can be derived. See~\cite{Ach07b,Ach07} for
+  more information in the context of MIPs. This method does not seem very
+  promising for MISDPs, since we do not have warm start in this case.
+\item If the relaxation is infeasible, one can also use dual information
+  to derive valid inequalities, which can then be propagated during the
+  tree. This is called dual ray analysis by Witzig~\cite{Wit22} (see also
+  \cite{WitBH17}).
+\end{itemize}
+
+In the following, we will generalize the last approach to MISDPs and call
+it \emph{dual conflict analysis}.
+
+Very similar ideas are needed for an outer approximation algorithm, in
+which one adds aggregated inequalities that will cut off nodes that are
+infeasible or bound exceeding. Coey et al.~\cite{CoeLV20} describe such an
+algorithm for mixed-integer conic problems (including MISDP).
+
 
 % -------------------------------------------------------------------------
 % -------------------------------------------------------------------------
 \section{Generation of Conflict Constraints}
 
-The general idea of conflict analysis is to generate globally valid
+The general idea of dual conflict analysis is to generate globally valid
 constraints as follows. Let any $\hat{X} \succeq 0$ and $\hat{z} \geq 0$ be
 given. Then because $A(y) \define \sum_{j=1}^m A^j\, y_j - A^0$ is positive
 semidefinite for all feasible $y \in \R^m$, we have
@@ -186,10 +234,9 @@ Inequality~\eqref{eq:ConflictCut} is redundant for continuous $y$, but it
 might allow to cut off certain mixed-integer solutions~$y$. In the implementation,
 we only propagate bounds using~\eqref{eq:ConflictCut}.
 
-
 More generally, we can also use the variable bounds $\ell \leq y$ and
 $y \leq u$. If $\hat{r}^\ell$, $\hat{r}^u \geq 0$ are the corresponding
-multiliers, this yields:
+multipliers, this yields:
 \begin{align}
   & \skal{A(y)}{\hat{X}} + \hat{z}\T D y + (\hat{r}^\ell)\T y - (\hat{r}^u)\T y
     \geq \hat{z}\T d + (\hat{r}^\ell)\T \ell + (\hat{r}^u)\T u\notag\\
@@ -201,7 +248,7 @@ multiliers, this yields:
 \end{align}
 which is again valid for all feasible $y$.
 
-It seems that~\eqref{eq:ConflictCut2} are less helpful
+It seems that Inequalities~\eqref{eq:ConflictCut2} are less helpful
 than~\eqref{eq:ConflictCut}. However, one can cancel some coefficients
 in~\eqref{eq:ConflictCut} using variable bounds -- see
 Section~\ref{sec:Canceling}.
@@ -210,7 +257,7 @@ Section~\ref{sec:Canceling}.
 \subsection{Infeasible Problems}
 
 A primal ray, i.e., a point $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$
-satsifying the system
+satisfying the system
 \begin{equation}\label{eq:ray}
 \begin{aligned}
   & \skal{A^j}{X} + (D\T z)_j + r^\ell_j - r^u_j = 0 && \forall\; j \in [m],\\
@@ -221,52 +268,11 @@ yields an inequality as in~\eqref{eq:ConflictCut}
 or~\eqref{eq:ConflictCut2}.
 
 In this case, one can prove that~\eqref{eq:ConflictCut} actually proves
-infeasibility for the local bounds~$\ell$ and $u$. To this end, we first
-show the following:
-
-\begin{lemma}\label{lemma:ComplemenatrySolution}
-  If~\eqref{eq:ray} has a feasible solution, then there exists a feasible
-  solution in which $r_j^\ell \cdot r_j^u = 0$ for all $j \in [m]$, i.e.,
-  at most one of $r_j^\ell$ and $r_j^u$ is nonzero.
-\end{lemma}
-
-\begin{proof}
-  Let $(\hat{X}, \hat{z}, \tilde{r}^\ell, \tilde{r}^u)$ be a feasible
-  solution of~\eqref{eq:ray}. Then define
-  \[
-    \hat{r}^\ell_j \define - \min\,\{\skal{A^j}{\hat{X}} + (D\T \hat{z})_j,\; 0\} \geq 0,
-    \quad
-    \hat{r}^u_j = \max\,\{\skal{A^j}{\hat{X}} + (D\T \hat{z})_j,\; 0\} \geq 0.
-  \]
-  We claim that $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ is feasible
-  for~\eqref{eq:ray}. Note that by construction we have
-  $\hat{r}^\ell_j \cdot \hat{r}^u_j = 0$ for all $j \in [m]$.
-
-  First observere that the equations of~\eqref{eq:ray} are
-  satisfied. Therefore consider the contribution to
-  $\ell\T \hat{r}^\ell - u\T \hat{r}^u$ in component $j$:
-  \begin{align*}
-    \ell_j \hat{r}^\ell_j - u_j \hat{r}^u_j & = - \ell_j\, \min\,\{\skal{A^j}{\hat{X}} + (D\T \hat{z})_j, 0\} - u_j\, \max\,\{\skal{A^j}{\hat{X}} + (D\T \hat{z})_j, 0\}\\
-    & = - \ell_j\, \min\,\{\tilde{r}^u_j - \tilde{r}^\ell_j, 0\} - u_j\, \max\,\{\tilde{r}^u_j - \tilde{r}^\ell_j, 0\}\\
-    & = \begin{cases}
-      - \ell_j\, (\tilde{r}^u_j - \tilde{r}^\ell_j) & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
-      - u_j\, (\tilde{r}^u_j - \tilde{r}^\ell_j) & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
-    \end{cases}\\
-    & = \begin{cases}
-      - \ell_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
-      - u_j\, \tilde{r}^u_j + u_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
-    \end{cases}\\
-    & \geq \begin{cases}
-      - u_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if }  \tilde{r}^u_j - \tilde{r}^\ell_j < 0,\\
-      - u_j\, \tilde{r}^u_j + \ell_j \tilde{r}^\ell_j & \text{if } \tilde{r}^u_j - \tilde{r}^\ell_j \geq 0,
-    \end{cases}\\
-    & = \ell_j \tilde{r}^\ell_j - u_j \tilde{r}^u_j.
-  \end{align*}
-  Therefore the inequality in~\eqref{eq:ray} holds as well.
-\end{proof}
+infeasibility for the local bounds~$\ell$ and $u$ via propagation:
 
 \begin{proposition}
-  Let $(\hat{X}, \hat{z})$ be part of a solution of~\eqref{eq:ray}. Then~\eqref{eq:ConflictCut}, i.e.,
+  Let $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ be a solution
+  of~\eqref{eq:ray}. Then~\eqref{eq:ConflictCut}, i.e.,
   \[
     \skal{A(y)}{\hat{X}} + \hat{z}\T D \geq \hat{z}\T d
   \]
@@ -286,10 +292,10 @@ show the following:
         \sum_{j: \hat{s}_j > 0} \hat{s}_j\, u_j.
   \end{align*}
 
-  On the other hand let $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ be a
-  feasible solution of~\eqref{eq:ray} that satisfies the conditions of
-  Lemma~\ref{lemma:ComplemenatrySolution}. Then
-  $\hat{r}^u - \hat{r}^\ell = \hat{s}$.  We thus obtain
+  On the other hand, by applying Lemma~\ref{lemma:ComplemenatrySolution} to
+  $\hat{r}^\ell - \hat{r}^u = \hat{s}$, we can assume that at most one of
+  $\hat{r}^\ell_j$ and $\hat{r}^u_j$ is nonzero and the inequality
+  in~\eqref{eq:ray} is still statisfied. We thus obtain
   \begin{align*}
     0 & < \skal{A^0}{\hat{X}} + d\T \hat{z} + \ell\T \hat{r}^\ell - u\T \hat{r}^u\\
       & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \sum_{j=1}^m \ell_j \hat{r}^\ell_j -
@@ -297,8 +303,11 @@ show the following:
       & = \skal{A^0}{\hat{X}}  + d\T \hat{z} - \sum_{j: \hat{s}_j < 0} \ell_j\, \hat{s}_j -
         \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j,
   \end{align*}
-  a contradition.
+  a contradiction.
 \end{proof}
+
+The hope is that~\eqref{eq:ConflictCut} is still violated for local bounds
+not far from $\ell \leq u$.
 
 % -------------------------------------------------------------------------
 \subsection{Feasible Problems}
@@ -311,8 +320,8 @@ Moreover, one can take an objective cutoff into account. Namely, assume
 that $y^\star$ is a feasible solution to~\eqref{MISDP}. We are then only
 interested in solutions that are at least as good, i.e.,
 $b\T y \leq \overline{b}$ or equivalently $- b\T y \geq - \overline{b}$,
-where $\overline{b} = b\T y^\star - \varepsilon$ for $\varepsilon >
-0$. Adding this inequality to~\eqref{eq:ConflictCut} yields:
+where $\overline{b} \define b\T y^\star - \varepsilon$ for
+$\varepsilon > 0$. Adding this inequality to~\eqref{eq:ConflictCut} yields:
 \begin{align}
   & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D y - b\T y \geq
     \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}\notag\\
@@ -322,11 +331,11 @@ where $\overline{b} = b\T y^\star - \varepsilon$ for $\varepsilon >
 \end{align}
 
 \begin{proposition}
-  Let $(\hat{X}, \hat{z})$ be part of a solution of~\eqref{SDP-P} and
-  $\hat{y}$ be a mixed-integer local solution of the corresponding dual
-  problem. Assume that strong duality holds. Define
-  $\overline{b} = b\T \hat{y} -
-  \varepsilon$. Then~\eqref{eq:ConflictCutObj}, i.e.,
+  Let $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ be a solution
+  of~\eqref{SDP-P} and $\hat{y}$ be a mixed-integer local solution of the
+  corresponding dual problem. Assume that strong duality holds. Define
+  $\overline{b} \define b\T \hat{y} - \varepsilon$ for $\varepsilon >
+  0$. Then~\eqref{eq:ConflictCutObj}, i.e.,
   \[
     \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big) y_j \geq
     \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}.
@@ -345,10 +354,10 @@ where $\overline{b} = b\T y^\star - \varepsilon$ for $\varepsilon >
         \sum_{j: \hat{s}_j > 0} \hat{s}_j\, u_j.
   \end{align*}
 
-  On the other hand let $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ be a
-  feasible solution of~\eqref{SDP-P} that satisfies the conditions of
-  Lemma~\ref{lemma:ComplemenatrySolution}. Then
-  $\hat{r}^u - \hat{r}^\ell = \hat{s}$.  We thus obtain by strong duality:
+  On the other hand, by applying Lemma~\ref{lemma:ComplemenatrySolution} to
+  $\hat{r}^\ell - \hat{r}^u = \hat{s}$, we can assume that at most one of
+  $\hat{r}^\ell_j$ and $\hat{r}^u_j$ is nonzero and the corresponding
+  solution is still optimal. We thus obtain by strong duality:
   \begin{align*}
     b\T \hat{y} & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \ell\T \hat{r}^\ell - u\T \hat{r}^u\\
       & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \sum_{j=1}^m \ell_j \hat{r}^\ell_j -
@@ -371,27 +380,30 @@ where $\overline{b} = b\T y^\star - \varepsilon$ for $\varepsilon >
   a contradiction.
 \end{proof}
 
+The hope is that~\eqref{eq:ConflictCutObj} is still violated for local
+bounds not far from $\ell \leq u$.
+
 % -------------------------------------------------------------------------
 \subsection{Canceling}
 \label{sec:Canceling}
 
 Starting from~\eqref{eq:ConflictCut}, one can possibly cancel coefficients
 as follows. Again using
-$s_j \define \skal{A^j}{\hat{X}} + (\hat{z}\T D)_j$, we get
+$\hat{s}_j \define \skal{A^j}{\hat{X}} + (\hat{z}\T D)_j$, we get
 from~\eqref{eq:ConflictCut}:
 \begin{equation}\label{eq:ConflictCut3}
-  \sum_{j=1}^m s_j\, y_j \geq \skal{A^0}{\hat{X}} + \hat{z}\T d.
+  \sum_{j=1}^m \hat{s}_j\, y_j \geq \skal{A^0}{\hat{X}} + \hat{z}\T d.
 \end{equation}
 
-Assume that $s_j < 0$ for some $j \in [m]$ and the global lower bound of
-$y_j$ is at least 0. Then we can add the valid inequality $-s_j\, y_j \geq 0$
-to~\eqref{eq:ConflictCut3}, which eliminates variable~$y_j$ from the
-inequality. Similarly, if $s_j > 0$ for some $j \in [m]$ and the global
-upper bound of $y_j$ is at most 0, we can add $s_j\, y_j \leq 0$ to
-eliminate variable~$y_j$.
+Assume that $\hat{s}_j < 0$ for some $j \in [m]$ and the global lower bound
+of $y_j$ is at least 0. Then we can add the valid inequality
+$-\hat{s}_j\, y_j \geq 0$ to~\eqref{eq:ConflictCut3}, which eliminates
+variable~$y_j$ from the inequality. Similarly, if $\hat{s}_j > 0$ for some
+$j \in [m]$ and the global upper bound of $y_j$ is at most 0, we can add
+$\hat{s}_j\, y_j \leq 0$ to eliminate variable~$y_j$.
 
 Witzig et al.~\cite{WitBH17} (see also Witzig~\cite{Wit22}) applied
-cancelation to continuous variables, but restricts attention to variables
+cancellation to continuous variables, but restricts attention to variables
 that are at their global bounds at the node at which the constraint is
 generated.
 
