@@ -152,6 +152,23 @@ and $u$:
 where for simplicity of exposition, we assume that all entries of $\ell$
 and $u$ are finite. Moreover, we always assume that $\ell \leq u$ holds.
 
+Let $X$ be the dual variables for the SDP-constraint $A(y) \succeq 0$, $z$
+be the dual variables for $Dy \geq d$, and $r^\ell$ and $r^u$ be the dual
+variables for the bound constraints $y \geq \ell$ and $-y \geq -u$,
+respectively. Then the corresponding primal problem for~\eqref{SDP-D} is:
+\begin{equation}\label{SDP-P}
+  \begin{aligned}
+     \sup \quad & \skal{A^0}{X} + z\T d + \ell\T r^\ell - u\T r^u\\
+     \text{s.t.} \quad & \skal{A^j}{X} + (D\T z)_j + r^\ell_j - r^u_j = b_j && \forall \, j \in [m],\\
+     & X \succeq 0,\; z, \; r^\ell,\; r^u \geq 0.
+  \end{aligned}
+\end{equation}
+
+
+% -------------------------------------------------------------------------
+% -------------------------------------------------------------------------
+\section{Generation of Conflict Constraints}
+
 The general idea of conflict analysis is to generate globally valid
 constraints as follows. Let any $\hat{X} \succeq 0$ and $\hat{z} \geq 0$ be
 given. Then because $A(y) \define \sum_{j=1}^m A^j\, y_j - A^0$ is positive
@@ -189,55 +206,11 @@ than~\eqref{eq:ConflictCut}. However, one can cancel some coefficients
 in~\eqref{eq:ConflictCut} using variable bounds -- see
 Section~\ref{sec:Canceling}.
 
-
-% -------------------------------------------------------------------------
-% -------------------------------------------------------------------------
-\section{Generation of Conflict Constraints}
-
-% -------------------------------------------------------------------------
-\subsection{Feasible Problems}
-
-Let $X$ be the dual variables for the SDP-constraint $A(y) \succeq 0$, $z$
-be the dual variables for $Dy \geq d$, and $r^\ell$ and $r^u$ be the dual
-variables for the bound constraints $y \geq \ell$ and $-y \geq -u$,
-respectively. Then the corresponding primal problem for~\eqref{SDP-D} is:
-\begin{equation}\label{SDP-P}
-  \begin{aligned}
-     \sup \quad & \skal{A^0}{X} + z\T d + \ell\T r^\ell - u\T r^u\\
-     \text{s.t.} \quad & \skal{A^j}{X} + (D\T z)_j + r^\ell_j - r^u_j = b_j && \forall \, j \in [m],\\
-     & X \succeq 0,\; z, \; r^\ell,\; r^u \geq 0.
-  \end{aligned}
-\end{equation}
-Any feasible solution $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ can be
-used to construct~\eqref{eq:ConflictCut} or~\eqref{eq:ConflictCut2}.
-
-Moreover, one can take an objective cutoff into account. Namely, assume
-that $y^\star$ is a feasible solution to~\eqref{MISDP}. We are then only
-interested in solutions that are at least as good, i.e.,
-$b\T y \leq b\T y^\star$ or $- b\T y \geq - \overline{b}$, where
-$\overline{b} = b\T y^\star - \varepsilon$ for $\varepsilon > 0$. Adding
-this inequality to~\eqref{eq:ConflictCut} yields:
-\begin{align*}
-  & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D y - b\T y \geq
-    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}\\
-  \Leftrightarrow\quad
-  & \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big) y_j \geq
-    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}.
-\end{align*}
-
-If the mixed-integer feasible point $y^\star$ was produced by the current
-node relaxation, then this cut will cut off~$y^\star$: First, by
-complementary slackness, the aggregated inequalities are satisfied with
-equality. Moreover, $b\T y \leq \overline{b} < b\T y^\star$ will be
-violated by construction. Thus, $y^\star$ is cut off. It remains to see
-whether propagation of the local bounds at this node will detect
-infeasibility.
-
 % -------------------------------------------------------------------------
 \subsection{Infeasible Problems}
 
-Similarly, a primal ray $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$,
-i.e., it satsifies the system
+A primal ray, i.e., a point $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$
+satsifying the system
 \begin{equation}\label{eq:ray}
 \begin{aligned}
   & \skal{A^j}{X} + (D\T z)_j + r^\ell_j - r^u_j = 0 && \forall\; j \in [m],\\
@@ -325,6 +298,77 @@ show the following:
         \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j,
   \end{align*}
   a contradition.
+\end{proof}
+
+% -------------------------------------------------------------------------
+\subsection{Feasible Problems}
+
+Any feasible solution $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$
+of~\eqref{SDP-D} can be used to construct~\eqref{eq:ConflictCut}
+or~\eqref{eq:ConflictCut2}.
+
+Moreover, one can take an objective cutoff into account. Namely, assume
+that $y^\star$ is a feasible solution to~\eqref{MISDP}. We are then only
+interested in solutions that are at least as good, i.e.,
+$b\T y \leq \overline{b}$ or equivalently $- b\T y \geq - \overline{b}$,
+where $\overline{b} = b\T y^\star - \varepsilon$ for $\varepsilon >
+0$. Adding this inequality to~\eqref{eq:ConflictCut} yields:
+\begin{align}
+  & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D y - b\T y \geq
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}\notag\\
+  \Leftrightarrow\quad
+  & \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big) y_j \geq
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}.\label{eq:ConflictCutObj}
+\end{align}
+
+\begin{proposition}
+  Let $(\hat{X}, \hat{z})$ be part of a solution of~\eqref{SDP-P} and
+  $\hat{y}$ be a mixed-integer local solution of the corresponding dual
+  problem. Assume that strong duality holds. Define
+  $\overline{b} = b\T \hat{y} -
+  \varepsilon$. Then~\eqref{eq:ConflictCutObj}, i.e.,
+  \[
+    \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big) y_j \geq
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}.
+  \]
+  is infeasible with respect to the local bounds $\ell$ and $u$.
+\end{proposition}
+
+\begin{proof}
+  Define $\hat{s}_j \define \skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j$
+  for $j \in [m]$. Then we get from~\eqref{eq:ConflictCutObj} for any
+  feasible solution $y$ with $b\T y \leq \overline{b}$:
+  \begin{align*}
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b} & \leq \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big)\, y_j
+    = \sum_{j=1}^m \hat{s}_j\, y_j\\
+    & \leq \sum_{j: \hat{s}_j < 0} \hat{s}_j\, \ell_j +
+        \sum_{j: \hat{s}_j > 0} \hat{s}_j\, u_j.
+  \end{align*}
+
+  On the other hand let $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ be a
+  feasible solution of~\eqref{SDP-P} that satisfies the conditions of
+  Lemma~\ref{lemma:ComplemenatrySolution}. Then
+  $\hat{r}^u - \hat{r}^\ell = \hat{s}$.  We thus obtain by strong duality:
+  \begin{align*}
+    b\T \hat{y} & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \ell\T \hat{r}^\ell - u\T \hat{r}^u\\
+      & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \sum_{j=1}^m \ell_j \hat{r}^\ell_j -
+        \sum_{j=1}^m u_j \hat{r}^u_j\\
+      & = \skal{A^0}{\hat{X}}  + d\T \hat{z} - \sum_{j: \hat{s}_j < 0} \ell_j\, \hat{s}_j -
+        \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j.
+  \end{align*}
+  This means that
+  \begin{align*}
+    \sum_{j: \hat{s}_j < 0} \ell_j\, \hat{s}_j +
+        \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j = \skal{A^0}{\hat{X}}  +
+    d\T \hat{z} - \overline{b} - \varepsilon
+  \end{align*}
+  and therefore
+  \begin{align*}
+    \sum_{j: \hat{s}_j < 0} \ell_j\, \hat{s}_j +
+        \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j < \skal{A^0}{\hat{X}}  +
+    d\T \hat{z} - \overline{b},
+  \end{align*}
+  a contradiction.
 \end{proof}
 
 % -------------------------------------------------------------------------
