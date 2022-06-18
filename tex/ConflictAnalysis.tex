@@ -346,7 +346,8 @@ $\varepsilon > 0$. Adding this inequality to~\eqref{eq:ConflictCut} yields:
 \begin{proof}
   Define $\hat{s}_j \define \skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j$
   for $j \in [m]$. Then we get from~\eqref{eq:ConflictCutObj} for any
-  feasible solution $y$ with $b\T y \leq \overline{b}$:
+  feasible solution $y$ with $b\T y \leq \overline{b}$ with $\ell \leq y
+  \leq u$:
   \begin{align*}
     \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b} & \leq \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big)\, y_j
     = \sum_{j=1}^m \hat{s}_j\, y_j\\
