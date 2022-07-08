@@ -225,8 +225,8 @@ struct SCIP_SDPi
    SCIP_Real*            ub;                 /**< upper bounds of variables */
    SCIP_Real*            sdpilb;             /**< copy for lower bounds of variables */
    SCIP_Real*            sdpiub;             /**< copy for upper bounds of variables */
-   int*                  sdpilbrowidx;       /**< index of row that provided this bound (or -1) */
-   int*                  sdpiubrowidx;       /**< index of row that provided this bound (or -1) */
+   int*                  sdpilbrowidx;       /**< index of row that provided the bound in sdpilb (or -1) */
+   int*                  sdpiubrowidx;       /**< index of row that provided the bound in sdpiub (or -1) */
    int                   nsdpblocks;         /**< number of SDP-blocks */
    int                   maxnsdpblocks;      /**< maximal number of required SDP blocks */
    int*                  sdpblocksizes;      /**< sizes of the SDP-blocks */
@@ -803,8 +803,8 @@ SCIP_RETCODE prepareLPData(
    SCIP_SDPI*            sdpi,               /**< pointer to an SDP-interface structure */
    SCIP_Real*            sdpilb,             /**< prepared array of lower bounds */
    SCIP_Real*            sdpiub,             /**< prepared array of upper bounds */
-   int*                  sdpilbrowidx,       /**< index of row that provided this bound (or -1) */
-   int*                  sdpiubrowidx,       /**< index of row that provided this bound (or -1) */
+   int*                  sdpilbrowidx,       /**< index of row that provided the bound in sdpilb (or -1) */
+   int*                  sdpiubrowidx,       /**< index of row that provided the bound in sdpiub (or -1) */
    int*                  nsdpilpcons,        /**< pointer to store the number of resulting LP-constraints */
    SCIP_Real*            sdpilplhs,          /**< prepared array to store lhs of LP-constraints after fixing variables */
    SCIP_Real*            sdpilprhs,          /**< prepared array to store rhs of LP-constraints after fixing variables */
@@ -4082,7 +4082,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    return SCIP_OKAY;
 }
 
-/** gets the primal variables corresponding to the LP sidex
+/** gets the primal variables corresponding to the LP sides
  *
  *  @note If an LP row was removed, we return a value of 0.0. This can happen if the row is redundant, e.g., all
  *  involved variables are fixed, or it contains variable a single variable only.

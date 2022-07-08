@@ -5857,7 +5857,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    return SCIP_OKAY;
 }
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
+/** gets the primal solution corresponding to the lower and upper variable-bounds for a subset of the variables in the dual problem
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent
  *  primal variable.
