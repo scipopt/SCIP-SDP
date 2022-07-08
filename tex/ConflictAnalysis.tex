@@ -135,7 +135,7 @@ We will need the following result.
 \begin{lemma}\label{lemma:ComplemenatrySolution}
   Let $\hat{r}^\ell$, $\hat{r}^u \in \R^m_+$ with
   $\hat{r}^\ell - \hat{r}^u = \hat{s}$ for some $\hat{s} \in \R^m$. Then
-  there exists $r^\ell$, $r^u \in \R^m_+$ with $r^\ell - r^u = s$, such
+  there exists $r^\ell$, $r^u \in \R^m_+$ with $r^\ell - r^u = \hat{s}$, such
   that $r_j^\ell \cdot r_j^u = 0$ for all $j \in [m]$ and for
   $\ell \leq u$:
   \begin{equation}\label{eq:objpart}
@@ -151,7 +151,7 @@ We will need the following result.
     r^u_j = \max\,\{\hat{s}_j, 0\} \geq 0.
   \]
   By construction $r^\ell_j \cdot r^u_j = 0$ for all
-  $j \in [m]$ and $r^\ell - r^u = s$. Then consider:
+  $j \in [m]$ and $r^\ell - r^u = \hat{s}$. Then consider:
   \begin{align*}
     \ell_j r^\ell_j - u_j r^u_j & = - \ell_j\, \min\,\{\hat{s}_j, 0\} - u_j\, \max\,\{\hat{s}_j, 0\}\\
     & = - \ell_j\, \min\,\{\hat{r}^u_j - \hat{r}^\ell_j, 0\} - u_j\, \max\,\{\hat{r}^u_j - \hat{r}^\ell_j, 0\}\\
@@ -239,12 +239,12 @@ $y \leq u$. If $\hat{r}^\ell$, $\hat{r}^u \geq 0$ are the corresponding
 multipliers, this yields:
 \begin{align}
   & \skal{A(y)}{\hat{X}} + \hat{z}\T D y + (\hat{r}^\ell)\T y - (\hat{r}^u)\T y
-    \geq \hat{z}\T d + (\hat{r}^\ell)\T \ell + (\hat{r}^u)\T u\notag\\
+    \geq \hat{z}\T d + (\hat{r}^\ell)\T \ell - (\hat{r}^u)\T u\notag\\
   \Leftrightarrow\quad
   & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D y +
     (\hat{r}^\ell)\T y - (\hat{r}^u)\T y \geq \\
   & \qquad \skal{A^0}{\hat{X}} +
-    \hat{z}\T d + (\hat{r}^\ell)\T \ell + (\hat{r}^u)\T u,\label{eq:ConflictCut2}
+    \hat{z}\T d + (\hat{r}^\ell)\T \ell - (\hat{r}^u)\T u,\label{eq:ConflictCut2}
 \end{align}
 which is again valid for all feasible $y$.
 
@@ -293,9 +293,9 @@ infeasibility for the local bounds~$\ell$ and $u$ via propagation:
   \end{align*}
 
   On the other hand, by applying Lemma~\ref{lemma:ComplemenatrySolution} to
-  $\hat{r}^\ell - \hat{r}^u = \hat{s}$, we can assume that at most one of
+  $\hat{r}^\ell - \hat{r}^u = -\hat{s}$, we can assume that at most one of
   $\hat{r}^\ell_j$ and $\hat{r}^u_j$ is nonzero and the inequality
-  in~\eqref{eq:ray} is still statisfied. We thus obtain
+  in~\eqref{eq:ray} is still satisfied. We thus obtain
   \begin{align*}
     0 & < \skal{A^0}{\hat{X}} + d\T \hat{z} + \ell\T \hat{r}^\ell - u\T \hat{r}^u\\
       & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \sum_{j=1}^m \ell_j \hat{r}^\ell_j -
@@ -313,7 +313,7 @@ not far from $\ell \leq u$.
 \subsection{Feasible Problems}
 
 Any feasible solution $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$
-of~\eqref{SDP-D} can be used to construct~\eqref{eq:ConflictCut}
+of~\eqref{SDP-P} can be used to construct~\eqref{eq:ConflictCut}
 or~\eqref{eq:ConflictCut2}.
 
 Moreover, one can take an objective cutoff into account. Namely, assume
@@ -356,7 +356,7 @@ $\varepsilon > 0$. Adding this inequality to~\eqref{eq:ConflictCut} yields:
   \end{align*}
 
   On the other hand, by applying Lemma~\ref{lemma:ComplemenatrySolution} to
-  $\hat{r}^\ell - \hat{r}^u = \hat{s}$, we can assume that at most one of
+  $\hat{r}^\ell - \hat{r}^u = -\hat{s}$, we can assume that at most one of
   $\hat{r}^\ell_j$ and $\hat{r}^u_j$ is nonzero and the corresponding
   solution is still optimal. We thus obtain by strong duality:
   \begin{align*}
@@ -403,8 +403,8 @@ variable~$y_j$ from the inequality. Similarly, if $\hat{s}_j > 0$ for some
 $j \in [m]$ and the global upper bound of $y_j$ is at most 0, we can add
 $\hat{s}_j\, y_j \leq 0$ to eliminate variable~$y_j$.
 
-Witzig et al.~\cite{WitBH17} (see also Witzig~\cite{Wit22}) applied
-cancellation to continuous variables, but restricts attention to variables
+Witzig et al.~\cite{WitBH17} (see also Witzig~\cite{Wit22}) apply
+cancellation to continuous variables, but restrict attention to variables
 that are at their global bounds at the node at which the constraint is
 generated.
 
