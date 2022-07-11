@@ -648,7 +648,7 @@ Test(checksdpi, test3)
  *    - x1 + x2 <= -1
  *      x1,  x2 free
  *
- * which primal and dual infeasible.
+ * which is primal and dual infeasible.
  *
  * Note: This test crashes with DSDP, since DSDP has only four solution statuses (see dsdpbasictypes.h):
  * DSDP_PDUNKNOWN  (0):  Not sure whether (D) or (P) is feasible,
@@ -1098,7 +1098,7 @@ Test(checksdpi, test10)
 }
 
 
-/** Test 10
+/** Test 11
  *
  *  inf   x1
  *        [1,  0] x1 - [1 2]  psd
