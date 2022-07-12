@@ -1388,6 +1388,7 @@ SCIP_RETCODE computeConflictCut(
                assert( 0 <= col && col < blocksize );
 
                primalval = primalmatrices[b][row * blocksize + col];
+               assert( SCIPisEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
                if ( ! SCIPisFeasZero(scip, primalval) )
                {
                   if ( row == col )
