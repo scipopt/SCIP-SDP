@@ -2515,8 +2515,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          SCIP_Real* X;   /* the upper triangular entries of matrix X */
          SCIP_Real val;
          int redsize;
-         int redrow;
-         int redcol;
          int idx = 0;
          int n;
          int i;
@@ -2531,15 +2529,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          {
             if ( indchanges[b][j] >= 0 )
             {
-               redcol = j - indchanges[b][j];
-               assert( 0 <= redcol && redcol < redsize );
+               assert( 0 <= j - indchanges[b][j] && j - indchanges[b][j] < redsize );
 
                for (i = j; i < blocksize; ++i)
                {
                   if ( indchanges[b][i] >= 0 )
                   {
-                     redrow = i - indchanges[b][i];
-                     assert( 0 <= redrow && redrow < redsize );
+                     assert( 0 <= i - indchanges[b][i] && i - indchanges[b][i] < redsize );
                      assert( 0 <= idx && idx < redsize * (redsize + 1)/2 );
                      val = X[idx++];
                      primalmatrices[b][i * blocksize + j] = val;
