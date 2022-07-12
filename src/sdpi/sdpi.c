@@ -4308,19 +4308,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
    {
       SCIPdebugMessage("Primal problem is infeasible, no primal solution available.\n");
    }
-   else if ( SCIPsdpiSolverIsDualInfeasible(sdpi->sdpisolver) )
-   {
-      SCIP_RETCODE retcode;
-
-      /* We assume that there exists a primal ray if the dual is infeasible and it is returned by the same function. */
-      retcode = SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, primalmatrices);
-      if ( retcode == SCIP_OKAY )
-         *success = TRUE;
-   }
    else
    {
       SCIP_RETCODE retcode;
 
+      /* At this point the SDP is either optimally solved or dual infeasible. In the latter case, We assume that there
+       * exists a primal ray if the dual is infeasible and it is returned by the same function. */
       retcode = SCIPsdpiSolverGetPrimalSolutionMatrix(sdpi->sdpisolver, sdpi->nsdpblocks, sdpi->sdpblocksizes, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, primalmatrices);
       if ( retcode == SCIP_OKAY )
          *success = TRUE;
