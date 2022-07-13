@@ -143,6 +143,7 @@
 #define DEFAULT_GENERATECMIR      FALSE /**< Should CMIR cuts be generated? */
 #define DEFAULT_PRESOLLINCONSSPARAM   0 /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
 #define DEFAULT_ADDITIONALSTATS   FALSE /**< Should additional statistics be output at the end? */
+#define DEFAULT_ENABLEPROPTIMING  FALSE /**< Should timing be activated for propagation routines? */
 
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -252,6 +253,16 @@ struct SCIP_ConshdlrData
    SCIP_Bool             exacttrans;         /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
    int                   presollinconssparam; /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
    SCIP_Bool             additionalstats;    /**< Should additional statistics be output at the end? */
+   SCIP_Bool             enableproptiming;   /**< Should timing be activated for propagation routines? */
+   int                   ncallspropub;       /**< Number of calls of propagateUpperBounds in propagation */
+   int                   ncallsproptb;       /**< Number of calls of tightenBounds in propagation */
+   int                   ncallsprop3minor;   /**< Number of calls of propagate3Minors in propagation */
+   SCIP_Real             timepropub;         /**< Overall time spent for propagateUpperBounds in propagation */
+   SCIP_Real             timeproptb;         /**< Overall time spent for tightenBounds in propagation */
+   SCIP_Real             timeprop3minor;     /**< Overall time spent for propagate3Minors in propagation */
+   SCIP_Real             maxtimepropub;      /**< Maximal time spent for one round of propagateUpperBounds in propagation */
+   SCIP_Real             maxtimeproptb;      /**< Maximal time spent for one round of tightenBounds in propagation */
+   SCIP_Real             maxtimeprop3minor;  /**< Maximal time spent for one round of propagate3Minors in propagation */
    int                   npropub;            /**< Number of propagations through upper bounds */
    int                   nproptb;            /**< Number of tightened bounds in propagation */
    int                   nprop3minor;        /**< Number of propagations through 3x3 minors */
@@ -6351,11 +6362,21 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
+   /* reset numbers; called for both the rank1 and ordinary constraint handler */
    conshdlrdata->neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
    conshdlrdata->ncmir = 0;
    conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
    conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
-   conshdlrdata->npropub = 0;    /* reset numbers; called for both the rank1 and ordinary constraint handler */
+   conshdlrdata->ncallspropub = 0;
+   conshdlrdata->ncallsproptb = 0;
+   conshdlrdata->ncallsprop3minor = 0;
+   conshdlrdata->timepropub = 0.0;
+   conshdlrdata->timeproptb = 0.0;
+   conshdlrdata->timeprop3minor = 0.0;
+   conshdlrdata->maxtimepropub = 0.0;
+   conshdlrdata->maxtimeproptb = 0.0;
+   conshdlrdata->maxtimeprop3minor = 0.0;
+   conshdlrdata->npropub = 0;
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
    conshdlrdata->npropcutoffub = 0;
@@ -6518,6 +6539,15 @@ SCIP_DECL_CONSEXIT(consExitSdp)
    {
       if ( conshdlrdata->sdpconshdlrdata->additionalstats )
       {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of propagateUpperBounds in propagation: %d\n", conshdlrdata->ncallspropub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of tightenBounds in propagation: %d\n", conshdlrdata->ncallsproptb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of propagate3Minors in propagation: %d\n", conshdlrdata->ncallsprop3minor);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for propagateUpperBounds in propagation: %f\n", conshdlrdata->timepropub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for tightenBounds in propagation: %f\n", conshdlrdata->timeproptb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for propagate3Minors in propagation: %f\n", conshdlrdata->timeprop3minor);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of propagateUpperBounds in propagation: %f\n", conshdlrdata->maxtimepropub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of tightenBounds in propagation: %f\n", conshdlrdata->maxtimeproptb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of propagate3Minors in propagation: %f\n", conshdlrdata->maxtimeprop3minor);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds: %d\n", conshdlrdata->npropub);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation:   %d\n", conshdlrdata->nproptb);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through 3x3 minors:   %d\n", conshdlrdata->nprop3minor);
@@ -6538,6 +6568,15 @@ SCIP_DECL_CONSEXIT(consExitSdp)
       }
 
       /* reset counters */
+      conshdlrdata->ncallspropub = 0;
+      conshdlrdata->ncallsproptb = 0;
+      conshdlrdata->ncallsprop3minor = 0;
+      conshdlrdata->timepropub = 0.0;
+      conshdlrdata->timeproptb = 0.0;
+      conshdlrdata->timeprop3minor = 0.0;
+      conshdlrdata->maxtimepropub = 0.0;
+      conshdlrdata->maxtimeproptb = 0.0;
+      conshdlrdata->maxtimeprop3minor = 0.0;
       conshdlrdata->npropub = 0;
       conshdlrdata->nproptb = 0;
       conshdlrdata->nprop3minor = 0;
@@ -6660,6 +6699,10 @@ SCIP_DECL_CONSPROP(consPropSdp)
    SCIP_Bool infeasible;
    int nprop = 0;
    int nintrnd = 0;
+   SCIP_CLOCK* propubtime;
+   SCIP_CLOCK* proptbtime;
+   SCIP_CLOCK* prop3minortime;
+   SCIP_Real time = 0.0;
 
    assert( conshdlr != NULL );
    assert( result != NULL );
@@ -6669,6 +6712,13 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
    *result = SCIP_DIDNOTRUN;
 
+   if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+   {
+      SCIP_CALL( SCIPcreateClock(scip, &propubtime) );
+      SCIP_CALL( SCIPcreateClock(scip, &proptbtime) );
+      SCIP_CALL( SCIPcreateClock(scip, &prop3minortime) );
+   }
+
    /* if we want to propagate upper bounds */
    if ( conshdlrdata->sdpconshdlrdata->propupperbounds )
    {
@@ -6676,7 +6726,20 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
       SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
+      if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+         SCIP_CALL( SCIPstartClock(scip, propubtime) );
+
       SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop, &nintrnd) );
+      ++conshdlrdata->sdpconshdlrdata->ncallspropub;
+
+      if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+      {
+         SCIP_CALL( SCIPstopClock(scip, propubtime) );
+         time = SCIPgetClockTime(scip, propubtime);
+         conshdlrdata->sdpconshdlrdata->timepropub += time;
+         if ( SCIPisGT(scip, time, conshdlrdata->sdpconshdlrdata->maxtimepropub) )
+            conshdlrdata->sdpconshdlrdata->maxtimepropub = time;
+      }
 
       if ( infeasible )
       {
@@ -6708,6 +6771,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
       /* possibly avoid propagation in probing */
       if ( conshdlrdata->sdpconshdlrdata->proptbprobing || ! SCIPinProbing(scip) )
       {
+
          if ( *result == SCIP_DIDNOTRUN )
             *result = SCIP_DIDNOTFIND;
 
@@ -6715,7 +6779,22 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
          nprop = 0;
          nintrnd = 0;
+         time = 0.0;
+
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+            SCIP_CALL( SCIPstartClock(scip, proptbtime) );
+
          SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &nintrnd, &infeasible) );
+         ++conshdlrdata->sdpconshdlrdata->ncallsproptb;
+
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+         {
+            SCIP_CALL( SCIPstopClock(scip, proptbtime) );
+            time = SCIPgetClockTime(scip, proptbtime);
+            conshdlrdata->sdpconshdlrdata->timeproptb += time;
+            if ( SCIPisGT(scip, time, conshdlrdata->sdpconshdlrdata->maxtimeproptb) )
+               conshdlrdata->sdpconshdlrdata->maxtimeproptb = time;
+         }
 
          if ( infeasible )
          {
@@ -6753,7 +6832,22 @@ SCIP_DECL_CONSPROP(consPropSdp)
          SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
          nprop = 0;
+         time = 0.0;
+
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+            SCIP_CALL( SCIPstartClock(scip, prop3minortime) );
+
          SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop) );
+         ++conshdlrdata->sdpconshdlrdata->ncallsprop3minor;
+
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+         {
+            SCIP_CALL( SCIPstopClock(scip, prop3minortime) );
+            time = SCIPgetClockTime(scip, prop3minortime);
+            conshdlrdata->sdpconshdlrdata->timeprop3minor += time;
+            if ( SCIPisGT(scip, time, conshdlrdata->sdpconshdlrdata->maxtimeprop3minor) )
+               conshdlrdata->sdpconshdlrdata->maxtimeprop3minor = time;
+         }
 
          if ( infeasible )
          {
@@ -6776,6 +6870,13 @@ SCIP_DECL_CONSPROP(consPropSdp)
             }
          }
       }
+   }
+
+   if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+   {
+      SCIP_CALL( SCIPfreeClock(scip, &propubtime) );
+      SCIP_CALL( SCIPfreeClock(scip, &proptbtime) );
+      SCIP_CALL( SCIPfreeClock(scip, &prop3minortime) );
    }
 
    return SCIP_OKAY;
@@ -8692,6 +8793,15 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
+   conshdlrdata->ncallspropub = 0;
+   conshdlrdata->ncallsproptb = 0;
+   conshdlrdata->ncallsprop3minor = 0;
+   conshdlrdata->timepropub = 0.0;
+   conshdlrdata->timeproptb = 0.0;
+   conshdlrdata->timeprop3minor = 0.0;
+   conshdlrdata->maxtimepropub = 0.0;
+   conshdlrdata->maxtimeproptb = 0.0;
+   conshdlrdata->maxtimeprop3minor = 0.0;
    conshdlrdata->npropub = 0;
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
@@ -8895,6 +9005,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should additional statistics be output at the end?",
          &(conshdlrdata->additionalstats), TRUE, DEFAULT_ADDITIONALSTATS, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/enableproptiming",
+         "Should timing be activated for propagation routines?",
+         &(conshdlrdata->enableproptiming), TRUE, DEFAULT_ENABLEPROPTIMING, NULL, NULL) );
+
    return SCIP_OKAY;
 }
 
@@ -8956,6 +9070,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->exacttrans = FALSE;
    conshdlrdata->presollinconssparam = 0;
    conshdlrdata->additionalstats = FALSE;
+   conshdlrdata->enableproptiming = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
    sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
@@ -8976,6 +9091,15 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->randnumgen = NULL;
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
+   conshdlrdata->ncallspropub = 0;
+   conshdlrdata->ncallsproptb = 0;
+   conshdlrdata->ncallsprop3minor = 0;
+   conshdlrdata->timepropub = 0.0;
+   conshdlrdata->timeproptb = 0.0;
+   conshdlrdata->timeprop3minor = 0.0;
+   conshdlrdata->maxtimepropub = 0.0;
+   conshdlrdata->maxtimeproptb = 0.0;
+   conshdlrdata->maxtimeprop3minor = 0.0;
    conshdlrdata->npropub = 0;
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
