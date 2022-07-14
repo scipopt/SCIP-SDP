@@ -257,9 +257,9 @@ struct SCIP_ConshdlrData
    int                   ncallspropub;       /**< Number of calls of propagateUpperBounds in propagation */
    int                   ncallsproptb;       /**< Number of calls of tightenBounds in propagation */
    int                   ncallsprop3minor;   /**< Number of calls of propagate3Minors in propagation */
-   SCIP_Real             timepropub;         /**< Overall time spent for propagateUpperBounds in propagation */
-   SCIP_Real             timeproptb;         /**< Overall time spent for tightenBounds in propagation */
-   SCIP_Real             timeprop3minor;     /**< Overall time spent for propagate3Minors in propagation */
+   SCIP_CLOCK*           propubtime;         /**< Time for propagateUpperBounds in propagation */
+   SCIP_CLOCK*           proptbtime;         /**< Time for tightenBounds in propagation */
+   SCIP_CLOCK*           prop3minortime;     /**< Time for propagate3Minors in propagation */
    SCIP_Real             maxtimepropub;      /**< Maximal time spent for one round of propagateUpperBounds in propagation */
    SCIP_Real             maxtimeproptb;      /**< Maximal time spent for one round of tightenBounds in propagation */
    SCIP_Real             maxtimeprop3minor;  /**< Maximal time spent for one round of propagate3Minors in propagation */
@@ -6370,9 +6370,6 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata->ncallspropub = 0;
    conshdlrdata->ncallsproptb = 0;
    conshdlrdata->ncallsprop3minor = 0;
-   conshdlrdata->timepropub = 0.0;
-   conshdlrdata->timeproptb = 0.0;
-   conshdlrdata->timeprop3minor = 0.0;
    conshdlrdata->maxtimepropub = 0.0;
    conshdlrdata->maxtimeproptb = 0.0;
    conshdlrdata->maxtimeprop3minor = 0.0;
@@ -6393,6 +6390,17 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata->npropprobub = 0;
    conshdlrdata->npropprobtb = 0;
    conshdlrdata->npropprob3minor = 0;
+
+   /* create clocks */
+   if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+   {
+      if ( conshdlrdata->sdpconshdlrdata->propubtime == NULL )
+         SCIP_CALL( SCIPcreateClock(scip, &conshdlrdata->propubtime) );
+      if ( conshdlrdata->sdpconshdlrdata->proptbtime == NULL )
+         SCIP_CALL( SCIPcreateClock(scip, &conshdlrdata->proptbtime) );
+      if ( conshdlrdata->sdpconshdlrdata->prop3minortime == NULL )
+         SCIP_CALL( SCIPcreateClock(scip, &conshdlrdata->prop3minortime) );
+   }
 
    return SCIP_OKAY;
 }
@@ -6542,12 +6550,15 @@ SCIP_DECL_CONSEXIT(consExitSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of propagateUpperBounds in propagation: %d\n", conshdlrdata->ncallspropub);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of tightenBounds in propagation: %d\n", conshdlrdata->ncallsproptb);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of propagate3Minors in propagation: %d\n", conshdlrdata->ncallsprop3minor);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for propagateUpperBounds in propagation: %f\n", conshdlrdata->timepropub);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for tightenBounds in propagation: %f\n", conshdlrdata->timeproptb);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for propagate3Minors in propagation: %f\n", conshdlrdata->timeprop3minor);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of propagateUpperBounds in propagation: %f\n", conshdlrdata->maxtimepropub);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of tightenBounds in propagation: %f\n", conshdlrdata->maxtimeproptb);
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of propagate3Minors in propagation: %f\n", conshdlrdata->maxtimeprop3minor);
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for propagateUpperBounds in propagation: %f\n", SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->propubtime) );
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for tightenBounds in propagation: %f\n", SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->proptbtime) );
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for propagate3Minors in propagation: %f\n", SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->prop3minortime) );
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of propagateUpperBounds in propagation: %f\n", conshdlrdata->maxtimepropub);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of tightenBounds in propagation: %f\n", conshdlrdata->maxtimeproptb);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of propagate3Minors in propagation: %f\n", conshdlrdata->maxtimeprop3minor);
+         }
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds: %d\n", conshdlrdata->npropub);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation:   %d\n", conshdlrdata->nproptb);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through 3x3 minors:   %d\n", conshdlrdata->nprop3minor);
@@ -6571,9 +6582,6 @@ SCIP_DECL_CONSEXIT(consExitSdp)
       conshdlrdata->ncallspropub = 0;
       conshdlrdata->ncallsproptb = 0;
       conshdlrdata->ncallsprop3minor = 0;
-      conshdlrdata->timepropub = 0.0;
-      conshdlrdata->timeproptb = 0.0;
-      conshdlrdata->timeprop3minor = 0.0;
       conshdlrdata->maxtimepropub = 0.0;
       conshdlrdata->maxtimeproptb = 0.0;
       conshdlrdata->maxtimeprop3minor = 0.0;
@@ -6599,6 +6607,17 @@ SCIP_DECL_CONSEXIT(consExitSdp)
    /* reset parameter triedlinearconss */
    conshdlrdata->sdpconshdlrdata->triedlinearconss = FALSE;
    conshdlrdata->sdpconshdlrdata->triedvarbounds = FALSE;
+
+   /* free clocks */
+   if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+   {
+      if ( conshdlrdata->sdpconshdlrdata->propubtime != NULL )
+         SCIP_CALL( SCIPfreeClock(scip, &conshdlrdata->sdpconshdlrdata->propubtime) );
+      if ( conshdlrdata->sdpconshdlrdata->proptbtime != NULL )
+         SCIP_CALL( SCIPfreeClock(scip, &conshdlrdata->sdpconshdlrdata->proptbtime) );
+      if ( conshdlrdata->sdpconshdlrdata->prop3minortime != NULL )
+         SCIP_CALL( SCIPfreeClock(scip, &conshdlrdata->sdpconshdlrdata->prop3minortime) );
+   }
 
    return SCIP_OKAY;
 }
@@ -6699,10 +6718,8 @@ SCIP_DECL_CONSPROP(consPropSdp)
    SCIP_Bool infeasible;
    int nprop = 0;
    int nintrnd = 0;
-   SCIP_CLOCK* propubtime;
-   SCIP_CLOCK* proptbtime;
-   SCIP_CLOCK* prop3minortime;
-   SCIP_Real time = 0.0;
+   SCIP_Real oldtime = 0.0;
+   SCIP_Real newtime = 0.0;
 
    assert( conshdlr != NULL );
    assert( result != NULL );
@@ -6712,13 +6729,6 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
    *result = SCIP_DIDNOTRUN;
 
-   if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
-   {
-      SCIP_CALL( SCIPcreateClock(scip, &propubtime) );
-      SCIP_CALL( SCIPcreateClock(scip, &proptbtime) );
-      SCIP_CALL( SCIPcreateClock(scip, &prop3minortime) );
-   }
-
    /* if we want to propagate upper bounds */
    if ( conshdlrdata->sdpconshdlrdata->propupperbounds )
    {
@@ -6727,18 +6737,20 @@ SCIP_DECL_CONSPROP(consPropSdp)
       SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
       if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
-         SCIP_CALL( SCIPstartClock(scip, propubtime) );
+      {
+         oldtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->propubtime);
+         SCIP_CALL( SCIPstartClock(scip, conshdlrdata->sdpconshdlrdata->propubtime) );
+      }
 
       SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop, &nintrnd) );
       ++conshdlrdata->sdpconshdlrdata->ncallspropub;
 
       if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
       {
-         SCIP_CALL( SCIPstopClock(scip, propubtime) );
-         time = SCIPgetClockTime(scip, propubtime);
-         conshdlrdata->sdpconshdlrdata->timepropub += time;
-         if ( SCIPisGT(scip, time, conshdlrdata->sdpconshdlrdata->maxtimepropub) )
-            conshdlrdata->sdpconshdlrdata->maxtimepropub = time;
+         SCIP_CALL( SCIPstopClock(scip, conshdlrdata->sdpconshdlrdata->propubtime) );
+         newtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->propubtime);
+         if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimepropub) )
+            conshdlrdata->sdpconshdlrdata->maxtimepropub = newtime - oldtime;
       }
 
       if ( infeasible )
@@ -6779,21 +6791,24 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
          nprop = 0;
          nintrnd = 0;
-         time = 0.0;
+         oldtime = 0.0;
+         newtime = 0.0;
 
          if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
-            SCIP_CALL( SCIPstartClock(scip, proptbtime) );
+         {
+            oldtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->proptbtime);
+            SCIP_CALL( SCIPstartClock(scip, conshdlrdata->sdpconshdlrdata->proptbtime) );
+         }
 
          SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &nintrnd, &infeasible) );
          ++conshdlrdata->sdpconshdlrdata->ncallsproptb;
 
          if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
          {
-            SCIP_CALL( SCIPstopClock(scip, proptbtime) );
-            time = SCIPgetClockTime(scip, proptbtime);
-            conshdlrdata->sdpconshdlrdata->timeproptb += time;
-            if ( SCIPisGT(scip, time, conshdlrdata->sdpconshdlrdata->maxtimeproptb) )
-               conshdlrdata->sdpconshdlrdata->maxtimeproptb = time;
+            SCIP_CALL( SCIPstopClock(scip, conshdlrdata->sdpconshdlrdata->proptbtime) );
+            newtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->proptbtime);
+            if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimeproptb) )
+               conshdlrdata->sdpconshdlrdata->maxtimeproptb = newtime - oldtime;
          }
 
          if ( infeasible )
@@ -6832,21 +6847,24 @@ SCIP_DECL_CONSPROP(consPropSdp)
          SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
          nprop = 0;
-         time = 0.0;
+         oldtime = 0.0;
+         newtime = 0.0;
 
          if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
-            SCIP_CALL( SCIPstartClock(scip, prop3minortime) );
+         {
+            oldtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->prop3minortime);
+            SCIP_CALL( SCIPstartClock(scip, conshdlrdata->sdpconshdlrdata->prop3minortime) );
+         }
 
          SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop) );
          ++conshdlrdata->sdpconshdlrdata->ncallsprop3minor;
 
          if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
          {
-            SCIP_CALL( SCIPstopClock(scip, prop3minortime) );
-            time = SCIPgetClockTime(scip, prop3minortime);
-            conshdlrdata->sdpconshdlrdata->timeprop3minor += time;
-            if ( SCIPisGT(scip, time, conshdlrdata->sdpconshdlrdata->maxtimeprop3minor) )
-               conshdlrdata->sdpconshdlrdata->maxtimeprop3minor = time;
+            SCIP_CALL( SCIPstopClock(scip, conshdlrdata->sdpconshdlrdata->prop3minortime) );
+            newtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->prop3minortime);
+            if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimeprop3minor) )
+               conshdlrdata->sdpconshdlrdata->maxtimeprop3minor = newtime - oldtime;
          }
 
          if ( infeasible )
@@ -6870,13 +6888,6 @@ SCIP_DECL_CONSPROP(consPropSdp)
             }
          }
       }
-   }
-
-   if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
-   {
-      SCIP_CALL( SCIPfreeClock(scip, &propubtime) );
-      SCIP_CALL( SCIPfreeClock(scip, &proptbtime) );
-      SCIP_CALL( SCIPfreeClock(scip, &prop3minortime) );
    }
 
    return SCIP_OKAY;
@@ -8796,9 +8807,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->ncallspropub = 0;
    conshdlrdata->ncallsproptb = 0;
    conshdlrdata->ncallsprop3minor = 0;
-   conshdlrdata->timepropub = 0.0;
-   conshdlrdata->timeproptb = 0.0;
-   conshdlrdata->timeprop3minor = 0.0;
+   conshdlrdata->propubtime = NULL;
+   conshdlrdata->proptbtime = NULL;
+   conshdlrdata->prop3minortime = NULL;
    conshdlrdata->maxtimepropub = 0.0;
    conshdlrdata->maxtimeproptb = 0.0;
    conshdlrdata->maxtimeprop3minor = 0.0;
@@ -9094,9 +9105,9 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->ncallspropub = 0;
    conshdlrdata->ncallsproptb = 0;
    conshdlrdata->ncallsprop3minor = 0;
-   conshdlrdata->timepropub = 0.0;
-   conshdlrdata->timeproptb = 0.0;
-   conshdlrdata->timeprop3minor = 0.0;
+   conshdlrdata->propubtime = NULL;
+   conshdlrdata->proptbtime = NULL;
+   conshdlrdata->prop3minortime = NULL;
    conshdlrdata->maxtimepropub = 0.0;
    conshdlrdata->maxtimeproptb = 0.0;
    conshdlrdata->maxtimeprop3minor = 0.0;
