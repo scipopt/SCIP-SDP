@@ -6743,7 +6743,6 @@ SCIP_DECL_CONSPROP(consPropSdp)
       }
 
       SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop, &nintrnd) );
-      ++conshdlrdata->sdpconshdlrdata->ncallspropub;
 
       if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
       {
@@ -6752,6 +6751,8 @@ SCIP_DECL_CONSPROP(consPropSdp)
          if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimepropub) )
             conshdlrdata->sdpconshdlrdata->maxtimepropub = newtime - oldtime;
       }
+
+      ++conshdlrdata->sdpconshdlrdata->ncallspropub;
 
       if ( infeasible )
       {
@@ -6801,7 +6802,6 @@ SCIP_DECL_CONSPROP(consPropSdp)
          }
 
          SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &nintrnd, &infeasible) );
-         ++conshdlrdata->sdpconshdlrdata->ncallsproptb;
 
          if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
          {
@@ -6810,6 +6810,9 @@ SCIP_DECL_CONSPROP(consPropSdp)
             if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimeproptb) )
                conshdlrdata->sdpconshdlrdata->maxtimeproptb = newtime - oldtime;
          }
+
+         ++conshdlrdata->sdpconshdlrdata->ncallsproptb;
+
 
          if ( infeasible )
          {
@@ -6857,7 +6860,6 @@ SCIP_DECL_CONSPROP(consPropSdp)
          }
 
          SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop) );
-         ++conshdlrdata->sdpconshdlrdata->ncallsprop3minor;
 
          if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
          {
@@ -6866,6 +6868,8 @@ SCIP_DECL_CONSPROP(consPropSdp)
             if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimeprop3minor) )
                conshdlrdata->sdpconshdlrdata->maxtimeprop3minor = newtime - oldtime;
          }
+
+         ++conshdlrdata->sdpconshdlrdata->ncallsprop3minor;
 
          if ( infeasible )
          {
