@@ -499,6 +499,8 @@ SCIP_RETCODE checkPropagateUpperbounds(
       int t;
 
       blocksize = consdata->blocksize;
+      assert( consdata->matrixval != NULL );
+      assert( consdata->matrixvar != NULL );
 
       /* check all off-diagonal positions */
       for (s = 1; s < blocksize; ++s)
