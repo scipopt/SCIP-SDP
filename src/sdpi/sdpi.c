@@ -4050,12 +4050,20 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
          /* if the variable was being optimized */
          if ( sdpi->onevarsdpidx == i )
          {
-            /* if optimal value is equal to the lower bound */
+            /* we only solve 1-d SDPs for nonnegative objective coefficient */
+            assert( sdpi->obj[i] >= - sdpi->feastol );
+
+            /* If the optimal value is strictly between the lower and upper bound, then by complementary slackness, the
+             * primal variables for the bounds are 0. If it is equal to a bound, we set the primal variables depending
+             * on the sign of the objective coefficient. */
+
+            /* if the optimal value is equal to the lower bound */
             if ( REALABS(sdpi->onevarsdpoptval - sdpi->sdpilb[i]) < sdpi->feastol )
             {
                /* the primal variable is equal to the objective */
                lbvals[i] = sdpi->obj[i];
             }
+            /* we never need the primal variable for the upper bound */
          }
          else
             assert( isFixed(sdpi, i) );
