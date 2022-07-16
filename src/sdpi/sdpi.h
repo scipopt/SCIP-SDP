@@ -629,7 +629,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    SCIP_Bool*            success             /**< pointer to store whether values could be retrieved */
    );
 
-/** gets the primal variables corresponding to the LP sides
+/** gets the primal solution corresponding to the left- and right-hand sides of the LP rows
  *
  *  @note If an LP row was removed, we return a value of 0.0. This can happen if the row is redundant, e.g., all
  *  involved variables are fixed, or it contains variable a single variable only.
