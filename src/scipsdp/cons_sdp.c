@@ -4798,10 +4798,12 @@ SCIP_RETCODE propagateUpperBounds(
       }
 
       /* if there is at least one entry that only depends on a single variable */
-      if ( consdata->propubpossible && consdata->nsingle > 0 )
+      if ( consdata->propubpossible )
       {
          int s;
          int t;
+
+         assert( consdata->nsingle > 0 );
 
          /* check all off-diagonal positions */
          for (s = 1; s < blocksize; ++s)
