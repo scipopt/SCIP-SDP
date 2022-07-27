@@ -8,6 +8,7 @@ features:
 - can now create CMIR inequalities from eigenvector cuts
 - revised and fixed checking routine for SDP rank 1 constraints
 - add example for tighten matrices
+- added check whether propagation of upper bounds can be applied in principle
 
 parameters:
 - new parameter <constraints/SDP/presollinconssparam> to decide how linear constraints are handled during presolving
