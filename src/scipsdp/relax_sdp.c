@@ -47,6 +47,7 @@
 #define SLATERSOLVED_ABSOLUTE /* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 #include "relax_sdp.h"
+#include "scip/dbldblarith.h"
 
 #include "assert.h"                     /*lint !e451*/
 #include "string.h"                     /* for strcmp */
@@ -1279,6 +1280,9 @@ SCIP_RETCODE computeConflictCut(
    SCIP_Real** primalmatrices;
    SCIP_ROW** rows;
    SCIP_VAR** vars;
+   SCIP_Real* cutcoefs;
+   SCIP_Real QUAD(cutlhs);
+   SCIP_Real QUAD(c);
    int nsdpblocks;
    int nrows;
    int nvars;
@@ -1299,13 +1303,12 @@ SCIP_RETCODE computeConflictCut(
    assert( vars != NULL );
 
    /* prepare cut */
-   *conflictcutlhs = 0.0;
-   for (j = 0; j < nvars; ++j)
-      conflictcut[j] = 0.0;
-
-   SCIP_CALL( SCIPsdpiGetNSDPBlocks(sdpi, &nsdpblocks) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &cutcoefs, QUAD_ARRAY_SIZE(nvars)) );
+   BMSclearMemoryArray(cutcoefs, QUAD_ARRAY_SIZE(nvars));
+   QUAD_ASSIGN(cutlhs, 0.0);
 
    /* get primal solution */
+   SCIP_CALL( SCIPsdpiGetNSDPBlocks(sdpi, &nsdpblocks) );
    if ( nsdpblocks > 0 )
    {
       int* sdpblocksizes;
@@ -1335,7 +1338,6 @@ SCIP_RETCODE computeConflictCut(
          /* loop through blocks and matrices */
          for (b = 0; b < nsdpblocks; ++b)
          {
-            SCIP_Real c = 0.0;
             SCIP_VAR* var;
             SCIP_Real eigenvalue;
             SCIP_Real primalval;
@@ -1349,7 +1351,12 @@ SCIP_RETCODE computeConflictCut(
             blocksize = sdpblocksizes[b];
             for (v = 0; v < sdpnblockvars[b]; v++)
             {
-               SCIP_Real p = 0.0;
+               var = SCIPsdpVarmapperGetSCIPvar(varmapper, sdpvar[b][v]);
+               varidx = SCIPvarGetProbindex(var);
+               assert( 0 <= varidx && varidx < nvars );
+               assert( vars[varidx] == var );
+
+               QUAD_ARRAY_LOAD(c, cutcoefs, varidx);
 
                /* compute inner product of primal matrix and constraint matrix */
                for (k = 0; k < sdpnblockvarnonz[b][v]; k++)
@@ -1364,16 +1371,12 @@ SCIP_RETCODE computeConflictCut(
                   if ( ! SCIPisFeasZero(scip, primalval) )
                   {
                      if ( row == col )
-                        p += sdpval[b][v][k] * primalval;
+                        SCIPquadprecSumQD(c, c, sdpval[b][v][k] * primalval);
                      else
-                        p += 2.0 * sdpval[b][v][k] * primalval;
+                        SCIPquadprecSumQD(c, c, 2.0 * sdpval[b][v][k] * primalval);
                   }
                }
-               var = SCIPsdpVarmapperGetSCIPvar(varmapper, sdpvar[b][v]);
-               varidx = SCIPvarGetProbindex(var);
-               assert( 0 <= varidx && varidx < nvars );
-               assert( vars[varidx] == var );
-               conflictcut[varidx] += p;
+               QUAD_ARRAY_STORE(cutcoefs, varidx, c);
             }
 
             /* treat constant matrix */
@@ -1389,12 +1392,11 @@ SCIP_RETCODE computeConflictCut(
                if ( ! SCIPisFeasZero(scip, primalval) )
                {
                   if ( row == col )
-                     c += sdpconstval[b][k] * primalval;
+                     SCIPquadprecSumQD(cutlhs, cutlhs, sdpconstval[b][k] * primalval);
                   else
-                     c += 2.0 * sdpconstval[b][k] * primalval;
+                     SCIPquadprecSumQD(cutlhs, cutlhs, 2.0 * sdpconstval[b][k] * primalval);
                }
             }
-            *conflictcutlhs += c;
 
             /* compute minimal eigenvalue of primal matrix (matrix will be destroyed) */
             SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, primalmatrices[b], 1, &eigenvalue, NULL) );
@@ -1484,25 +1486,31 @@ SCIP_RETCODE computeConflictCut(
                   assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
 
                   if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
-                     *conflictcutlhs += rowlhs * primallhsval;
+                     SCIPquadprecSumQD(cutlhs, cutlhs, rowlhs * primallhsval);
 
                   if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
-                     *conflictcutlhs -= rowrhs * primalrhsval;
+                     SCIPquadprecSumQD(cutlhs, cutlhs, -rowrhs * primalrhsval);
 
                   for (j = 0; j < rownnonz; j++)
                   {
                      if ( ! SCIPisZero(scip, rowvals[j]) )
                      {
-                        assert( SCIPcolGetVar(rowcols[j]) != NULL );
-                        varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
-                        assert( 0 <= varidx && varidx < nvars );
-                        assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
+                        if ( (! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval)) || ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) ) )
+                        {
+                           assert( SCIPcolGetVar(rowcols[j]) != NULL );
+                           varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
+                           assert( 0 <= varidx && varidx < nvars );
+                           assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
 
-                        if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
-                           conflictcut[varidx] += rowvals[j] * primallhsval;
+                           QUAD_ARRAY_LOAD(c, cutcoefs, varidx);
+                           if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
+                              SCIPquadprecSumQD(c, c, rowvals[j] * primallhsval);
 
-                        if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
-                           conflictcut[varidx] -= rowvals[j] * primalrhsval;
+                           if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
+                              SCIPquadprecSumQD(c, c, -rowvals[j] * primalrhsval);
+
+                           QUAD_ARRAY_STORE(cutcoefs, varidx, c);
+                        }
                      }
                   }
                }
@@ -1529,7 +1537,9 @@ SCIP_RETCODE computeConflictCut(
                   obj = SCIPvarGetObj(vars[j]);
                   if ( ! SCIPisZero(scip, obj) )
                   {
-                     conflictcut[j] -= obj;
+                     QUAD_ARRAY_LOAD(c, cutcoefs, j);
+                     SCIPquadprecSumQD(c, c, -obj);
+                     QUAD_ARRAY_STORE(cutcoefs, j, c);
 
                      if ( ! SCIPvarIsIntegral(vars[j]) || ! SCIPisIntegral(scip, obj) )
                         objintegral = FALSE;
@@ -1541,7 +1551,7 @@ SCIP_RETCODE computeConflictCut(
                else
                   primalbound -= SCIPfeastol(scip);
 
-               *conflictcutlhs -= primalbound;
+               SCIPquadprecSumQD(cutlhs, cutlhs, -primalbound);
             }
          }
       }
@@ -1549,6 +1559,18 @@ SCIP_RETCODE computeConflictCut(
       SCIPfreeBufferArray(scip, &rhsvals);
       SCIPfreeBufferArray(scip, &lhsvals);
    }
+
+   if ( *success )
+   {
+      *conflictcutlhs = QUAD_TO_DBL(cutlhs);
+      for (j = 0; j < nvars; ++j)
+      {
+         QUAD_ARRAY_LOAD(c, cutcoefs, j);
+         conflictcut[j] = QUAD_TO_DBL(c);
+      }
+   }
+
+   SCIPfreeBufferArray(scip, &cutcoefs);
 
    return SCIP_OKAY;
 }
