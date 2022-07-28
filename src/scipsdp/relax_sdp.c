@@ -111,9 +111,6 @@
 #define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximum obj with when computing minimum eigenvalue for warmstart-projection in the primal */
 #define WARMSTART_PREOPT_MIN_Z_LPVAL 0.01    /**< minimal (diagonal) entry for LP block of dual matrix for preoptimal warmstarts */
 
-/* undefine the following if variable bounds should be used for generating a conflict cut: */
-/* #define CONFLICT_USE_VARIABLE_BOUNDS */
-
 
 /*
  * Data structures
@@ -1552,54 +1549,6 @@ SCIP_RETCODE computeConflictCut(
       SCIPfreeBufferArray(scip, &rhsvals);
       SCIPfreeBufferArray(scip, &lhsvals);
    }
-
-   /* add variable bounds */
-#ifdef CONFLICT_USE_VARIABLE_BOUNDS
-   if ( nvars > 0 && *success )
-   {
-      SCIP_Real* lbvals;
-      SCIP_Real* ubvals;
-      int i;
-
-      SCIP_CALL( SCIPallocBufferArray(scip, &lbvals, nvars) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &ubvals, nvars) );
-
-      SCIP_CALL( SCIPsdpiGetPrimalBoundVars(sdpi, lbvals, ubvals, success) );
-
-      if ( *success )
-      {
-         for (i = 0; i < nvars; ++i)
-         {
-            SCIP_Real primallbval;
-            SCIP_Real primalubval;
-            SCIP_Real lb;
-            SCIP_Real ub;
-
-            lb = SCIPvarGetLbGlobal(vars[i]);
-            ub = SCIPvarGetUbGlobal(vars[i]);
-
-            primallbval = MAX(lbvals[i], 0.0); /* make sure value is >= 0 */
-            assert( SCIPisFeasGE(scip, primallbval, 0.0) );
-            if ( ! SCIPisFeasZero(scip, primallbval) && ! SCIPisInfinity(scip, -lb) )
-            {
-               conflictcut[i] += primallbval;
-               *conflictcutlhs += lb * primallbval;
-            }
-
-            primalubval = MAX(ubvals[i], 0.0); /* make sure value is >= 0 */
-            assert( SCIPisFeasGE(scip, primalubval, 0.0) );
-            if ( ! SCIPisFeasZero(scip, primalubval) && ! SCIPisInfinity(scip, ub) )
-            {
-               conflictcut[i] -= primalubval;
-               *conflictcutlhs -= ub * primalubval;
-            }
-         }
-      }
-
-      SCIPfreeBufferArray(scip, &ubvals);
-      SCIPfreeBufferArray(scip, &lbvals);
-   }
-#endif
 
    return SCIP_OKAY;
 }
