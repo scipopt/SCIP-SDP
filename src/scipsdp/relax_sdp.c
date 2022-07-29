@@ -1490,7 +1490,7 @@ SCIP_RETCODE computeConflictCut(
                      SCIPquadprecSumQD(cutlhs, cutlhs, rowlhs * primallhsval);
 
                   if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
-                     SCIPquadprecSumQD(cutlhs, cutlhs, -rowrhs * primalrhsval);
+                     SCIPquadprecSumQD(cutlhs, cutlhs, - rowrhs * primalrhsval);
 
                   for (j = 0; j < rownnonz; j++)
                   {
@@ -1508,7 +1508,7 @@ SCIP_RETCODE computeConflictCut(
                               SCIPquadprecSumQD(c, c, rowvals[j] * primallhsval);
 
                            if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
-                              SCIPquadprecSumQD(c, c, -rowvals[j] * primalrhsval);
+                              SCIPquadprecSumQD(c, c, - rowvals[j] * primalrhsval);
 
                            QUAD_ARRAY_STORE(cutcoefs, varidx, c);
                         }
@@ -1599,7 +1599,7 @@ SCIP_RETCODE computeConflictCut(
                }
                else
                {
-                  if( SCIPisInfinity(scip, -lb) )
+                  if ( SCIPisInfinity(scip, -lb) )
                   {
                      *success = FALSE; /* cut is redundant */
                      break;
@@ -1784,7 +1784,7 @@ SCIP_RETCODE calcRelax(
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
                   FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
 
-#ifdef SCIP_DEBUG
+#ifdef SCIP_MORE_DEBUG
             SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
             SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
             SCIPinfoMessage(scip, NULL, "\n");
