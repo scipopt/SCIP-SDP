@@ -48,6 +48,7 @@
 
 #include "relax_sdp.h"
 #include "scip/dbldblarith.h"
+#include "scip/debug.h"
 
 #include "assert.h"                     /*lint !e451*/
 #include "string.h"                     /* for strcmp */
@@ -1790,14 +1791,17 @@ SCIP_RETCODE calcRelax(
 #endif
 
             /* add constraint as a conflict (will add and release constraint) */
+#ifndef WITH_DEBUG_SOLUTION
             if ( cnt > 0 )
             {
                SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut && ! SCIPisInfinity(scip, SCIPgetCutoffbound(scip))) );
                cons = NULL;
             }
             else
+#endif
             {
                SCIP_CALL( SCIPaddCons(scip, cons) );
+               SCIP_CALL( SCIPdebugCheckConss(scip, &cons, 1) );
                SCIP_CALL( SCIPreleaseCons(scip, &cons) );
             }
 
