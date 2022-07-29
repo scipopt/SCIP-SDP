@@ -1560,14 +1560,67 @@ SCIP_RETCODE computeConflictCut(
       SCIPfreeBufferArray(scip, &lhsvals);
    }
 
+   /* safely cleanup cut (adapted from conflict.c) */
    if ( *success )
    {
-      *conflictcutlhs = QUAD_TO_DBL(cutlhs);
       for (j = 0; j < nvars; ++j)
       {
+         SCIP_Real lb;
+         SCIP_Real ub;
+         SCIP_Bool isfixed;
+
+         lb = SCIPvarGetLbGlobal(vars[j]);
+         ub = SCIPvarGetUbGlobal(vars[j]);
+
+         if ( ! (SCIPisInfinity(scip, -lb) || SCIPisInfinity(scip, ub)) && SCIPisEQ(scip, ub, lb) )
+            isfixed = TRUE;
+         else
+            isfixed = FALSE;
+
          QUAD_ARRAY_LOAD(c, cutcoefs, j);
-         conflictcut[j] = QUAD_TO_DBL(c);
+         if ( isfixed || SCIPisZero(scip, QUAD_TO_DBL(c)) )
+         {
+            if( REALABS(QUAD_TO_DBL(c)) > QUAD_EPSILON )
+            {
+               /* adjust lhs with max contribution */
+               if ( QUAD_TO_DBL(c) > 0.0 )
+               {
+                  if( SCIPisInfinity(scip, ub) )
+                  {
+                     *success = FALSE; /* cut is redundant */
+                     break;
+                  }
+                  else
+                  {
+                     SCIPquadprecProdQD(c, c, ub);
+                     SCIPquadprecSumQQ(cutlhs, cutlhs, -c);
+                  }
+               }
+               else
+               {
+                  if( SCIPisInfinity(scip, -lb) )
+                  {
+                     *success = FALSE; /* cut is redundant */
+                     break;
+                  }
+                  else
+                  {
+                     SCIPquadprecProdQD(c, c, lb);
+                     SCIPquadprecSumQQ(cutlhs, cutlhs, -c);
+                  }
+               }
+            }
+            conflictcut[j] = 0.0;
+         }
+         else
+            conflictcut[j] = QUAD_TO_DBL(c);
       }
+
+      /* relax lhs to 0, if it is very close to 0 */
+      if ( QUAD_TO_DBL(cutlhs) > 0.0 && QUAD_TO_DBL(cutlhs) <= SCIPepsilon(scip) )
+         QUAD_ASSIGN(cutlhs, 0.0);
+
+      *conflictcutlhs = QUAD_TO_DBL(cutlhs);
    }
 
    SCIPfreeBufferArray(scip, &cutcoefs);
