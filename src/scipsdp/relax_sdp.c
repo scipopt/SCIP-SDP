@@ -1403,10 +1403,10 @@ SCIP_RETCODE computeConflictCut(
 
             /* possibly correct the fact that the primal matrix might be psd only up to a certain precision */
             SCIPdebugMsg(scip, "Correcting rhs of generated cut by %g.\n", MIN(eigenvalue, 0.0));
-            *conflictcutlhs += MIN(eigenvalue, 0.0);
+            SCIPquadprecSumQD(cutlhs, cutlhs, MIN(eigenvalue, 0.0));
          }
       }
-      assert( ! SCIPisInfinity(scip, REALABS(*conflictcutlhs)) );
+      assert( ! SCIPisInfinity(scip, REALABS(QUAD_TO_DBL(cutlhs))) );
 
       /* free memory */
       for (b = 0; b < nsdpblocks; ++b)
@@ -1517,7 +1517,7 @@ SCIP_RETCODE computeConflictCut(
                ++nactiverows;
             }
          }
-         assert( ! SCIPisInfinity(scip, REALABS(*conflictcutlhs)) );
+         assert( ! SCIPisInfinity(scip, REALABS(QUAD_TO_DBL(cutlhs))) );
 
          SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &nlpcons) );
          assert( nlpcons == nactiverows );
