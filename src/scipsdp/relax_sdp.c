@@ -1369,13 +1369,11 @@ SCIP_RETCODE computeConflictCut(
 
                   primalval = primalmatrices[b][row * blocksize + col];
                   assert( SCIPisEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
-                  if ( ! SCIPisFeasZero(scip, primalval) )
-                  {
-                     if ( row == col )
-                        SCIPquadprecSumQD(c, c, sdpval[b][v][k] * primalval);
-                     else
-                        SCIPquadprecSumQD(c, c, 2.0 * sdpval[b][v][k] * primalval);
-                  }
+
+                  if ( row == col )
+                     SCIPquadprecSumQD(c, c, sdpval[b][v][k] * primalval);
+                  else
+                     SCIPquadprecSumQD(c, c, 2.0 * sdpval[b][v][k] * primalval);
                }
                QUAD_ARRAY_STORE(cutcoefs, varidx, c);
             }
@@ -1390,13 +1388,11 @@ SCIP_RETCODE computeConflictCut(
 
                primalval = primalmatrices[b][row * blocksize + col];
                assert( SCIPisEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
-               if ( ! SCIPisFeasZero(scip, primalval) )
-               {
-                  if ( row == col )
-                     SCIPquadprecSumQD(cutlhs, cutlhs, sdpconstval[b][k] * primalval);
-                  else
-                     SCIPquadprecSumQD(cutlhs, cutlhs, 2.0 * sdpconstval[b][k] * primalval);
-               }
+
+               if ( row == col )
+                  SCIPquadprecSumQD(cutlhs, cutlhs, sdpconstval[b][k] * primalval);
+               else
+                  SCIPquadprecSumQD(cutlhs, cutlhs, 2.0 * sdpconstval[b][k] * primalval);
             }
 
             /* compute minimal eigenvalue of primal matrix (matrix will be destroyed) */
@@ -1494,24 +1490,21 @@ SCIP_RETCODE computeConflictCut(
 
                   for (j = 0; j < rownnonz; j++)
                   {
-                     if ( ! SCIPisZero(scip, rowvals[j]) )
+                     if ( (! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval)) || ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) ) )
                      {
-                        if ( (! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval)) || ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) ) )
-                        {
-                           assert( SCIPcolGetVar(rowcols[j]) != NULL );
-                           varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
-                           assert( 0 <= varidx && varidx < nvars );
-                           assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
+                        assert( SCIPcolGetVar(rowcols[j]) != NULL );
+                        varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
+                        assert( 0 <= varidx && varidx < nvars );
+                        assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
 
-                           QUAD_ARRAY_LOAD(c, cutcoefs, varidx);
-                           if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
-                              SCIPquadprecSumQD(c, c, rowvals[j] * primallhsval);
+                        QUAD_ARRAY_LOAD(c, cutcoefs, varidx);
+                        if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
+                           SCIPquadprecSumQD(c, c, rowvals[j] * primallhsval);
 
-                           if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
-                              SCIPquadprecSumQD(c, c, - rowvals[j] * primalrhsval);
+                        if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
+                           SCIPquadprecSumQD(c, c, - rowvals[j] * primalrhsval);
 
-                           QUAD_ARRAY_STORE(cutcoefs, varidx, c);
-                        }
+                        QUAD_ARRAY_STORE(cutcoefs, varidx, c);
                      }
                   }
                }
