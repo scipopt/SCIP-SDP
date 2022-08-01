@@ -465,15 +465,21 @@ has to satisfy:
 \[
 0 = \skal{\mu^* A - B}{x^* (x^*)\T} = (x^*)\T (\mu^* A - B) x^*.
 \]
-Therefore, $x^*$ needs to be an eigenvector for the eigenvalue~$0$ of
-$\mu^* A - B$ and thus $x^* \in \ker(\mu^* A - B)$. Moreover,
-$\skal{A}{x^*(x^*)\T} = (x^*)\T A x^* = \gamma$ needs to hold.  Consider a
-generator matrix $C \in \R^{n \times r}$ of the kernel of $\mu^* A - B$,
-i.e., $\ker(\mu^* A - B) = \{C y \suchthat y \in \R^r\}$.  Then by scaling,
-the problem reduces to the question whether there exists $y \in \R^r$ such
-that
+Since $\mu^* A - B \succeq 0$, there exists a matrix
+$D \in \R^{k \times n}$ such that $D\T D = \mu^* A - B$. Thus, we are
+searching for $x^*$ with $(D x^*)\T D x^* = 0$. Therefore,
+$x^* \in \ker(D)$. In fact,
+$\ker(D) = \ker(\mu^* A - B)$.\footnote{Clearly,
+  $\ker(D) \subseteq \ker(\mu^* A - B)$. Conversely, let
+  $x \in \ker(\mu^* A - B)$. Then
+  $(Dx)\T Dx = \norm{Dx}_2^2 = (\mu^* A - B)x = 0$. But then $Dx = 0$.}
+Moreover, $\skal{A}{x^*(x^*)\T} = (x^*)\T A x^* = \gamma$ needs to hold.
+Consider a generator matrix $C \in \R^{n \times r}$ of the kernel of
+$\mu^* A - B$, i.e., $\ker(\mu^* A - B) = \{C y \suchthat y \in \R^r\}$.
+Then by scaling, the problem reduces to the question whether there exists
+$y^* \in \R^r$ such that
 \[
-y\T C\T A C y
+(y^*)\T C\T A C y^*
 \begin{cases}
   > 0 & \text{if } \gamma > 0,\\
   < 0 & \text{if } \gamma < 0.
@@ -538,6 +544,7 @@ y\T C\T B C y
   < 0 & \text{if } \gamma < 0.
 \end{cases}
 \]
+By scaling, this produces the wanted solution.
 
 
 % -------------------------------------------------------------------------
