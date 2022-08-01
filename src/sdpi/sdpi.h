@@ -449,6 +449,12 @@ SCIP_Bool SCIPsdpiSolvedOrig(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    );
 
+/** returns whether a primal solution or ray is available */
+SCIP_EXPORT
+SCIP_Bool SCIPsdpiHavePrimalSol(
+   SCIP_SDPI*            sdpi                /**< SDP-interface structure */
+   );
+
 /** returns true if the solver could determine whether the problem is feasible, so it returns true if the
  *  solver knows that the problem is feasible/infeasible/unbounded, it returns false if the solver does not know
  *  anything about the feasibility status and thus the functions IsPrimalFeasible etc. should not be used

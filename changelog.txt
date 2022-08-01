@@ -17,6 +17,7 @@ API changes:
 - function SCIPsdpiSolverGetPrimalBoundVars() uses a success pointer instead of arraylength
 - function SCIPsdpiGetPrimalBoundVars() uses a success pointer instead of arraylength
 - new function SCIPsdpiGetSDPdata() to retrieve SDP data from SDPI
+- new function SCIPsdpiHavePrimalSol() to determine whether a primal solution is available
 
 parameters:
 - new parameter <constraints/SDP/presollinconssparam> to decide how linear constraints are handled during presolving

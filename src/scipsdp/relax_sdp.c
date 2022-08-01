@@ -1296,6 +1296,12 @@ SCIP_RETCODE computeConflictCut(
    assert( conflictcutlhs != NULL );
    assert( success != NULL );
 
+   /* only run if we can get a primal solution */
+   if ( ! SCIPsdpiHavePrimalSol(sdpi) )
+   {
+      *success = FALSE;
+      return SCIP_OKAY;
+   }
    *success = TRUE;
 
    nvars = SCIPgetNVars(scip);
