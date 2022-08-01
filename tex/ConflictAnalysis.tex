@@ -411,6 +411,114 @@ that are at their global bounds at the node at which the constraint is
 generated.
 
 
+% -------------------------------------------------------------------------
+\subsection{Primal Solutions for Special Cases}
+\label{sec:Primal}
+
+In order to produce conflict constraints, one needs solutions for the
+primal of the LP-relaxation~\eqref{SDP-P}. Because SCIP-SDP preprocesses
+certain SDP problems, we briefly discuss how primal solutions can be
+obtained in these cases.
+
+% -------------------------------------------------------------------------
+\subsubsection{SDPs with One Variable}
+
+For the special case of SDP-relaxations in which only one variable is
+unfixed, SCIP-SDP uses specialized methods to solve them. In order to
+derive a primal solution, consider
+\begin{equation}\label{eq:basic}
+  \inf\; \{\gamma\, \mu \suchthat \mu\, A - B \succeq 0,\; \ell \leq \mu \leq u\},
+\end{equation}
+where $A$, $B \in \R^{n \times n}$ are symmetric matrices, $\gamma \in \R$,
+and $\ell \in \R \cup \{-\infty\}$, $u \in \R \cup \{\infty\}$.
+
+The dual SDP of~\eqref{eq:basic} is
+\begin{equation}\label{eq:dual}
+  \sup\; \{\skal{B}{X} + \ell\, \alpha - u\, \beta \suchthat \skal{A}{X} +
+  \alpha - \beta = \gamma,\; X \succeq 0,\; \alpha,\; \beta \geq 0\}.
+\end{equation}
+
+If $\mu^*$ is an optimal solution for~\eqref{eq:basic}, we can construct an
+optimal primal solution $(X^*, \alpha^*, \beta^*)$ as follows.
+
+\paragraph{Case 0, $\boldsymbol{\gamma = 0}$:}
+
+Here we can take $(X^*, \alpha^*, \beta^*) = (0,0,0)$. Thus, in the
+following, we assume that $\gamma \neq 0$.
+
+\paragraph{Case 1, $\boldsymbol{\ell < \mu^* < u}$:}
+
+Then by complementary slackness necessarily $\alpha^* = \beta^* = 0$, and
+thus $\skal{A}{X^*} = \gamma$. Optimality implies that
+\[
+\gamma\, \mu^* = \skal{B}{X^*}
+\quad\Leftrightarrow\quad
+\mu^* \skal{A}{X^*} = \skal{B}{X^*}
+\quad\Leftrightarrow\quad
+\skal{\mu^* A - B}{X^*} = 0.
+\]
+
+Note that in~\eqref{eq:dual} there is only one affine constraint, which
+implies that there exists a rank-1 solution. Thus, we are aiming to
+construct a rank-1 solution $X^* = x^* (x^*)\T \succeq 0$.  This solution
+has to satisfy:
+\[
+0 = \skal{\mu^* A - B}{x^* (x^*)\T} = (x^*)\T (\mu^* A - B) x^*.
+\]
+Therefore, $x^*$ needs to be an eigenvector for the eigenvalue~$0$ of
+$\mu^* A - B$ and thus $x^* \in \ker(\mu^* A - B)$. Moreover,
+$\skal{A}{x^*(x^*)\T} = (x^*)\T A x^* = \gamma$ needs to hold.  Consider a
+generator matrix $C \in \R^{n \times r}$ of the kernel of $\mu^* A - B$,
+i.e., $\ker(\mu^* A - B) = \{C y \suchthat y \in \R^r\}$.  Then by scaling,
+the problem reduces to the question whether there exists $y \in \R^r$ such
+that
+\[
+y\T C\T A C y
+\begin{cases}
+  > 0 & \text{if } \gamma > 0,\\
+  < 0 & \text{if } \gamma < 0.
+\end{cases}
+\]
+Computing a maximal/minimal eigenvalue/eigenvector of $C\T A C$ will decide
+this.
+
+\paragraph{Case 2, $\boldsymbol{\mu^* = \ell}$:}
+
+In this case, $\beta^* = 0$ has to hold.
+
+If $\gamma \geq 0$, we can take
+$(X^*, \alpha^*, \beta^*) = (0, \gamma, 0)$, which is feasible with
+objective value $\gamma \ell = \gamma \mu^*$ as needed. Therefore, this
+point is optimal.
+
+If $\gamma < 0$, the conditions are
+\[
+\skal{B}{X^*} + \ell\, \alpha^* = \gamma\, \ell,\quad
+\skal{A}{X^*} + \alpha^* = \gamma,\quad X^* \succeq 0,\; \alpha^* \geq 0.
+\]
+This yields
+\[
+\skal{B}{X^*} + \ell\, \alpha^* = \skal{A}{X^*}\, \ell + \alpha^*\, \ell
+\quad\Leftrightarrow\quad
+\skal{\ell\, A - B}{X^*} = 0.
+\]
+As above, we are looking for a rank-1 solution $(x^*)\T x^*$. Let
+$C \in \R^{n \times r}$ be a generator matrix of $\ker(\ell\, A - B)$. Then
+we need $y^* \in \R^r$ such that
+\[
+(y^*)\T C\T A C y^* < 0.
+\]
+If this is impossible, the problem is infeasible (e.g., if $A \succeq
+0$). Otherwise, we can scale $x^* = C y^*$ and set $\alpha^* = 0$.
+
+\paragraph{Case 3, $\boldsymbol{\mu^* = u}$:}
+
+This case is symmetric to Case 2. If $\gamma < 0$, we can set
+$(X^*, \alpha^*, \beta^*) = (0, 0, -\gamma)$.
+
+If $\gamma \geq 0$, we can construct a rank-1 solution as above.
+
+
 \begin{small}
    \bibliographystyle{plain}
    \bibliography{ConflictAnalysis.bib}
