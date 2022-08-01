@@ -518,6 +518,28 @@ $(X^*, \alpha^*, \beta^*) = (0, 0, -\gamma)$.
 
 If $\gamma \geq 0$, we can construct a rank-1 solution as above.
 
+\paragraph{Case 4, infeasible:}
+
+If~\eqref{eq:basic} is infeasible, we are searching for a rank-1 solution
+$X^* = (x^*)\T x^*$ such that
+\[
+\skal{B}{X^*}
+\begin{cases}
+ > 0 & \text{if } \gamma > 0,\\
+ < 0 & \text{if } \gamma < 0
+\end{cases}
+\]
+and $\skal{A}{X^*} = 0$ (and $\alpha^* = \beta^* = 0$). Let again $C^{n
+  \times r}$ be a generator matrix of $\ker(A)$ and compute
+\[
+y\T C\T B C y
+\begin{cases}
+  > 0 & \text{if } \gamma > 0,\\
+  < 0 & \text{if } \gamma < 0.
+\end{cases}
+\]
+
+
 % -------------------------------------------------------------------------
 \subsubsection{SDPs with All Fixed Variables}
 
