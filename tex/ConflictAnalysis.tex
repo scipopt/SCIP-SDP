@@ -518,6 +518,25 @@ $(X^*, \alpha^*, \beta^*) = (0, 0, -\gamma)$.
 
 If $\gamma \geq 0$, we can construct a rank-1 solution as above.
 
+% -------------------------------------------------------------------------
+\subsubsection{SDPs with All Fixed Variables}
+
+Consider the general problem with fixed variables:
+\[
+  \inf\; \{ b\T y \suchthat \sum_{i=1}^m A^i\, y_i - A^0 \succeq 0,\; \ell \leq y \leq \ell\},
+\]
+and its dual:
+\[
+  \sup\; \{\skal{A^0}{X} + \ell\T \alpha - \ell\T \beta \suchthat \skal{A}{X} +
+  \alpha_i - \beta_i = b_i\; \forall i \in [m],\; X \succeq 0,\; \alpha,\; \beta \geq 0\}.
+\]
+We can take
+\[
+X^* = 0,\quad
+\alpha^*_i = \max\,\{0, b_i\}, \quad
+\beta^*_i = -\min\,\{0, b_i\}.
+\]
+This solution is feasible for the dual and has objective value $\ell\T b$.
 
 \begin{small}
    \bibliographystyle{plain}
