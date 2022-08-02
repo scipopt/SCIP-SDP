@@ -311,6 +311,9 @@ struct SCIP_SDPi
    SCIP_Real             onevarsdpobjval;    /**< objective value of one variable SDP */
    SCIP_Real             onevarsdpoptval;    /**< optimal value of one variable SDP */
    int                   onevarsdpidx;       /**< index of variable for one variable SDP */
+   SCIP_Real*            onevarsdpcertvec;   /**< one variable SDP certificate vector (eigenvector) */
+   int                   onevarsdpcertsize;  /**< block size for one variable SDP certificate vector */
+   SCIP_Real             onevarsdpcertval;   /**< one variable SDP certificate value (supergradient) */
 };
 
 
@@ -1637,6 +1640,9 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->onevarsdpobjval = SCIP_INVALID;
    (*sdpi)->onevarsdpoptval = SCIP_INVALID;
    (*sdpi)->onevarsdpidx = -1;
+   (*sdpi)->onevarsdpcertvec = NULL;
+   (*sdpi)->onevarsdpcertsize = -1;
+   (*sdpi)->onevarsdpcertval = SCIP_INVALID;
 
    (*sdpi)->nallfixed = 0;
    (*sdpi)->ninfeasible = 0;
@@ -1726,6 +1732,8 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->maxnvars);/*lint !e737*/
+
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->onevarsdpcertvec), (*sdpi)->onevarsdpcertsize);
 
    /* free the solver */
    SCIP_CALL( SCIPsdpiSolverFree(&((*sdpi)->sdpisolver)) );
@@ -1884,6 +1892,9 @@ SCIP_RETCODE SCIPsdpiClone(
    newsdpi->onevarsdpobjval = SCIP_INVALID;
    newsdpi->onevarsdpoptval = SCIP_INVALID;
    newsdpi->onevarsdpidx = -1;
+   newsdpi->onevarsdpcertvec = NULL;
+   newsdpi->onevarsdpcertsize = -1;
+   newsdpi->onevarsdpcertval = SCIP_INVALID;
 
    newsdpi->nallfixed = 0;
    newsdpi->ninfeasible = 0;
@@ -2792,6 +2803,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    sdpi->onevarsdpobjval = SCIP_INVALID;
    sdpi->onevarsdpoptval = SCIP_INVALID;
    sdpi->onevarsdpidx = -1;
+   sdpi->onevarsdpcertval = SCIP_INVALID;
 
    if ( timelimit <= 0.0 )
       return SCIP_OKAY;
@@ -2942,6 +2954,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->onevarsdpidx = activevaridx;
             sdpi->solvedonevarsdp = SCIP_ONEVAR_OPTIMAL;
             sdpi->onevarsdpobjval += fixedvarsobjcontr;
+            sdpi->onevarsdpcertval = SCIP_INVALID;
             ++sdpi->nonevarsdp;
          }
       }
@@ -2954,10 +2967,21 @@ SCIP_RETCODE SCIPsdpiSolve(
                break;
          }
 
+         if ( sdpi->onevarsdpcertvec == NULL )
+         {
+            BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &(sdpi->onevarsdpcertvec), sdpi->sdpblocksizes[0]) );
+            sdpi->onevarsdpcertsize = sdpi->sdpblocksizes[0];
+         }
+         else if ( sdpi->onevarsdpcertsize != sdpi->sdpblocksizes[0] )
+         {
+            BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->onevarsdpcertvec), sdpi->sdpblocksizes[0], sdpi->onevarsdpcertsize) );
+            sdpi->onevarsdpcertsize = sdpi->sdpblocksizes[0];
+         }
+
          SCIP_CALL( SCIPsolveOneVarSDP(sdpi->bufmem, sdpi->obj[activevaridx], sdpi->sdpilb[activevaridx], sdpi->sdpiub[activevaridx], sdpi->sdpblocksizes[0],
                sdpconstnblocknonz[0], sdpconstrow[0], sdpconstcol[0], sdpconstval[0],
                sdpi->sdpnblockvarnonz[0][v], sdpi->sdprow[0][v], sdpi->sdpcol[0][v], sdpi->sdpval[0][v],
-               SCIPsdpiInfinity(sdpi), sdpi->feastol, &objval, &optval) );
+               SCIPsdpiInfinity(sdpi), sdpi->feastol, sdpi->onevarsdpcertvec, &sdpi->onevarsdpcertval, &objval, &optval) );
 
          if ( objval != SCIP_INVALID )  /*lint !e777*/
          {
@@ -3273,7 +3297,7 @@ SCIP_Bool SCIPsdpiHavePrimalSol(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
 {
-   if ( ! sdpi->solved || sdpi->infeasible || sdpi->allfixed || sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+   if ( ! sdpi->solved || sdpi->infeasible || sdpi->allfixed || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
    {
       return FALSE;
    }
@@ -4045,41 +4069,40 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
    }
-   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
-   {
-      SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-   }
-   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
       int i;
 
-      /* determine primal values */
+      /* initialize variables to be 0 */
       for (i = 0; i < sdpi->nvars; i++)
       {
-         lbvals[i] = 0.0; /* most lower bound variables are 0.0 */
-         ubvals[i] = 0.0; /* upper variables are always 0.0 */
-
-         /* if the variable was being optimized */
-         if ( sdpi->onevarsdpidx == i )
-         {
-            /* we only solve 1-d SDPs for nonnegative objective coefficient */
-            assert( sdpi->obj[i] >= - sdpi->feastol );
-
-            /* If the optimal value is strictly between the lower and upper bound, then by complementary slackness, the
-             * primal variables for the bounds are 0. If it is equal to a bound, we set the primal variables depending
-             * on the sign of the objective coefficient. */
-
-            /* if the optimal value is equal to the lower bound */
-            if ( REALABS(sdpi->onevarsdpoptval - sdpi->sdpilb[i]) < sdpi->feastol )
-            {
-               /* the primal variable is equal to the objective */
-               lbvals[i] = sdpi->obj[i];
-            }
-            /* we never need the primal variable for the upper bound */
-         }
-         else
-            assert( isFixed(sdpi, i) );
+         lbvals[i] = 0.0;
+         ubvals[i] = 0.0;
       }
+
+      if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
+      {
+         /* fill in dual variables for single constraint */
+         if ( sdpi->onevarsdpoptval > sdpi->feastol )
+            ubvals[sdpi->onevarsdpidx] = sdpi->onevarsdpoptval;
+         else if ( sdpi->onevarsdpoptval < - sdpi->feastol )
+            lbvals[sdpi->onevarsdpidx] = - sdpi->onevarsdpoptval;
+      }
+      else
+      {
+         assert( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL );
+
+         /* we only solve 1-d SDPs for nonnegative objective coefficient */
+         assert( sdpi->obj[sdpi->onevarsdpidx] >= - sdpi->feastol );
+
+         /* if the optimal value is equal to the lower bound */
+         if ( REALABS(sdpi->onevarsdpoptval - sdpi->sdpilb[sdpi->onevarsdpidx]) < sdpi->feastol )
+         {
+            /* the primal variable is equal to the objective */
+            lbvals[sdpi->onevarsdpidx] = sdpi->obj[sdpi->onevarsdpidx];
+         }
+      }
+
       *success = TRUE;
    }
    /* If the primal is infeasible, we usually do not have a dual solution nor a primal ray. */
@@ -4134,13 +4157,9 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
    {
       SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
    }
-   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_INFEASIBLE )
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
-      SCIPdebugMessage("Problem is infeasible, no primal solution available.\n");
-   }
-   else if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL )
-   {
-      /* in this case, no LP rows can exist, so return 0.0 for all (the LP rows might have been preprocesssed away) */
+      /* for SDP constraint with one variable, no LP rows can exist, so return 0.0 for all (the LP rows might have been preprocesssed away) */
       for (i = 0; i < sdpi->nlpcons; ++i)
       {
          lhsvals[i] = 0.0;
@@ -4321,7 +4340,30 @@ SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
    }
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
-      SCIPdebugMessage("Solved one variable SDP, no primal solution available.\n");
+      SCIP_Real s = 1.0;
+      int blocksize;
+      int i;
+      int j;
+
+      assert( 0 <= sdpi->onevarsdpidx && sdpi->onevarsdpidx < sdpi->nvars );
+      assert( sdpi->onevarsdpcertvec != NULL && sdpi->onevarsdpcertval != SCIP_INVALID );
+      assert( primalmatrices[0] != NULL );
+      assert( sdpi->nsdpblocks == 1 );
+
+      blocksize = sdpi->sdpblocksizes[0];
+
+      /* We can only treat the optimal case in which the supergradient is positive (use eigenvector nevertheless,
+       * because it results in a psd matrix. */
+      if ( sdpi->solvedonevarsdp == SCIP_ONEVAR_OPTIMAL && sdpi->onevarsdpcertval > sdpi->feastol )
+         s = sdpi->obj[sdpi->onevarsdpidx] / sdpi->onevarsdpcertval;
+
+      /* fill in rank-1 solution matrix */
+      for (i = 0; i < blocksize; ++i)
+      {
+         for (j = 0; j < blocksize; ++j)
+            primalmatrices[0][i * blocksize + j] = s * sdpi->onevarsdpcertvec[i] * sdpi->onevarsdpcertvec[j];
+      }
+      *success = TRUE;
    }
    /* If the primal is infeasible, we usually do not have a dual solution nor a primal ray. */
    else if ( SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )

@@ -172,6 +172,8 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_Real*            sdpval,             /**< array of nonzero values */
    SCIP_Real             infinity,           /**< infinity value */
    SCIP_Real             feastol,            /**< feasibility tolerance */
+   SCIP_Real*            certificatevector,  /**< array to store a certificate (eigen)vector (or NULL if not required) */
+   SCIP_Real*            certificatevalue,   /**< array to store a certificate value (or NULL if not required) */
    SCIP_Real*            objval,             /**< pointer to store optimal objective value */
    SCIP_Real*            optval              /**< pointer to store optimal value of variable */
    )
@@ -200,6 +202,8 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
 
    *objval = SCIP_INVALID;
    *optval = SCIP_INVALID;
+   if ( certificatevalue != NULL )
+      *certificatevalue = SCIP_INVALID;
 
    /* can currently only treat the case with finite lower and upper bounds */
    if ( lb <= -infinity )
@@ -265,6 +269,11 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
          *objval = infinity;
          *optval = ub;
 
+         if ( certificatevalue != NULL )
+            *certificatevalue = supergradient;
+         if ( certificatevector != NULL )
+            BMScopyMemoryArray(certificatevector, eigenvector, blocksize);
+
          goto TERMINATE;
       }
    }
@@ -282,6 +291,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       SCIPdebugMessage("Lower bound is optimal.\n");
       *objval = obj * lb;
       *optval = lb;
+      supergradient = SCIP_INVALID;
 
       goto TERMINATE;
    }
@@ -350,6 +360,11 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    }
 
  TERMINATE:
+   if ( certificatevalue != NULL )
+      *certificatevalue = supergradient;
+   if ( certificatevector != NULL )
+      BMScopyMemoryArray(certificatevector, eigenvector, blocksize);
+
    BMSfreeBufferMemoryArrayNull(bufmem, &tmpmatrix);
    BMSfreeBufferMemoryArrayNull(bufmem, &fullmatrix);
    BMSfreeBufferMemoryArrayNull(bufmem, &fullconstmatrix);
