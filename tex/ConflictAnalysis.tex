@@ -418,7 +418,9 @@ generated.
 In order to produce conflict constraints, one needs solutions for the
 primal of the LP-relaxation~\eqref{SDP-P}. Because SCIP-SDP preprocesses
 certain SDP problems, we briefly discuss how primal solutions can be
-obtained in these cases.
+obtained in these cases. We start with a general discussion and then
+discuss how such solutions can be obtained from the semi-smooth Newton
+algorithm for solving SDPs with one variable.
 
 % -------------------------------------------------------------------------
 \subsubsection{SDPs with One Variable}
@@ -545,6 +547,99 @@ y\T C\T B C y
 \end{cases}
 \]
 By scaling, this produces the wanted solution.
+
+% -------------------------------------------------------------------------
+\subsubsection{Obtaining Results from SDP with One Variable}
+
+The semi-smooth Newton algorithm for solving SDPs with one variable can
+also produce the corresponding solutions, see~\cite{MatP22}.
+
+\paragraph{Infeasibility I}
+
+The implementation can determine one kind of infeasibility
+of~\eqref{eq:basic} by computing a unit eigenvector $w$ for a minimal
+eigenvalue $\lambda$ of $A u - B$. If $\lambda < 0$ and $w\T A w > 0$, then
+the problem is infeasible.
+
+In this case, we can use $(X^*, \alpha^*, \beta^*) = (w w\T, 0, w\T A w)$
+as a ray. To see this, note that
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = w\T A w - w\T A w = 0.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = w\T B w - u\, w\T A w = w\T (B -
+u A) w = -\lambda\, w\T w > 0,
+\]
+and this holds for each positive multiple of $(X^*, \alpha^*, \beta^*)$.
+
+\paragraph{Infeasibility II}
+
+A second case of infeasibility of~\eqref{eq:basic} arises if a unit
+eigenvector $v$ for a minimal eigenvalue $\lambda$ of $A \ell - B$
+satisfies $\lambda < 0$ and $v\T A v \leq 0$.
+
+In this case, we can use $(X^*, \alpha^*, \beta^*) = (v v\T, -v\T A v, 0)$
+as a ray. To see this, note that
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = v\T A v - v\T A v = 0.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = v\T B v - \ell\, v\T A v = v\T (B -
+\ell A) v = -\lambda\, v\T v > 0,
+\]
+and this holds for each positive multiple of $(X^*, \alpha^*, \beta^*)$.
+
+\paragraph{Infeasibility III}
+
+The third case of infeasibility arises if the iteration terminates with
+$\mu \define \mu_k$ and $(v^k)\T A v^k = 0$, where $v \define v^k$ is a
+unit eigenvector of $A \mu - B$ corresponding to eigenvalue
+$\lambda \define \lambda_k < 0$. In this case, we can take
+$(X^*, \alpha^*, \beta^*) = (v v\T, 0, 0)$. To see this, first note that
+$(A \mu - B)v = \lambda v$. This implies that
+$\mu\, v\T A v - v\T B v = \lambda$, i.e., $- v\T B v = \lambda < 0$. Then
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = v\T A v = 0.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = v\T B v > 0,
+\]
+and this holds for each positive multiple of $(X^*, \alpha^*, \beta^*)$.
+
+
+\paragraph{Optimality}
+
+Let $\mu$ and $v$ be the final values of the algorithm in the case that no
+infeasibility was determined. Then $v$ is a unit eigenvector of $A \mu - B$
+corresponding to eigenvalue $\lambda$. Thus, the algorithm terminated
+because the condition in the while loop is not satisfied anymore, i.e.,
+$\lambda \geq 0$ or $v\T A v \leq 0$. Since the problem is feasible, we
+always have $\lambda \geq 0$ and in exact arithmetic the algorithm would
+stop with $\lambda = 0$.
+
+First assume that $\delta \define v\T A v > 0$. Note that $\lambda = 0$
+implies $(A \mu - B)v = 0$ and thus $v\T B v = \mu\, v\T A v$. Then we can
+use $(X^*, \alpha^*, \beta^*) = (\frac{\gamma}{\delta} v v\T, 0, 0)$.  To
+see this, note that
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = \frac{\gamma}{\delta}\, v\T A v = \gamma.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = \frac{\gamma}{\delta}\, v\T B v
+= \frac{\gamma}{\delta}\, \mu\, v\T A v = \gamma\, \mu,
+\]
+as it should be.
+
+Now assume that $v\T A v = 0$. In this case, strong duality does not need
+to hold and it is harder to construct any feasible solution, because we
+would need $\skal{A}{X^*} = \gamma$. For instance, if $A$ is negative
+semidefinite and $\gamma > 0$, this is impossible to achieve.
+
+
 
 
 % -------------------------------------------------------------------------
