@@ -610,7 +610,21 @@ Moreover, the objective function satisfies
 and this holds for each positive multiple of $(X^*, \alpha^*, \beta^*)$.
 
 
-\paragraph{Optimality}
+\paragraph{Optimality I}
+
+Optimality is determined at the beginning of the algorithm if $\gamma > 0$
+and the minimal eigenvalue~$\lambda$ of $A \ell - B$ is nonnegative. We can
+take $(X^*, \alpha^*, \beta^*) = (0, \gamma, 0)$. To see this, note that
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = \gamma.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = \ell\, \gamma = \gamma\, \mu,
+\]
+as it should be.
+
+\paragraph{Optimality II}
 
 Let $\mu$ and $v$ be the final values of the algorithm in the case that no
 infeasibility was determined. Then $v$ is a unit eigenvector of $A \mu - B$
@@ -622,7 +636,7 @@ stop with $\lambda = 0$.
 
 First assume that $\delta \define v\T A v > 0$. Note that $\lambda = 0$
 implies $(A \mu - B)v = 0$ and thus $v\T B v = \mu\, v\T A v$. Then we can
-use $(X^*, \alpha^*, \beta^*) = (\frac{\gamma}{\delta} v v\T, 0, 0)$.  To
+use $(X^*, \alpha^*, \beta^*) = (\frac{\gamma}{\delta} v v\T, 0, 0)$. To
 see this, note that
 \[
 \skal{A}{X^*} + \alpha^* - \beta^* = \frac{\gamma}{\delta}\, v\T A v = \gamma.
