@@ -105,6 +105,7 @@
 #define DEFAULT_CONFLICTFEAS        FALSE    /**< whether conflict constraints should be generated for feasible subproblems */
 #define DEFAULT_CONFLICTOBJCUT      FALSE    /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
 #define DEFAULT_CONFLICTINFEAS      TRUE     /**< whether conflict constraints should be generated for infeasible subproblems */
+#define DEFAULT_CONFLICTCMIR        TRUE    /**< whether conflict constraints should be strengthened by the CMIR procedure */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
@@ -146,6 +147,7 @@ struct SCIP_RelaxData
    SCIP_Bool             conflictfeas;       /**< whether conflict constraints should be generated for feasible subproblems */
    SCIP_Bool             conflictobjcut;     /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
    SCIP_Bool             conflictinfeas;     /**< whether conflict constraints should be generated for infeasible subproblems */
+   SCIP_Bool             conflictcmir;       /**< whether conflict constraints should be strengthened by the CMIR procedure */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -1265,11 +1267,20 @@ SCIP_RETCODE putLpDataInInterface(
    return SCIP_OKAY;
 }
 
+/* default values for CMIR generation */
+#define BOUNDSWITCH                0.51 /**< threshold for bound switching - see cuts.c */
+#define POSTPROCESS               FALSE /**< apply postprocessing to the cut - see cuts.c */
+#define USEVBDS                   FALSE /**< use variable bounds - see cuts.c */
+#define ALLOWLOCAL                FALSE /**< allow to generate local cuts - see cuts. */
+#define MINFRAC                   0.05  /**< minimal fractionality of floor(rhs) - see cuts.c */
+#define MAXFRAC                   0.999 /**< maximal fractionality of floor(rhs) - see cuts.c */
+
 /** computes dual cut: aggregate dual constraints using the primal information */
 static
 SCIP_RETCODE computeConflictCut(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_Bool             tightenrows,        /**< whether rows should be tightened */
+   SCIP_Bool             usecmir,            /**< whether the cut should be strengthened using the CMIR procedure */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Bool             conflictobjcut,     /**< whether an objective cut should be used if the SDP was feasible */
@@ -1625,6 +1636,52 @@ SCIP_RETCODE computeConflictCut(
 
    SCIPfreeBufferArray(scip, &cutcoefs);
 
+   /* possibly use CMIR */
+   if ( usecmir && *success )
+   {
+      SCIP_AGGRROW* aggrrow;
+      SCIP_Real* vals;
+      SCIP_Real* coefs;
+      SCIP_Real cutefficacy;
+      SCIP_Bool cutislocal;
+      int* inds;
+      int cnt = 0;
+      int cutrank;
+
+      SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars ) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &coefs, nvars ) );
+
+      /* construct data and switch direction */
+      for (j = 0; j < nvars; ++j)
+      {
+         if ( conflictcut[j] != 0.0 )
+         {
+            vals[cnt] = - conflictcut[j];
+            inds[cnt++] = SCIPvarGetProbindex(vars[j]);
+         }
+      }
+
+      /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
+      SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, - (*conflictcutlhs), 1.0, 0, FALSE) );
+
+      /* try to generate CMIR inequality */
+      SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, NULL, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
+            MINFRAC, MAXFRAC, aggrrow, coefs, conflictcutlhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
+
+      /* flip direction */
+      BMSclearMemoryArray(conflictcut, nvars);
+      for (j = 0; j < cnt; ++j)
+         conflictcut[inds[j]] = - coefs[j];
+      *conflictcutlhs = - (*conflictcutlhs);
+
+      SCIPfreeBufferArray(scip, &coefs);
+      SCIPfreeBufferArray(scip, &inds);
+      SCIPfreeBufferArray(scip, &vals);
+   }
+
    return SCIP_OKAY;
 }
 
@@ -1757,7 +1814,7 @@ SCIP_RETCODE calcRelax(
          SCIP_Bool success;
 
          SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
-         SCIP_CALL( computeConflictCut(scip, relaxdata->tightenrows, relaxdata->varmapper, relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &success) );
+         SCIP_CALL( computeConflictCut(scip, relaxdata->tightenrows, relaxdata->conflictcmir, relaxdata->varmapper, relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &success) );
 
          /* generate constraint if dual cut is valid */
          if ( success )
@@ -1790,14 +1847,14 @@ SCIP_RETCODE calcRelax(
 #endif
 
             /* add constraint as a conflict (will add and release constraint) */
-#ifndef WITH_DEBUG_SOLUTION
+            //#ifndef WITH_DEBUG_SOLUTION
             if ( cnt > 0 )
             {
                SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut && ! SCIPisInfinity(scip, SCIPgetCutoffbound(scip))) );
                cons = NULL;
             }
             else
-#endif
+               //#endif
             {
                SCIP_CALL( SCIPaddCons(scip, cons) );
                SCIP_CALL( SCIPdebugCheckConss(scip, &cons, 1) );
@@ -5359,6 +5416,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictinfeas",
          "whether conflict constraints should be generated for infeasible subproblems",
          &(relaxdata->conflictinfeas), TRUE, DEFAULT_CONFLICTINFEAS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictcmir",
+         "whether conflict constraints should be strengthened by the CMIR procedure",
+         &(relaxdata->conflictcmir), TRUE, DEFAULT_CONFLICTCMIR, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled",
