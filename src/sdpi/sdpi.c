@@ -3297,7 +3297,7 @@ SCIP_Bool SCIPsdpiHavePrimalSol(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
 {
-   if ( ! sdpi->solved || sdpi->infeasible || sdpi->allfixed || SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+   if ( ! sdpi->solved || sdpi->infeasible || sdpi->allfixed || (sdpi->solvedonevarsdp == SCIP_ONEVAR_UNSOLVED && SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver)) )
    {
       return FALSE;
    }
