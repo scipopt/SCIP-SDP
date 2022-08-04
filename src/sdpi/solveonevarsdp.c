@@ -291,7 +291,7 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
       SCIPdebugMessage("Lower bound is optimal.\n");
       *objval = obj * lb;
       *optval = lb;
-      supergradient = SCIP_INVALID;
+      supergradient = 0.0;
 
       goto TERMINATE;
    }
