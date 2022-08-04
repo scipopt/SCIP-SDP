@@ -1671,6 +1671,8 @@ SCIP_RETCODE computeConflictCut(
       SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, cutrhs, 1.0, 0, FALSE) );
 
       /* try to generate CMIR inequality */
+      cnt = 0;
+      cutefficacy = - SCIPinfinity(scip);
       SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, sol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
             MINFRAC, MAXFRAC, aggrrow, coefs, &cutrhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
 
