@@ -1279,6 +1279,7 @@ SCIP_RETCODE putLpDataInInterface(
 static
 SCIP_RETCODE computeConflictCut(
    SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_SOL*             sol,                /**< relaxation solution */
    SCIP_Bool             tightenrows,        /**< whether rows should be tightened */
    SCIP_Bool             usecmir,            /**< whether the cut should be strengthened using the CMIR procedure */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
@@ -1643,6 +1644,7 @@ SCIP_RETCODE computeConflictCut(
       SCIP_Real* vals;
       SCIP_Real* coefs;
       SCIP_Real cutefficacy;
+      SCIP_Real cutrhs;
       SCIP_Bool cutislocal;
       int* inds;
       int cnt = 0;
@@ -1665,25 +1667,130 @@ SCIP_RETCODE computeConflictCut(
       }
 
       /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
-      SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, - (*conflictcutlhs), 1.0, 0, FALSE) );
+      cutrhs = - (*conflictcutlhs);
+      SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, cutrhs, 1.0, 0, FALSE) );
 
       /* try to generate CMIR inequality */
-      SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, NULL, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
-            MINFRAC, MAXFRAC, aggrrow, coefs, conflictcutlhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
+      SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, sol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
+            MINFRAC, MAXFRAC, aggrrow, coefs, &cutrhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
 
-      /* flip direction */
-      BMSclearMemoryArray(conflictcut, nvars);
-      for (j = 0; j < cnt; ++j)
-         conflictcut[inds[j]] = - coefs[j];
-      *conflictcutlhs = - (*conflictcutlhs);
+      if ( *success )
+      {
+         SCIPdebugMsg(scip, "Strengthened cut by CMIR ...\n");
+         BMSclearMemoryArray(conflictcut, nvars);
+         for (j = 0; j < cnt; ++j)
+            conflictcut[inds[j]] = - coefs[j];       /* flip direction */
+         *conflictcutlhs = - cutrhs;
+      }
 
       SCIPfreeBufferArray(scip, &coefs);
       SCIPfreeBufferArray(scip, &inds);
       SCIPfreeBufferArray(scip, &vals);
+      SCIPaggrRowFree(scip, &aggrrow);
+
+      *success = TRUE;
    }
 
    return SCIP_OKAY;
 }
+
+
+/** generate conflict constraint */
+static
+SCIP_RETCODE generateConflictCons(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax,              /**< relaxator */
+   SCIP_SOL*             sol                 /**< relaxation solution */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+   SCIP_Real* conflictcut = NULL;
+   SCIP_Real conflictcutlhs;
+   SCIP_Bool success;
+   SCIP_SDPI* sdpi;
+   SCIP_VAR** vars;
+   int nvars;
+   int i;
+
+   assert( scip != NULL );
+   assert( relax != NULL );
+   assert( sol != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+   assert( relaxdata != NULL );
+
+   if ( ! relaxdata->conflictconss )
+      return SCIP_OKAY;
+
+   sdpi = relaxdata->sdpi;
+   if ( ! SCIPsdpiWasSolved(sdpi) )
+      return SCIP_OKAY;
+
+   if ( ! ( SCIPsdpiIsDualFeasible(sdpi) && relaxdata->conflictfeas ) || ( SCIPsdpiIsDualInfeasible(sdpi) && relaxdata->conflictinfeas ) )
+      return SCIP_OKAY;
+
+   nvars = SCIPgetNVars(scip);
+   assert( nvars >= 0 );
+   vars = SCIPgetVars(scip);
+   assert( vars != NULL );
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
+   SCIP_CALL( computeConflictCut(scip, sol, relaxdata->tightenrows, relaxdata->conflictcmir, relaxdata->varmapper,
+         relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &success) );
+
+   /* generate constraint if dual cut is valid */
+   if ( success )
+   {
+      char consname[SCIP_MAXSTRLEN];
+      SCIP_CONS* cons;
+      SCIP_VAR** consvars;
+      SCIP_Real* consvals;
+      int cnt = 0;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
+
+      for (i = 0; i < nvars; ++i)
+      {
+         if ( ! SCIPisZero(scip, conflictcut[i]) )
+         {
+            consvars[cnt] = vars[i];
+            consvals[cnt++] = conflictcut[i];
+         }
+      }
+      (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "conflictcut#%d", SCIPrelaxGetNCalls(relax));
+      SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
+            FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+
+#ifdef SCIP_MORE_DEBUG
+      SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
+      SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+      SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+      /* add constraint as a conflict (will add and release constraint) */
+#ifndef WITH_DEBUG_SOLUTION
+      if ( cnt > 0 )
+      {
+         SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut && ! SCIPisInfinity(scip, SCIPgetCutoffbound(scip))) );
+         cons = NULL;
+      }
+      else
+#endif
+      {
+         SCIP_CALL( SCIPaddCons(scip, cons) );
+         SCIP_CALL( SCIPdebugCheckConss(scip, &cons, 1) );
+         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+      }
+
+      SCIPfreeBufferArray(scip, &consvals);
+      SCIPfreeBufferArray(scip, &consvars);
+   }
+   SCIPfreeBufferArray(scip, &conflictcut);
+
+   return SCIP_OKAY;
+}
+
 
 /** calculate relaxation and process the relaxation results */
 static
@@ -1805,68 +1912,6 @@ SCIP_RETCODE calcRelax(
       SCIP_CALL( SCIPstartClock(scip, relaxdata->sdpsolvingtime) );
       SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, startsetting, enforceslater, timelimit) );
       SCIP_CALL( SCIPstopClock(scip, relaxdata->sdpsolvingtime) );
-
-      if ( SCIPsdpiWasSolved(sdpi) && relaxdata->conflictconss &&
-         ( ( SCIPsdpiIsDualFeasible(sdpi) && relaxdata->conflictfeas ) || ( SCIPsdpiIsDualInfeasible(sdpi) && relaxdata->conflictinfeas ) ) )
-      {
-         SCIP_Real* conflictcut = NULL;
-         SCIP_Real conflictcutlhs;
-         SCIP_Bool success;
-
-         SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
-         SCIP_CALL( computeConflictCut(scip, relaxdata->tightenrows, relaxdata->conflictcmir, relaxdata->varmapper, relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &success) );
-
-         /* generate constraint if dual cut is valid */
-         if ( success )
-         {
-            char consname[SCIP_MAXSTRLEN];
-            SCIP_CONS* cons;
-            SCIP_VAR** consvars;
-            SCIP_Real* consvals;
-            int cnt = 0;
-
-            SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
-
-            for (i = 0; i < nvars; ++i)
-            {
-               if ( ! SCIPisZero(scip, conflictcut[i]) )
-               {
-                  consvars[cnt] = vars[i];
-                  consvals[cnt++] = conflictcut[i];
-               }
-            }
-            (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "conflictcut#%d", SCIPrelaxGetNCalls(relax));
-            SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
-                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
-
-#ifdef SCIP_MORE_DEBUG
-            SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
-            SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
-            SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-            /* add constraint as a conflict (will add and release constraint) */
-            //#ifndef WITH_DEBUG_SOLUTION
-            if ( cnt > 0 )
-            {
-               SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut && ! SCIPisInfinity(scip, SCIPgetCutoffbound(scip))) );
-               cons = NULL;
-            }
-            else
-               //#endif
-            {
-               SCIP_CALL( SCIPaddCons(scip, cons) );
-               SCIP_CALL( SCIPdebugCheckConss(scip, &cons, 1) );
-               SCIP_CALL( SCIPreleaseCons(scip, &cons) );
-            }
-
-            SCIPfreeBufferArray(scip, &consvals);
-            SCIPfreeBufferArray(scip, &consvars);
-         }
-         SCIPfreeBufferArray(scip, &conflictcut);
-      }
-
    }
    else if ( relaxdata->warmstart && (relaxdata->warmstartprimaltype != 2) && (relaxdata->warmstartiptype == 2) && SCIPisEQ(scip, relaxdata->warmstartipfactor, 1.0) )
    {
@@ -4094,6 +4139,9 @@ SCIP_RETCODE calcRelax(
          SCIP_CALL( SCIPsetRelaxSolValsSol(scip, relax, scipsol, TRUE) );
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
+
+         /* possibly create conflict constraint */
+         SCIP_CALL( generateConflictCons(scip, relax, scipsol) );
 
          /* save solution for warmstarts (only if we did not use the penalty formulation, since this would change the problem structure) */
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
