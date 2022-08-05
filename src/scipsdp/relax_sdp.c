@@ -1650,11 +1650,8 @@ SCIP_RETCODE computeConflictCut(
       int cnt = 0;
       int cutrank;
 
-      SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
-
       SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
       SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars ) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &coefs, nvars ) );
 
       /* construct data and switch direction */
       for (j = 0; j < nvars; ++j)
@@ -1666,29 +1663,35 @@ SCIP_RETCODE computeConflictCut(
          }
       }
 
-      /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
-      cutrhs = - (*conflictcutlhs);
-      SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, cutrhs, 1.0, 0, FALSE) );
-
-      /* try to generate CMIR inequality */
-      cnt = 0;
-      cutefficacy = - SCIPinfinity(scip);
-      SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, sol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
-            MINFRAC, MAXFRAC, aggrrow, coefs, &cutrhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
-
-      if ( *success )
+      if ( cnt > 0 )
       {
-         SCIPdebugMsg(scip, "Strengthened cut by CMIR ...\n");
-         BMSclearMemoryArray(conflictcut, nvars);
-         for (j = 0; j < cnt; ++j)
-            conflictcut[inds[j]] = - coefs[j];       /* flip direction */
-         *conflictcutlhs = - cutrhs;
+         SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &coefs, nvars ) );
+
+         /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
+         cutrhs = - (*conflictcutlhs);
+         SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, cutrhs, 1.0, 0, FALSE) );
+
+         /* try to generate CMIR inequality */
+         cnt = 0;
+         cutefficacy = - SCIPinfinity(scip);
+         SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, sol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
+               MINFRAC, MAXFRAC, aggrrow, coefs, &cutrhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
+
+         if ( *success )
+         {
+            SCIPdebugMsg(scip, "Strengthened cut by CMIR ...\n");
+            BMSclearMemoryArray(conflictcut, nvars);
+            for (j = 0; j < cnt; ++j)
+               conflictcut[inds[j]] = - coefs[j];       /* flip direction */
+            *conflictcutlhs = - cutrhs;
+         }
+         SCIPfreeBufferArray(scip, &coefs);
+         SCIPaggrRowFree(scip, &aggrrow);
       }
 
-      SCIPfreeBufferArray(scip, &coefs);
       SCIPfreeBufferArray(scip, &inds);
       SCIPfreeBufferArray(scip, &vals);
-      SCIPaggrRowFree(scip, &aggrrow);
 
       *success = TRUE;
    }
