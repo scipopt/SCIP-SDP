@@ -105,7 +105,7 @@
 #define DEFAULT_CONFLICTFEAS        FALSE    /**< whether conflict constraints should be generated for feasible subproblems */
 #define DEFAULT_CONFLICTOBJCUT      FALSE    /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
 #define DEFAULT_CONFLICTINFEAS      TRUE     /**< whether conflict constraints should be generated for infeasible subproblems */
-#define DEFAULT_CONFLICTCMIR        TRUE    /**< whether conflict constraints should be strengthened by the CMIR procedure */
+#define DEFAULT_CONFLICTCMIR        FALSE    /**< whether conflict constraints should be strengthened by the CMIR procedure */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
