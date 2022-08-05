@@ -1798,7 +1798,7 @@ SCIP_RETCODE separateSol(
             SCIP_Real cutefficacy;
             SCIP_Bool cutislocal;
             int* cutinds;
-            int cutnnz;
+            int cutnnz = 0;
             int cutrank;
 
             SCIP_CALL( SCIPallocBufferArray(scip, &cutcoefs, consdata->nvars) );
@@ -1814,6 +1814,7 @@ SCIP_RETCODE separateSol(
             SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, -lhs, 1.0, 0, FALSE) );
 
             /* try to generate CMIR inequality */
+            cutefficacy = - SCIPinfinity(scip);
             SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, NULL, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
                   MINFRAC, MAXFRAC, aggrrow, cutcoefs, &cutrhs, cutinds, &cutnnz, &cutefficacy, &cutrank, &cutislocal, &success) );
 
