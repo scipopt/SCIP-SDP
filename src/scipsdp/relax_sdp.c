@@ -1675,8 +1675,17 @@ SCIP_RETCODE computeConflictCut(
          /* try to generate CMIR inequality */
          cnt = 0;
          cutefficacy = - SCIPinfinity(scip);
+
+#if 0
+         /* Unfortunately, the CMIR routines only return success if the cutefficacy is positve, which rarely happens here. */
          SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, sol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
                MINFRAC, MAXFRAC, aggrrow, coefs, &cutrhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
+         SCIP_CALL( SCIPcalcMIR(scip, sol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, FALSE, NULL, NULL,
+               MINFRAC, MAXFRAC, 1.0, aggrrow, coefs, &cutrhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
+#endif
+         /* We use flow cover cuts, since the function also works if the cut is not efficient. */
+         SCIP_CALL( SCIPcalcFlowCover(scip, sol, POSTPROCESS, BOUNDSWITCH, ALLOWLOCAL, aggrrow, coefs, &cutrhs, inds, &cnt,
+               &cutefficacy, &cutrank, &cutislocal, success) );
 
          if ( *success )
          {
