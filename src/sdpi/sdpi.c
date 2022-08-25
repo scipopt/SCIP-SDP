@@ -689,8 +689,6 @@ SCIP_RETCODE findEmptyRowColsSDP(
          {
             for (i = 0; i < sdpi->sdpnblockvarnonz[b][v]; ++i)
             {
-               assert( REALABS(sdpi->sdpval[b][v][i]) > sdpi->epsilon ); /* this should really be a nonzero */
-
                if ( indchanges[b][sdpi->sdprow[b][v][i]] == -1 )
                {
                   indchanges[b][sdpi->sdprow[b][v][i]] = 1;
