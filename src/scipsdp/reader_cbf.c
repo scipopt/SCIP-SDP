@@ -99,7 +99,7 @@
 #define MACRO_STR(tok) MACRO_STR_EXPAND(tok)
 #define CBF_NAME_FORMAT "%" MACRO_STR(CBF_MAX_NAME) "s"
 
-/** LP reading data */
+/** CBF reading data */
 struct SCIP_ReaderData
 {
    SCIP_Bool             removesmallval;     /**< Should small values in the constraints be removed? */
