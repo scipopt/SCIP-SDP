@@ -58,7 +58,15 @@
 #define READER_DESC             "file reader and writer for MISDPs in sdpa format"
 #define READER_EXTENSION        "dat-s"
 
+#define DEFAULT_REMOVESMALLVAL FALSE     /**< Should small values in the constraints be removed? */
+
 #define SDPA_MIN_BUFFERLEN 65536   /* minimal size of buffer */
+
+/** SDPA reading data */
+struct SCIP_ReaderData
+{
+   SCIP_Bool             removesmallval;     /**< Should small values in the constraints be removed? */
+};
 
 
 struct SDPA_Data
@@ -757,6 +765,7 @@ SCIP_RETCODE SDPAreadBlockSize(
 static
 SCIP_RETCODE SDPAreadObjVals(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
@@ -796,7 +805,7 @@ SCIP_RETCODE SDPAreadObjVals(
 
    for (v = 0; v < data->nvars; v++)
    {
-      if ( SCIPisZero(scip, *(objvals + v)) )
+      if ( readerdata->removesmallval && SCIPisZero(scip, *(objvals + v)) )
          ++nzerocoef;
       else
          SCIP_CALL( SCIPchgVarObj(scip, data->createdvars[v], *(objvals + v)) );
@@ -804,7 +813,7 @@ SCIP_RETCODE SDPAreadObjVals(
 
    if ( nzerocoef > 0 )
    {
-      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Found %d objective coefficients with absolute value less than epsilon = %g.\n",
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Remove %d objective coefficients with absolute value less than epsilon = %g.\n",
          nzerocoef, SCIPepsilon(scip));
    }
 
@@ -825,6 +834,7 @@ SCIP_RETCODE SDPAreadObjVals(
 static
 SCIP_RETCODE SDPAreadBlocks(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    SCIP_FILE*            file,               /**< file to read from */
    SCIP_Longint*         linecount,          /**< current linecount */
    SDPA_DATA*            data                /**< data pointer to save the results in */
@@ -1012,7 +1022,7 @@ SCIP_RETCODE SDPAreadBlocks(
          /* check if this entry belongs to the constant part of the SDP block (v = -1) or not (v >= 0) */
          if ( v >= 0 )
          {
-            if ( SCIPisZero(scip, val) )
+            if ( readerdata->removesmallval && SCIPisZero(scip, val) )
                ++nzerocoef;
             else
             {
@@ -1068,7 +1078,7 @@ SCIP_RETCODE SDPAreadBlocks(
          {
             assert( v == -1 );
 
-            if ( SCIPisZero(scip, val) )
+            if ( readerdata->removesmallval && SCIPisZero(scip, val) )
                ++nzerocoef;
             else
             {
@@ -1154,7 +1164,7 @@ SCIP_RETCODE SDPAreadBlocks(
                goto TERMINATE;
             }
 
-            if ( SCIPisZero(scip, val) )
+            if ( readerdata->removesmallval && SCIPisZero(scip, val) )
             {
                ++nzerocoef;
             }
@@ -1230,7 +1240,7 @@ SCIP_RETCODE SDPAreadBlocks(
                   goto TERMINATE;
                }
 
-               if ( SCIPisZero(scip, val) )
+               if ( readerdata->removesmallval && SCIPisZero(scip, val) )
                   ++nzerocoef;
                else
                {
@@ -1393,7 +1403,7 @@ SCIP_RETCODE SDPAreadBlocks(
 
       if ( nzerocoef > 0 )
          SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-            "Found %d block coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+            "Remove %d block coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
 
       /* free buffer memory */
       for (b = 0; b < data->nsdpblocks; b++)
@@ -1655,6 +1665,7 @@ SCIP_DECL_READERREAD(readerReadSdpa)
 {  /*lint --e{715,818}*/
    SCIP_FILE* file;
    SCIP_Longint linecount = 0;
+   SCIP_READERDATA* readerdata;
    SDPA_DATA* data;
    int b;
 
@@ -1699,6 +1710,9 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    data->sdpconstmemsize = NULL;
    data->buffer = NULL;
 
+   readerdata = SCIPreaderGetData(reader);
+   assert( readerdata != NULL );
+
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
 
@@ -1715,10 +1729,10 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    SCIP_CALL( SDPAreadBlockSize(scip, file, &linecount, data) );
 
    SCIPdebugMsg(scip, "Reading objective values\n");
-   SCIP_CALL( SDPAreadObjVals(scip, file, &linecount, data) );
+   SCIP_CALL( SDPAreadObjVals(scip, readerdata, file, &linecount, data) );
 
    SCIPdebugMsg(scip, "Reading block entries\n");
-   SCIP_CALL( SDPAreadBlocks(scip, file, &linecount, data) );
+   SCIP_CALL( SDPAreadBlocks(scip, readerdata, file, &linecount, data) );
 
    if ( strncmp(data->buffer, "*INTEGER", 8) == 0 )
    {
@@ -2268,6 +2282,20 @@ SCIP_DECL_READERWRITE(readerWriteSdpa)
  * reader specific interface methods
  */
 
+/** destructor of reader to free user data (called when SCIP is exiting) */
+static
+SCIP_DECL_READERFREE(readerFreeSdpa)
+{
+   SCIP_READERDATA* readerdata;
+
+   assert(strcmp(SCIPreaderGetName(reader), READER_NAME) == 0);
+   readerdata = SCIPreaderGetData(reader);
+   assert(readerdata != NULL);
+   SCIPfreeBlockMemory(scip, &readerdata);
+
+   return SCIP_OKAY;
+}
+
 /** includes the SDPA file reader in SCIP */
 SCIP_RETCODE SCIPincludeReaderSdpa(
    SCIP*                 scip                /**< SCIP data structure */
@@ -2275,6 +2303,8 @@ SCIP_RETCODE SCIPincludeReaderSdpa(
 {
    SCIP_READERDATA* readerdata = NULL;
    SCIP_READER* reader;
+
+   SCIP_CALL( SCIPallocBlockMemory(scip, &readerdata) );
 
    /* include reader */
    SCIP_CALL( SCIPincludeReaderBasic(scip, &reader, READER_NAME, READER_DESC, READER_EXTENSION, readerdata) );
@@ -2285,6 +2315,11 @@ SCIP_RETCODE SCIPincludeReaderSdpa(
    SCIP_CALL( SCIPsetReaderCopy(scip, reader, readerCopySdpa) );
    SCIP_CALL( SCIPsetReaderRead(scip, reader, readerReadSdpa) );
    SCIP_CALL( SCIPsetReaderWrite(scip, reader, readerWriteSdpa) );
+   SCIP_CALL( SCIPsetReaderFree(scip, reader, readerFreeSdpa) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "reader/SDPA/removesmallval",
+         "Should small values in the constraints be removed?",
+         &(readerdata->removesmallval), TRUE, DEFAULT_REMOVESMALLVAL, NULL, NULL) );
 
    return SCIP_OKAY;
 }
