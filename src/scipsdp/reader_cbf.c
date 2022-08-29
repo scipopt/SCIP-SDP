@@ -81,8 +81,6 @@
 #define READER_DESC             "file reader and writer for MISDPs in cbf format"
 #define READER_EXTENSION        "cbf"
 
-#define DEFAULT_REMOVESMALLVAL FALSE     /**< Should small values in the constraints be removed? */
-
 #define CBF_VERSION_NR         3         /**< version number for CBF format */
 #define CBF_CHECK_NONNEG       TRUE      /**< when writing: check linear constraints and move nonnegativity(-positivity)
                                            *  constraints to definition of variables (which are now defined in non-negative
@@ -2190,6 +2188,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
    readerdata = SCIPreaderGetData(reader);
    assert( readerdata != NULL );
 
+   SCIP_CALL( SCIPgetBoolParam(scip, "reading/removesmallval", &readerdata->removesmallval) );
+
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
 
@@ -3136,10 +3136,6 @@ SCIP_RETCODE SCIPincludeReaderCbf(
    SCIP_CALL( SCIPsetReaderRead(scip, reader, readerReadCbf) );
    SCIP_CALL( SCIPsetReaderWrite(scip, reader, readerWriteCbf) );
    SCIP_CALL( SCIPsetReaderFree(scip, reader, readerFreeCbf) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "reader/CBF/removesmallval",
-         "Should small values in the constraints be removed?",
-         &(readerdata->removesmallval), TRUE, DEFAULT_REMOVESMALLVAL, NULL, NULL) );
 
    return SCIP_OKAY;
 }

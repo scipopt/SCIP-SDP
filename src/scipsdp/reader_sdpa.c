@@ -58,8 +58,6 @@
 #define READER_DESC             "file reader and writer for MISDPs in sdpa format"
 #define READER_EXTENSION        "dat-s"
 
-#define DEFAULT_REMOVESMALLVAL FALSE     /**< Should small values in the constraints be removed? */
-
 #define SDPA_MIN_BUFFERLEN 65536   /* minimal size of buffer */
 
 /** SDPA reading data */
@@ -1713,6 +1711,8 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    readerdata = SCIPreaderGetData(reader);
    assert( readerdata != NULL );
 
+   SCIP_CALL( SCIPgetBoolParam(scip, "reading/removesmallval", &readerdata->removesmallval) );
+
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
 
@@ -2316,10 +2316,6 @@ SCIP_RETCODE SCIPincludeReaderSdpa(
    SCIP_CALL( SCIPsetReaderRead(scip, reader, readerReadSdpa) );
    SCIP_CALL( SCIPsetReaderWrite(scip, reader, readerWriteSdpa) );
    SCIP_CALL( SCIPsetReaderFree(scip, reader, readerFreeSdpa) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "reader/SDPA/removesmallval",
-         "Should small values in the constraints be removed?",
-         &(readerdata->removesmallval), TRUE, DEFAULT_REMOVESMALLVAL, NULL, NULL) );
 
    return SCIP_OKAY;
 }
