@@ -1,0 +1,2 @@
+constraints/SDP/removesmallval = TRUE
+reading/removesmallval = TRUE
