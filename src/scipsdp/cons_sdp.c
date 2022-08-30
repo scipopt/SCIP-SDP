@@ -884,6 +884,233 @@ SCIP_RETCODE setMaxRhsEntry(
    return SCIP_OKAY;
 }
 
+/** produce cut from (possibly modified) eigenvector */
+static
+SCIP_RETCODE produceCutFromEigenvector(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
+   SCIP_CONS*            cons,               /**< constraint */
+   SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_Bool             enforce,            /**< whether we are in enforcing */
+   SCIP_SOL*             sol,                /**< primal solution that should be separated */
+   int                   blocksize,          /**< size of block */
+   SCIP_Real*            fullconstmatrix,    /**< precomputed full constant matrix */
+   SCIP_Real*            eigenvector,        /**< original eigenvector */
+   SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
+   SCIP_VAR**            vars,               /**< temporary workspace (length nvars) */
+   SCIP_Real*            vals,               /**< temporary workspace (length nvars) */
+   int*                  inds,               /**< temporary workspace (length nvars) */
+   int*                  ngen,               /**< pointer to store the number of generated cuts/constraints */
+   SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */
+   SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
+   )
+{
+   char cutname[SCIP_MAXSTRLEN];
+   SCIP_Real lhs = 0.0;
+   int cnt = 0;
+   int j;
+
+   assert( success != NULL );
+
+   *success = TRUE;
+
+   /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
+   SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, vector) );
+
+   for (j = 0; j < blocksize; ++j)
+      lhs += eigenvector[j] * vector[j];
+
+   /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
+   for (j = 0; j < consdata->nvars; ++j)
+   {
+      SCIP_Bool isfixed;
+      SCIP_Real coef;
+      SCIP_Real lb;
+      SCIP_Real ub;
+
+      /* compute coefficient by multiplying eigenvector with jth matrix */
+      SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coef) );
+
+      lb = SCIPvarGetLbGlobal(consdata->vars[j]);
+      ub = SCIPvarGetUbGlobal(consdata->vars[j]);
+
+      if ( ! ( SCIPisInfinity(scip, -lb) || SCIPisInfinity(scip, ub) ) && SCIPisEQ(scip, ub, lb) )
+         isfixed = TRUE;
+      else
+         isfixed = FALSE;
+
+      /* safely round coefficients to 0 */
+      if ( isfixed || SCIPisZero(scip, coef) )
+      {
+         if ( REALABS(coef) > COEFZERO )
+         {
+            if ( coef > 0.0 )
+            {
+               if ( SCIPisInfinity(scip, ub) )
+               {
+                  *success = FALSE;
+                  break;
+               }
+               else
+                  lhs -= coef * ub;
+            }
+            else
+            {
+               if ( SCIPisInfinity(scip, -lb) )
+               {
+                  *success = FALSE;
+                  break;
+               }
+               else
+                  lhs -= coef *lb;
+            }
+         }
+      }
+      else
+      {
+         vars[cnt] = consdata->vars[j];
+         vals[cnt] = coef;
+         inds[cnt++] = SCIPvarGetProbindex(consdata->vars[j]);
+      }
+   }
+
+   if ( *success && cnt > 0 )
+   {
+      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+      if ( conshdlrdata->sdpconshdlrdata->generaterows )
+      {
+         SCIP_Bool infeasible;
+         SCIP_ROW* row;
+
+         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+         SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
+
+         /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
+         if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
+         {
+#ifdef SCIP_MORE_DEBUG
+            SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+            SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+            if ( infeasible )
+               *result = SCIP_CUTOFF;
+            else
+               *result = SCIP_SEPARATED;
+            SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+            if ( conshdlrdata->sdpconshdlrdata->cutstopool )
+            {
+               SCIP_CALL( SCIPaddPoolCut(scip, row) );
+            }
+            ++(*ngen);
+         }
+
+         SCIP_CALL( SCIPreleaseRow(scip, &row) );
+      }
+      else
+      {
+         SCIP_CONS* newcons;
+
+         SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
+               TRUE, TRUE, enforce, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
+         SCIP_CALL( SCIPaddCons(scip, newcons) );
+         SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
+         *result = SCIP_CONSADDED;
+         ++(*ngen);
+      }
+
+      if ( conshdlrdata->sdpconshdlrdata->generatecmir )
+      {
+         SCIP_AGGRROW* aggrrow;
+         SCIP_Real* cutcoefs;
+         SCIP_Real cutrhs;
+         SCIP_Real cutefficacy;
+         SCIP_Bool cutislocal;
+         int* cutinds;
+         int cutnnz = 0;
+         int cutrank;
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &cutcoefs, consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &cutinds, consdata->nvars) );
+
+         SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
+
+         /* switch row */
+         for (j = 0; j < cnt; ++j)
+            vals[j] *= -1.0;
+
+         /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
+         SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, -lhs, 1.0, 0, FALSE) );
+
+         /* try to generate CMIR inequality */
+         cutefficacy = - SCIPinfinity(scip);
+         SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, NULL, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
+               MINFRAC, MAXFRAC, aggrrow, cutcoefs, &cutrhs, cutinds, &cutnnz, &cutefficacy, &cutrank, &cutislocal, success) );
+
+         if ( *success && SCIPisEfficacious(scip, cutefficacy) )
+         {
+            SCIP_Bool infeasible;
+            SCIP_ROW* row;
+            SCIP_VAR** scipvars;
+
+            /* set name and create empty row */
+            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_CMIR_%d", ++(conshdlrdata->ncmir));
+            SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, -SCIPinfinity(scip), cutrhs, cutislocal, FALSE, TRUE) );
+
+            /* get SCIP vars, because inds refers to these indices */
+            scipvars = SCIPgetVars(scip);
+
+            /* cache the row extension and only flush them if the cut gets added */
+            SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
+
+            /* collect all non-zero coefficients */
+            for (j = 0; j < cutnnz; ++j)
+            {
+               SCIP_CALL( SCIPaddVarToRow(scip, row, scipvars[cutinds[j]], cutcoefs[j]) );
+            }
+
+            /* flush all changes before adding the cut */
+            SCIP_CALL( SCIPflushRowExtensions(scip, row) );
+
+            if ( SCIProwGetNNonz(row) == 0 )
+            {
+               assert( SCIPisFeasNegative(scip, cutrhs) );
+               *result = SCIP_CUTOFF;
+            }
+            else
+            {
+#ifdef SCIP_MORE_DEBUG
+               SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+               SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+               if ( infeasible )
+                  *result = SCIP_CUTOFF;
+               else
+                  *result = SCIP_SEPARATED;
+               SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+               if ( conshdlrdata->sdpconshdlrdata->cutstopool )
+               {
+                  SCIP_CALL( SCIPaddPoolCut(scip, row) );
+               }
+               ++(*ngen);
+            }
+
+            /* release the row */
+            SCIP_CALL( SCIPreleaseRow(scip, &row) );
+         }
+
+         SCIPfreeBufferArray(scip, &cutinds);
+         SCIPfreeBufferArray(scip, &cutcoefs);
+
+         SCIPaggrRowFree(scip, &aggrrow);
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
 /** compute largest sparse eigenvalue for a given sparsity level and corresponding eigenvector of a given matrix
  *
  *  The truncated power method works like the ordinary power method to compute the largest eigenvalue of a matrix, but
@@ -997,8 +1224,10 @@ static
 SCIP_RETCODE sparsifyCut(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONSHDLR*        conshdlr,           /**< the constraint handler itself */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
    SCIP_CONS*            cons,               /**< constraint */
    SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_Bool             enforce,            /**< whether we are in enforcing */
    SCIP_SOL*             sol,                /**< primal solution that should be separated */
    int                   blocksize,          /**< size of block */
    SCIP_Real*            fullconstmatrix,    /**< precomputed full constant matrix */
@@ -1006,17 +1235,13 @@ SCIP_RETCODE sparsifyCut(
    SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
    SCIP_VAR**            vars,               /**< temporary workspace */
    SCIP_Real*            vals,               /**< temporary workspace */
+   int*                  ngen,               /**< pointer to store the number of generated cuts */
    SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
-   char cutname[SCIP_MAXSTRLEN];
-   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_Real* ev;
    SCIP_Real norm = 0.0;
-   SCIP_Real lhs = 0.0;
-   SCIP_Real coef;
-   int cnt = 0;
    int size;
    int* idx;
    int j;
@@ -1031,9 +1256,6 @@ SCIP_RETCODE sparsifyCut(
    assert( *result != SCIP_CUTOFF );
 
    *success = FALSE;
-
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   assert( conshdlrdata != NULL );
 
    /* produce random indices */
    SCIP_CALL( SCIPallocBufferArray(scip, &idx, blocksize) );
@@ -1080,69 +1302,9 @@ SCIP_RETCODE sparsifyCut(
    for (j = 0; j < size; ++j)
       ev[idx[j]] /= norm;
 
-   /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
-   SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, ev, vector) );
-
-   for (j = 0; j < blocksize; ++j)
-      lhs += ev[j] * vector[j];
-
-   /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
-   for (j = 0; j < consdata->nvars; ++j)
-   {
-      SCIP_CALL( multiplyConstraintMatrix(cons, j, ev, &coef) );
-
-      if ( SCIPisFeasZero(scip, coef) )
-         continue;
-
-      vars[cnt] = consdata->vars[j];
-      vals[cnt++] = coef;
-   }
-
-   (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-   if ( conshdlrdata->sdpconshdlrdata->generaterows )
-   {
-      SCIP_Bool infeasible;
-      SCIP_ROW* row;
-
-      SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-      SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
-
-      /* since the sparsified cut need not separate the current solution, we take only efficacious cuts */
-      if ( SCIPisCutEfficacious(scip, sol, row) )
-      {
-#ifdef SCIP_MORE_DEBUG
-         SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-         SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-         SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-         if ( conshdlrdata->sdpconshdlrdata->cutstopool )
-         {
-            SCIP_CALL( SCIPaddPoolCut(scip, row) );
-         }
-
-         assert( *result != SCIP_CONSADDED );
-         if ( infeasible )
-            *result = SCIP_CUTOFF;
-         else
-            *result = SCIP_SEPARATED;
-         *success = TRUE;
-      }
-      SCIP_CALL( SCIPreleaseRow(scip, &row) );
-   }
-   else
-   {
-      SCIP_CONS* newcons;
-
-      SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
-            TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
-      SCIP_CALL( SCIPaddCons(scip, newcons) );
-      SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
-
-      assert( *result != SCIP_SEPARATED );
-      *result = SCIP_CONSADDED;
-      *success = TRUE;
-   }
+   /* produce cut/constraint */
+   SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
+         blocksize, fullconstmatrix, ev, vector, vars, vals, idx, ngen, success, result) );
 
    SCIPfreeBufferArray(scip, &ev);
    SCIPfreeBufferArray(scip, &idx);
@@ -1159,8 +1321,10 @@ static
 SCIP_RETCODE addMultipleSparseCuts(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONSHDLR*        conshdlr,           /**< the constraint handler itself */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
    SCIP_CONS*            cons,               /**< constraint */
    SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_Bool             enforce,            /**< whether we are in enforcing */
    SCIP_SOL*             sol,                /**< primal solution that should be separated */
    int                   blocksize,          /**< size of block */
    SCIP_Real*            fullmatrix,         /**< precomputed full matrix \f$ \sum_j A_j y_j - A_0 \f$ */
@@ -1176,8 +1340,6 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
-   char cutname[SCIP_MAXSTRLEN];
-   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_Real* fullmatrixcopy;
    SCIP_Real* modmatrix;
    SCIP_Real* submatrix;
@@ -1188,8 +1350,6 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIP_Real eigenvalue;
    SCIP_Real maxeig;
    SCIP_Real scalar;
-   SCIP_Real lhs = 0.0;
-   SCIP_Real coef;
    int* support;
    int cnt = 0;
    int size;
@@ -1339,88 +1499,9 @@ SCIP_RETCODE addMultipleSparseCuts(
          eigenvalue = scalar;
       }
 
-      /* check if cut obtained from new eigenvector is efficacious and add cut/constraint */
-      /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
-      SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, liftedev, vector) );
-
-      lhs = 0.0;
-      for (j = 0; j < blocksize; ++j)
-         lhs += liftedev[j] * vector[j];
-
-      /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
-      cnt = 0;
-      for (j = 0; j < consdata->nvars; ++j)
-      {
-         SCIP_CALL( multiplyConstraintMatrix(cons, j, liftedev, &coef) );
-
-         if ( SCIPisFeasZero(scip, coef) )
-            continue;
-
-         vars[cnt] = consdata->vars[j];
-         vals[cnt++] = coef;
-      }
-
-      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-      if ( conshdlrdata->sdpconshdlrdata->generaterows )
-      {
-         SCIP_Bool infeasible;
-         SCIP_ROW* row;
-
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#else
-         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#endif
-
-         SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
-
-         /* since the sparsified cut need not separate the current solution, we take only efficacious cuts */
-         if ( SCIPisCutEfficacious(scip, sol, row) )
-         {
-#ifdef SCIP_MORE_DEBUG
-            SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-            SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-            SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-            if ( conshdlrdata->sdpconshdlrdata->cutstopool )
-            {
-               SCIP_CALL( SCIPaddPoolCut(scip, row) );
-            }
-
-            assert( *result != SCIP_CONSADDED );
-            if ( infeasible )
-            {
-               *result = SCIP_CUTOFF;
-               SCIPdebugMsg(scip, "Detected infeasibility.\n");
-               SCIP_CALL( SCIPreleaseRow(scip, &row) );
-               break;
-            }
-            else
-            {
-               *result = SCIP_SEPARATED;
-               ++(*ncuts);
-               SCIPdebugMsg(scip, "Successfully added sparse eigenvector cut.\n");
-            }
-         }
-         else
-            SCIPdebugMsg(scip, "Cut is not efficacious!\n");
-         SCIP_CALL( SCIPreleaseRow(scip, &row) );
-      }
-      else
-      {
-         SCIP_CONS* newcons;
-
-         SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
-               TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
-         SCIP_CALL( SCIPaddCons(scip, newcons) );
-         SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
-
-         assert( *result != SCIP_SEPARATED );
-         *result = SCIP_CONSADDED;
-         ++(*ncuts);
-         SCIPdebugMsg(scip, "Successfully added sparse eigenvector cut.\n");
-      }
+      /* produce cut/constraint */
+      SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
+            blocksize, fullconstmatrix, eigenvector, vector, vars, vals, support, ncuts, success, result) );
 
       /* compute A(y) = A(y) - \lambda_{min} w w^T */
       for (i = 0; i < blocksize; i++)
@@ -1428,7 +1509,6 @@ SCIP_RETCODE addMultipleSparseCuts(
          for (j = 0; j < blocksize; j++)
             fullmatrix[i * blocksize + j] -= eigenvalue * liftedev[i] * liftedev[j];
       }
-
 
       if ( conshdlrdata->sdpconshdlrdata->recomputeinitial )
       {
@@ -1519,7 +1599,6 @@ SCIP_RETCODE separateSol(
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
-   char cutname[SCIP_MAXSTRLEN];
    SCIP_CONSDATA* consdata;
    SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_RETCODE retcode;
@@ -1642,9 +1721,7 @@ SCIP_RETCODE separateSol(
    for (i = 0; i < neigenvalues && *result != SCIP_CUTOFF; ++i)
    {
       SCIP_Real* eigenvector;
-      SCIP_Real lhs = 0.0;
       SCIP_Bool success;
-      int cnt = 0;
       int ncuts;
 
       /* get pointer to current eigenvector */
@@ -1653,7 +1730,7 @@ SCIP_RETCODE separateSol(
       /* if we want to sparsify the cut */
       if ( ! enforce && conshdlrdata->sdpconshdlrdata->sparsifycut )
       {
-         SCIP_CALL( sparsifyCut(scip, conshdlr, cons, consdata, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &success, result) );
+         SCIP_CALL( sparsifyCut(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &ngen, &success, result) );
 
          if ( success )
          {
@@ -1664,7 +1741,7 @@ SCIP_RETCODE separateSol(
       else if ( conshdlrdata->sdpconshdlrdata->multiplesparsecuts )
       {
          SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", eigenvalues[i]);
-         SCIP_CALL( addMultipleSparseCuts(scip, conshdlr, cons, consdata, sol, blocksize, fullmatrix, fullconstmatrix,
+         SCIP_CALL( addMultipleSparseCuts(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol, blocksize, fullmatrix, fullconstmatrix,
                eigenvector, tol, conshdlrdata->sdpconshdlrdata->maxnsparsecuts, vector, vars, vals, &ncuts, &success, result) );
 
          if ( success )
@@ -1684,199 +1761,9 @@ SCIP_RETCODE separateSol(
          }
       }
 
-      /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
-      SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, vector) );
-
-      for (j = 0; j < blocksize; ++j)
-         lhs += eigenvector[j] * vector[j];
-
-      /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
-      success = TRUE;
-      for (j = 0; j < consdata->nvars; ++j)
-      {
-         SCIP_Bool isfixed;
-         SCIP_Real coef;
-         SCIP_Real lb;
-         SCIP_Real ub;
-
-         /* compute coefficient by multiplying eigenvector with jth matrix */
-         SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coef) );
-
-         lb = SCIPvarGetLbGlobal(consdata->vars[j]);
-         ub = SCIPvarGetUbGlobal(consdata->vars[j]);
-
-         if ( ! ( SCIPisInfinity(scip, -lb) || SCIPisInfinity(scip, ub) ) && SCIPisEQ(scip, ub, lb) )
-            isfixed = TRUE;
-         else
-            isfixed = FALSE;
-
-         /* safely round coefficients to 0 */
-         if ( isfixed || SCIPisZero(scip, coef) )
-         {
-            if ( REALABS(coef) > COEFZERO )
-            {
-               if ( coef > 0.0 )
-               {
-                  if ( SCIPisInfinity(scip, ub) )
-                  {
-                     success = FALSE;
-                     break;
-                  }
-                  else
-                     lhs -= coef * ub;
-               }
-               else
-               {
-                  if ( SCIPisInfinity(scip, -lb) )
-                  {
-                     success = FALSE;
-                     break;
-                  }
-                  else
-                     lhs -= coef *lb;
-               }
-            }
-         }
-         else
-         {
-            vars[cnt] = consdata->vars[j];
-            vals[cnt] = coef;
-            inds[cnt++] = SCIPvarGetProbindex(consdata->vars[j]);
-         }
-      }
-
-      if ( success && cnt > 0 )
-      {
-         (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-         if ( conshdlrdata->sdpconshdlrdata->generaterows )
-         {
-            SCIP_Bool infeasible;
-            SCIP_ROW* row;
-
-            SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-            SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
-
-            /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
-            if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
-            {
-#ifdef SCIP_MORE_DEBUG
-               SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-               SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-               if ( infeasible )
-                  *result = SCIP_CUTOFF;
-               else
-                  *result = SCIP_SEPARATED;
-               SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-               if ( conshdlrdata->sdpconshdlrdata->cutstopool )
-               {
-                  SCIP_CALL( SCIPaddPoolCut(scip, row) );
-               }
-               ++ngen;
-            }
-
-            SCIP_CALL( SCIPreleaseRow(scip, &row) );
-         }
-         else
-         {
-            SCIP_CONS* newcons;
-
-            SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
-                  TRUE, TRUE, enforce, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
-            SCIP_CALL( SCIPaddCons(scip, newcons) );
-            SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
-            *result = SCIP_CONSADDED;
-            ++ngen;
-         }
-
-         if ( conshdlrdata->sdpconshdlrdata->generatecmir )
-         {
-            SCIP_AGGRROW* aggrrow;
-            SCIP_Real* cutcoefs;
-            SCIP_Real cutrhs;
-            SCIP_Real cutefficacy;
-            SCIP_Bool cutislocal;
-            int* cutinds;
-            int cutnnz = 0;
-            int cutrank;
-
-            SCIP_CALL( SCIPallocBufferArray(scip, &cutcoefs, consdata->nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &cutinds, consdata->nvars) );
-
-            SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
-
-            /* switch row */
-            for (j = 0; j < cnt; ++j)
-               vals[j] *= -1.0;
-
-            /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
-            SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, -lhs, 1.0, 0, FALSE) );
-
-            /* try to generate CMIR inequality */
-            cutefficacy = - SCIPinfinity(scip);
-            SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, NULL, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
-                  MINFRAC, MAXFRAC, aggrrow, cutcoefs, &cutrhs, cutinds, &cutnnz, &cutefficacy, &cutrank, &cutislocal, &success) );
-
-            if ( success && SCIPisEfficacious(scip, cutefficacy) )
-            {
-               SCIP_Bool infeasible;
-               SCIP_ROW* row;
-               SCIP_VAR** scipvars;
-
-               /* set name and create empty row */
-               (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_CMIR_%d", ++(conshdlrdata->ncmir));
-               SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, -SCIPinfinity(scip), cutrhs, cutislocal, FALSE, TRUE) );
-
-               /* get SCIP vars, because inds refers to these indices */
-               scipvars = SCIPgetVars(scip);
-
-               /* cache the row extension and only flush them if the cut gets added */
-               SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
-
-               /* collect all non-zero coefficients */
-               for (j = 0; j < cutnnz; ++j)
-               {
-                  SCIP_CALL( SCIPaddVarToRow(scip, row, scipvars[cutinds[j]], cutcoefs[j]) );
-               }
-
-               /* flush all changes before adding the cut */
-               SCIP_CALL( SCIPflushRowExtensions(scip, row) );
-
-               if ( SCIProwGetNNonz(row) == 0 )
-               {
-                  assert( SCIPisFeasNegative(scip, cutrhs) );
-                  *result = SCIP_CUTOFF;
-               }
-               else
-               {
-#ifdef SCIP_MORE_DEBUG
-                  SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-                  SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-                  if ( infeasible )
-                     *result = SCIP_CUTOFF;
-                  else
-                     *result = SCIP_SEPARATED;
-                  SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-                  if ( conshdlrdata->sdpconshdlrdata->cutstopool )
-                  {
-                     SCIP_CALL( SCIPaddPoolCut(scip, row) );
-                  }
-                  ++ngen;
-               }
-
-               /* release the row */
-               SCIP_CALL( SCIPreleaseRow(scip, &row) );
-            }
-
-            SCIPfreeBufferArray(scip, &cutinds);
-            SCIPfreeBufferArray(scip, &cutcoefs);
-
-            SCIPaggrRowFree(scip, &aggrrow);
-         }
-      }
+      /* produce cut/constraint */
+      SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
+            blocksize, fullconstmatrix, eigenvector, vector, vars, vals, inds, &ngen, &success, result) );
    }
    SCIPdebugMsg(scip, "<%s>: Separated cuts = %d.\n", SCIPconsGetName(cons), ngen);
 
