@@ -1643,8 +1643,8 @@ SCIP_RETCODE separateSol(
    nvars = consdata->nvars;
    blocksize = consdata->blocksize;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars ) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars) );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrixcopy, blocksize * blocksize ) );
