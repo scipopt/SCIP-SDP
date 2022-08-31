@@ -900,7 +900,6 @@ SCIP_RETCODE produceCutFromEigenvector(
    SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
    SCIP_VAR**            vars,               /**< temporary workspace (length nvars) */
    SCIP_Real*            vals,               /**< temporary workspace (length nvars) */
-   int*                  inds,               /**< temporary workspace (length nvars) */
    int*                  ngen,               /**< pointer to store the number of generated cuts/constraints */
    SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
@@ -981,8 +980,7 @@ SCIP_RETCODE produceCutFromEigenvector(
       else
       {
          vars[cnt] = consdata->vars[j];
-         vals[cnt] = coef;
-         inds[cnt++] = SCIPvarGetProbindex(consdata->vars[j]);
+         vals[cnt++] = coef;
       }
    }
 
@@ -1049,10 +1047,13 @@ SCIP_RETCODE produceCutFromEigenvector(
 
          /* switch row */
          for (j = 0; j < cnt; ++j)
+         {
             vals[j] *= -1.0;
+            cutinds[j] = SCIPvarGetProbindex(vars[j]);
+         }
 
          /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
-         SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, -lhs, 1.0, 0, FALSE) );
+         SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, cutinds, vals, cnt, -lhs, 1.0, 0, FALSE) );
 
          /* try to generate CMIR inequality */
          cutefficacy = - SCIPinfinity(scip);
@@ -1315,7 +1316,7 @@ SCIP_RETCODE sparsifyCut(
 
    /* produce cut/constraint */
    SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
-         blocksize, fullconstmatrix, ev, vector, vars, vals, idx, ngen, success, result) );
+         blocksize, fullconstmatrix, ev, vector, vars, vals, ngen, success, result) );
 
    SCIPfreeBufferArray(scip, &ev);
    SCIPfreeBufferArray(scip, &idx);
@@ -1512,7 +1513,7 @@ SCIP_RETCODE addMultipleSparseCuts(
 
       /* produce cut/constraint */
       SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
-            blocksize, fullconstmatrix, liftedev, vector, vars, vals, support, ncuts, success, result) );
+            blocksize, fullconstmatrix, liftedev, vector, vars, vals, ncuts, success, result) );
 
       /* compute A(y) = A(y) - \lambda_{min} w w^T */
       for (i = 0; i < blocksize; i++)
@@ -1622,7 +1623,6 @@ SCIP_RETCODE separateSol(
    SCIP_Real* fullconstmatrix = NULL;
    SCIP_Real* eigenvalues;
    SCIP_Real tol;
-   int* inds;
    int neigenvalues;
    int blocksize;
    int nvars;
@@ -1645,7 +1645,6 @@ SCIP_RETCODE separateSol(
 
    SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars ) );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrixcopy, blocksize * blocksize ) );
@@ -1702,7 +1701,6 @@ SCIP_RETCODE separateSol(
       SCIPfreeBufferArray(scip, &fullmatrixcopy);
       SCIPfreeBufferArray(scip, &fullmatrix);
 
-      SCIPfreeBufferArray(scip, &inds);
       SCIPfreeBufferArray(scip, &vals);
       SCIPfreeBufferArray(scip, &vars);
 
@@ -1774,7 +1772,7 @@ SCIP_RETCODE separateSol(
 
       /* produce cut/constraint */
       SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
-            blocksize, fullconstmatrix, eigenvector, vector, vars, vals, inds, &ngen, &success, result) );
+            blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &ngen, &success, result) );
    }
    SCIPdebugMsg(scip, "<%s>: Separated cuts = %d.\n", SCIPconsGetName(cons), ngen);
 
@@ -1785,7 +1783,6 @@ SCIP_RETCODE separateSol(
    SCIPfreeBufferArray(scip, &fullmatrixcopy);
    SCIPfreeBufferArray(scip, &fullmatrix);
 
-   SCIPfreeBufferArray(scip, &inds);
    SCIPfreeBufferArray(scip, &vals);
    SCIPfreeBufferArray(scip, &vars);
 
