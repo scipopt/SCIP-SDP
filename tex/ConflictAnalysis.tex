@@ -1,0 +1,689 @@
+\documentclass[10pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[american]{babel}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{dsfont}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage[lined,ruled,noend,linesnumbered]{algorithm2e}
+\usepackage[color=red!50!blue!50,textsize=footnotesize,textwidth=4cm]{todonotes}
+\usepackage[breaklinks,colorlinks,citecolor=blue,linkcolor=blue]{hyperref}
+% \usepackage[tmargin=2.5cm,bmargin=2.5cm,lmargin=2.8cm,rmargin=2.8cm]{geometry}
+\usepackage{cleveref}
+\usepackage{xspace}
+
+% operators
+\DeclareMathOperator{\conv}{conv}
+\DeclareMathOperator{\cone}{cone}
+\DeclareMathOperator{\aff}{aff}
+\DeclareMathOperator{\lin}{lin}
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator{\supp}{supp}
+\DeclareMathOperator{\relint}{relint}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\Diag}{Diag}
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\tr}{tr}
+\renewcommand{\Re}{\text{Re}}
+
+% macros
+\newcommand{\suchthat}{\,:\,}
+\newcommand{\abs}[1]{\lvert{#1}\rvert}
+\newcommand{\card}[1]{\lvert{#1}\rvert}
+\newcommand{\ceil}[1]{\lceil{#1}\rceil}
+\newcommand{\floor}[1]{\lfloor{#1}\rfloor}
+\newcommand{\define}{\coloneqq}
+\newcommand{\enifed}{\eqqcolon}
+\newcommand{\norm}[1]{\lVert{#1}\rVert}
+\newcommand{\Norm}[2]{\lVert{#1}\rVert_{#2}}
+\newcommand{\skal}[2]{\langle{#1},{#2}\rangle}
+\newcommand{\order}[1]{O\left({#1}\right)}
+\newcommand{\T}{^{\top}}
+
+% sets
+\newcommand{\R}{\mathds{R}}
+\newcommand{\Z}{\mathds{Z}}
+\newcommand{\Q}{\mathds{Q}}
+\newcommand{\N}{\mathds{N}}
+\newcommand{\C}{\mathds{C}}
+\newcommand{\E}{\mathds{E}}
+\newcommand{\ones}{\mathds{1}}
+\renewcommand{\P}{\mathds{P}}
+\renewcommand{\E}{\mathds{E}}
+
+% environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{question}[theorem]{Question}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% adjust itemize
+\setlist[itemize]{topsep=0.5ex,partopsep=0ex,parsep=0ex,itemsep=0.5ex}
+
+% other defines
+\newcommand{\MP}[1]{\todo{#1}}
+\newcommand{\MPin}[1]{\todo[inline]{#1}}
+
+
+% title
+\title{Conflict Analysis for Mixed-integer SDPs}
+\author{Marc E. Pfetsch\thanks{Department of Mathematics, TU Darmstadt, Germany}}
+\date{June 2022}
+
+% -------------------------------------------------------------------------
+% -------------------------------------------------------------------------
+\begin{document}
+
+\maketitle
+
+
+
+% -------------------------------------------------------------------------
+\section{Introduction}
+
+We consider mixed-integer SDPs of the following form:
+\begin{equation}\label{MISDP}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - A^0 \succeq 0, \\
+    & D y \geq d,\\
+    & \ell \leq y \leq u,\\
+    & y_i \in \Z,\quad i \in I.
+  \end{aligned}
+\end{equation}
+In each node, we solve the following relaxations with local bounds $\ell$
+and $u$:
+\begin{equation}\label{SDP-D}
+  \begin{aligned}
+    \inf \quad & b\T y \\
+    \text{s.t.} \quad & \sum_{j=1}^m A^j\, y_j - A^0 \succeq 0, \\
+    & D y \geq d,\\
+    & \ell \leq y \leq u,
+  \end{aligned}
+\end{equation}
+where for simplicity of exposition, we assume that all entries of $\ell$
+and $u$ are finite. Moreover, we always assume that $\ell \leq u$ holds.
+
+Let $X$ be the dual variables for the SDP-constraint $A(y) \succeq 0$, $z$
+be the dual variables for $Dy \geq d$, and $r^\ell$ and $r^u$ be the dual
+variables for the bound constraints $y \geq \ell$ and $-y \geq -u$,
+respectively. Then the corresponding primal problem for~\eqref{SDP-D} is:
+\begin{equation}\label{SDP-P}
+  \begin{aligned}
+     \sup \quad & \skal{A^0}{X} + z\T d + \ell\T r^\ell - u\T r^u\\
+     \text{s.t.} \quad & \skal{A^j}{X} + (D\T z)_j + r^\ell_j - r^u_j = b_j && \forall \, j \in [m],\\
+     & X \succeq 0,\; z, \; r^\ell,\; r^u \geq 0.
+  \end{aligned}
+\end{equation}
+
+We will need the following result.
+
+\begin{lemma}\label{lemma:ComplemenatrySolution}
+  Let $\hat{r}^\ell$, $\hat{r}^u \in \R^m_+$ with
+  $\hat{r}^\ell - \hat{r}^u = \hat{s}$ for some $\hat{s} \in \R^m$. Then
+  there exists $r^\ell$, $r^u \in \R^m_+$ with $r^\ell - r^u = \hat{s}$, such
+  that $r_j^\ell \cdot r_j^u = 0$ for all $j \in [m]$ and for
+  $\ell \leq u$:
+  \begin{equation}\label{eq:objpart}
+    \ell\T r^\ell - u\T r^u \geq \ell\T \hat{r}^\ell - u\T \hat{r}^u.
+  \end{equation}
+\end{lemma}
+
+\begin{proof}
+  Define
+  \[
+    r^\ell_j \define - \min\,\{\hat{s}_j, 0\} \geq 0,
+    \quad
+    r^u_j = \max\,\{\hat{s}_j, 0\} \geq 0.
+  \]
+  By construction $r^\ell_j \cdot r^u_j = 0$ for all
+  $j \in [m]$ and $r^\ell - r^u = \hat{s}$. Then consider:
+  \begin{align*}
+    \ell_j r^\ell_j - u_j r^u_j & = - \ell_j\, \min\,\{\hat{s}_j, 0\} - u_j\, \max\,\{\hat{s}_j, 0\}\\
+    & = - \ell_j\, \min\,\{\hat{r}^u_j - \hat{r}^\ell_j, 0\} - u_j\, \max\,\{\hat{r}^u_j - \hat{r}^\ell_j, 0\}\\
+    & = \begin{cases}
+      - \ell_j\, (\hat{r}^u_j - \hat{r}^\ell_j) & \text{if } \hat{r}^u_j - \hat{r}^\ell_j < 0,\\
+      - u_j\, (\hat{r}^u_j - \hat{r}^\ell_j) & \text{if } \hat{r}^u_j - \hat{r}^\ell_j \geq 0,
+    \end{cases}\\
+    & = \begin{cases}
+      - \ell_j\, \hat{r}^u_j + \ell_j \hat{r}^\ell_j & \text{if } \hat{r}^u_j - \hat{r}^\ell_j < 0,\\
+      - u_j\, \hat{r}^u_j + u_j \hat{r}^\ell_j & \text{if } \hat{r}^u_j - \hat{r}^\ell_j \geq 0,
+    \end{cases}\\
+    & \geq \begin{cases}
+      - u_j\, \hat{r}^u_j + \ell_j \hat{r}^\ell_j & \text{if }  \hat{r}^u_j - \hat{r}^\ell_j < 0,\\
+      - u_j\, \hat{r}^u_j + \ell_j \hat{r}^\ell_j & \text{if } \hat{r}^u_j - \hat{r}^\ell_j \geq 0,
+    \end{cases}\\
+    & = \ell_j \hat{r}^\ell_j - u_j \hat{r}^u_j,
+  \end{align*}
+  which shows~\eqref{eq:objpart}.
+\end{proof}
+
+% -------------------------------------------------------------------------
+% -------------------------------------------------------------------------
+\section{Brief Literature Review for Conflict Analysis}
+
+The original intention of conflict analysis was to derive useful
+information from infeasible subproblems in a branch-and-bound
+procedure. There are three types of conflict analysis:
+\begin{itemize}
+\item If infeasibility was determined using propagation of variable bounds,
+  one can use a \emph{graph-based conflict analysis}. Here, a directed graph
+  encodes the dependency of bound changes on each other, i.e., whether one
+  bound was used to strengthen the other bound. One can then try to find a
+  small subset of bound changes that arise from branching decisions that
+  still lead to infeasibility. One can then add constraints enforcing
+  that at least one branching decision is taken in a different
+  way. See~\cite{Ach07b,Ach07} for more information in the context of MIPs.
+
+  This kind of conflict analysis can also be used in the context of MISDPs
+  and has already been investigated in~\cite{MatP22}. Overall, this kind of
+  conflict analysis was not beneficial.
+\item If the relaxation is infeasible, there is a \emph{greedy approach},
+  which relaxes some of the branching decisions defining the current node
+  as long as the relaxation remains infeasible. Then a constraint as in
+  graph-based conflict analysis can be derived. See~\cite{Ach07b,Ach07} for
+  more information in the context of MIPs. This method does not seem very
+  promising for MISDPs, since we do not have warm start in this case.
+\item If the relaxation is infeasible, one can also use dual information
+  to derive valid inequalities, which can then be propagated during the
+  tree. This is called dual ray analysis by Witzig~\cite{Wit22} (see also
+  \cite{WitBH17}).
+\end{itemize}
+
+In the following, we will generalize the last approach to MISDPs and call
+it \emph{dual conflict analysis}.
+
+Very similar ideas are needed for an outer approximation algorithm, in
+which one adds aggregated inequalities that will cut off nodes that are
+infeasible or bound exceeding. Coey et al.~\cite{CoeLV20} describe such an
+algorithm for mixed-integer conic problems (including MISDP).
+
+
+% -------------------------------------------------------------------------
+% -------------------------------------------------------------------------
+\section{Generation of Conflict Constraints}
+
+The general idea of dual conflict analysis is to generate globally valid
+constraints as follows. Let any $\hat{X} \succeq 0$ and $\hat{z} \geq 0$ be
+given. Then because $A(y) \define \sum_{j=1}^m A^j\, y_j - A^0$ is positive
+semidefinite for all feasible $y \in \R^m$, we have
+$\skal{A(y)}{\hat{X}} \geq 0$.  Similarly, the aggregated inequalities
+$\hat{z}\T D y \geq \hat{z}\T d$ hold. Together this yields:
+\begin{align}
+  & \skal{A(y)}{\hat{X}} + \hat{z}\T D y \geq \hat{z}\T d\notag\\
+  \Leftrightarrow\quad
+  & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D y \geq
+    \skal{A^0}{\hat{X}} + \hat{z}\T d,\label{eq:ConflictCut}
+\end{align}
+which is valid for all feasible $y$. Clearly,
+Inequality~\eqref{eq:ConflictCut} is redundant for continuous $y$, but it
+might allow to cut off certain mixed-integer solutions~$y$. In the implementation,
+we only propagate bounds using~\eqref{eq:ConflictCut}.
+
+More generally, we can also use the variable bounds $\ell \leq y$ and
+$y \leq u$. If $\hat{r}^\ell$, $\hat{r}^u \geq 0$ are the corresponding
+multipliers, this yields:
+\begin{align}
+  & \skal{A(y)}{\hat{X}} + \hat{z}\T D y + (\hat{r}^\ell)\T y - (\hat{r}^u)\T y
+    \geq \hat{z}\T d + (\hat{r}^\ell)\T \ell - (\hat{r}^u)\T u\notag\\
+  \Leftrightarrow\quad
+  & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D y +
+    (\hat{r}^\ell)\T y - (\hat{r}^u)\T y \geq \\
+  & \qquad \skal{A^0}{\hat{X}} +
+    \hat{z}\T d + (\hat{r}^\ell)\T \ell - (\hat{r}^u)\T u,\label{eq:ConflictCut2}
+\end{align}
+which is again valid for all feasible $y$.
+
+It seems that Inequalities~\eqref{eq:ConflictCut2} are less helpful
+than~\eqref{eq:ConflictCut}. However, one can cancel some coefficients
+in~\eqref{eq:ConflictCut} using variable bounds -- see
+Section~\ref{sec:Canceling}.
+
+% -------------------------------------------------------------------------
+\subsection{Infeasible Problems}
+
+A primal ray, i.e., a point $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$
+satisfying the system
+\begin{equation}\label{eq:ray}
+\begin{aligned}
+  & \skal{A^j}{X} + (D\T z)_j + r^\ell_j - r^u_j = 0 && \forall\; j \in [m],\\
+  & \skal{A^0}{X} + d\T z + \ell\T r^\ell - u\T r^u > 0,
+\end{aligned}
+\end{equation}
+\todo[inline]{Frederic: I think we also need~$X \succeq 0$ and~$z,\, r^{\ell},\, u
+  \geq 0$ in~\eqref{eq:ray}.}
+yields an inequality as in~\eqref{eq:ConflictCut}
+or~\eqref{eq:ConflictCut2}.
+
+In this case, one can prove that~\eqref{eq:ConflictCut} actually proves
+infeasibility for the local bounds~$\ell$ and $u$ via propagation:
+
+\begin{proposition}
+  Let $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ be a solution
+  of~\eqref{eq:ray}. Then~\eqref{eq:ConflictCut}, i.e.,
+  \[
+    \skal{A(y)}{\hat{X}} + \hat{z}\T D \geq \hat{z}\T d
+  \]
+  is infeasible with respect to the local bounds $\ell$ and $u$.
+\end{proposition}
+
+\begin{proof}
+  One the one hand, any feasible solution $\hat{y}$ of~\eqref{MISDP} satisfies
+  $A(\hat{y}) \succeq 0$, $D \hat{y} \geq d$, and
+  $\ell \leq \hat{y} \leq u$. Defining
+  $\hat{s}_j \define \skal{A^j}{\hat{X}} + (\hat{z}\T D)_j$ for
+  $j \in [m]$, we get from~\eqref{eq:ConflictCut}:
+  \begin{align*}
+    \skal{A^0}{\hat{X}} + \hat{z}\T d & \leq \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j\big)\, \hat{y}_j
+    = \sum_{j=1}^m \hat{s}_j\, \hat{y}_j\\
+    & \leq \sum_{j: \hat{s}_j < 0} \hat{s}_j\, \ell_j +
+        \sum_{j: \hat{s}_j > 0} \hat{s}_j\, u_j.
+  \end{align*}
+
+  On the other hand, by applying Lemma~\ref{lemma:ComplemenatrySolution} to
+  $\hat{r}^\ell - \hat{r}^u = -\hat{s}$, we can assume that at most one of
+  $\hat{r}^\ell_j$ and $\hat{r}^u_j$ is nonzero and the inequality
+  in~\eqref{eq:ray} is still satisfied. We thus obtain
+  \begin{align*}
+    0 & < \skal{A^0}{\hat{X}} + d\T \hat{z} + \ell\T \hat{r}^\ell - u\T \hat{r}^u\\
+      & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \sum_{j=1}^m \ell_j \hat{r}^\ell_j -
+        \sum_{j=1}^m u_j \hat{r}^u_j\\
+      & = \skal{A^0}{\hat{X}}  + d\T \hat{z} - \sum_{j: \hat{s}_j < 0} \ell_j\, \hat{s}_j -
+        \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j,
+  \end{align*}
+  a contradiction.
+\end{proof}
+
+The hope is that~\eqref{eq:ConflictCut} is still violated for local bounds
+not far from $\ell \leq u$.
+
+% -------------------------------------------------------------------------
+\subsection{Feasible Problems}
+
+Any feasible solution $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$
+of~\eqref{SDP-P} can be used to construct~\eqref{eq:ConflictCut}
+or~\eqref{eq:ConflictCut2}.
+
+Moreover, one can take an objective cutoff into account. Namely, assume
+that $y^\star$ is a feasible solution to~\eqref{MISDP}. We are then only
+interested in solutions that are at least as good, i.e.,
+$b\T y \leq \overline{b}$ or equivalently $- b\T y \geq - \overline{b}$,
+where $\overline{b} \define b\T y^\star - \varepsilon$ for
+$\varepsilon > 0$. Adding this inequality to~\eqref{eq:ConflictCut} yields:
+\begin{align}
+  & \sum_{j=1}^m \skal{A^j}{\hat{X}} y_j + \hat{z}\T D y - b\T y \geq
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}\notag\\
+  \Leftrightarrow\quad
+  & \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big) y_j \geq
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}.\label{eq:ConflictCutObj}
+\end{align}
+
+\begin{proposition}
+  Let $(\hat{X}, \hat{z}, \hat{r}^\ell, \hat{r}^u)$ be a solution
+  of~\eqref{SDP-P} and $\hat{y}$ be a mixed-integer local solution of the
+  corresponding dual problem. Assume that strong duality holds. Define
+  $\overline{b} \define b\T \hat{y} - \varepsilon$ for $\varepsilon >
+  0$. Then~\eqref{eq:ConflictCutObj}, i.e.,
+  \[
+    \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big) y_j \geq
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b}.
+  \]
+  is infeasible with respect to the local bounds $\ell$ and $u$.
+\end{proposition}
+
+\begin{proof}
+  Define $\hat{s}_j \define \skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j$
+  for $j \in [m]$. Then we get from~\eqref{eq:ConflictCutObj} for any
+  feasible solution $y$ with $b\T y \leq \overline{b}$ with $\ell \leq y
+  \leq u$:
+  \begin{align*}
+    \skal{A^0}{\hat{X}} + \hat{z}\T d - \overline{b} & \leq \sum_{j=1}^m \big(\skal{A^j}{\hat{X}} + (\hat{z}\T D)_j - b_j\big)\, y_j
+    = \sum_{j=1}^m \hat{s}_j\, y_j\\
+    & \leq \sum_{j: \hat{s}_j < 0} \hat{s}_j\, \ell_j +
+        \sum_{j: \hat{s}_j > 0} \hat{s}_j\, u_j.
+  \end{align*}
+
+  On the other hand, by applying Lemma~\ref{lemma:ComplemenatrySolution} to
+  $\hat{r}^\ell - \hat{r}^u = -\hat{s}$, we can assume that at most one of
+  $\hat{r}^\ell_j$ and $\hat{r}^u_j$ is nonzero and the corresponding
+  solution is still optimal. We thus obtain by strong duality:
+  \begin{align*}
+    b\T \hat{y} & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \ell\T \hat{r}^\ell - u\T \hat{r}^u\\
+      & = \skal{A^0}{\hat{X}} + d\T \hat{z} + \sum_{j=1}^m \ell_j \hat{r}^\ell_j -
+        \sum_{j=1}^m u_j \hat{r}^u_j\\
+      & = \skal{A^0}{\hat{X}}  + d\T \hat{z} - \sum_{j: \hat{s}_j < 0} \ell_j\, \hat{s}_j -
+        \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j.
+  \end{align*}
+  This means that
+  \begin{align*}
+    \sum_{j: \hat{s}_j < 0} \ell_j\, \hat{s}_j +
+        \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j = \skal{A^0}{\hat{X}}  +
+    d\T \hat{z} - \overline{b} - \varepsilon
+  \end{align*}
+  and therefore
+  \begin{align*}
+    \sum_{j: \hat{s}_j < 0} \ell_j\, \hat{s}_j +
+        \sum_{j: \hat{s}_j > 0} u_j\, \hat{s}_j < \skal{A^0}{\hat{X}}  +
+    d\T \hat{z} - \overline{b},
+  \end{align*}
+  a contradiction.
+\end{proof}
+
+The hope is that~\eqref{eq:ConflictCutObj} is still violated for local
+bounds not far from $\ell \leq u$.
+
+% -------------------------------------------------------------------------
+\subsection{Canceling}
+\label{sec:Canceling}
+
+Starting from~\eqref{eq:ConflictCut}, one can possibly cancel coefficients
+as follows. Again using
+$\hat{s}_j \define \skal{A^j}{\hat{X}} + (\hat{z}\T D)_j$, we get
+from~\eqref{eq:ConflictCut}:
+\begin{equation}\label{eq:ConflictCut3}
+  \sum_{j=1}^m \hat{s}_j\, y_j \geq \skal{A^0}{\hat{X}} + \hat{z}\T d.
+\end{equation}
+
+Assume that $\hat{s}_j < 0$ for some $j \in [m]$ and the global lower bound
+of $y_j$ is at least 0. Then we can add the valid inequality
+$-\hat{s}_j\, y_j \geq 0$ to~\eqref{eq:ConflictCut3}, which eliminates
+variable~$y_j$ from the inequality. Similarly, if $\hat{s}_j > 0$ for some
+$j \in [m]$ and the global upper bound of $y_j$ is at most 0, we can add
+$\hat{s}_j\, y_j \leq 0$ to eliminate variable~$y_j$.
+
+Witzig et al.~\cite{WitBH17} (see also Witzig~\cite{Wit22}) apply
+cancellation to continuous variables, but restrict attention to variables
+that are at their global bounds at the node at which the constraint is
+generated.
+
+
+% -------------------------------------------------------------------------
+\subsection{Primal Solutions for Special Cases}
+\label{sec:Primal}
+
+In order to produce conflict constraints, one needs solutions for the
+primal of the LP-relaxation~\eqref{SDP-P}. Because SCIP-SDP preprocesses
+certain SDP problems, we briefly discuss how primal solutions can be
+obtained in these cases. We start with a general discussion and then
+discuss how such solutions can be obtained from the semi-smooth Newton
+algorithm for solving SDPs with one variable.
+
+% -------------------------------------------------------------------------
+\subsubsection{SDPs with One Variable}
+
+For the special case of SDP-relaxations in which only one variable is
+unfixed, SCIP-SDP uses specialized methods to solve them. In order to
+derive a primal solution, consider
+\begin{equation}\label{eq:basic}
+  \inf\; \{\gamma\, \mu \suchthat \mu\, A - B \succeq 0,\; \ell \leq \mu \leq u\},
+\end{equation}
+where $A$, $B \in \R^{n \times n}$ are symmetric matrices, $\gamma \in \R$,
+and $\ell \in \R \cup \{-\infty\}$, $u \in \R \cup \{\infty\}$.
+
+The dual SDP of~\eqref{eq:basic} is
+\begin{equation}\label{eq:dual}
+  \sup\; \{\skal{B}{X} + \ell\, \alpha - u\, \beta \suchthat \skal{A}{X} +
+  \alpha - \beta = \gamma,\; X \succeq 0,\; \alpha,\; \beta \geq 0\}.
+\end{equation}
+
+If $\mu^*$ is an optimal solution for~\eqref{eq:basic}, we can construct an
+optimal primal solution $(X^*, \alpha^*, \beta^*)$ as follows.
+
+\paragraph{Case 0, $\boldsymbol{\gamma = 0}$:}
+
+Here we can take $(X^*, \alpha^*, \beta^*) = (0,0,0)$. Thus, in the
+following, we assume that $\gamma \neq 0$.
+
+\paragraph{Case 1, $\boldsymbol{\ell < \mu^* < u}$:}
+
+Then by complementary slackness necessarily $\alpha^* = \beta^* = 0$, and
+thus $\skal{A}{X^*} = \gamma$. Optimality implies that
+\[
+\gamma\, \mu^* = \skal{B}{X^*}
+\quad\Leftrightarrow\quad
+\mu^* \skal{A}{X^*} = \skal{B}{X^*}
+\quad\Leftrightarrow\quad
+\skal{\mu^* A - B}{X^*} = 0.
+\]
+
+Note that in~\eqref{eq:dual} there is only one affine constraint, which
+implies that there exists a rank-1 solution. Thus, we are aiming to
+construct a rank-1 solution $X^* = x^* (x^*)\T \succeq 0$.  This solution
+has to satisfy:
+\[
+0 = \skal{\mu^* A - B}{x^* (x^*)\T} = (x^*)\T (\mu^* A - B) x^*.
+\]
+Since $\mu^* A - B \succeq 0$, there exists a matrix
+$D \in \R^{k \times n}$ such that $D\T D = \mu^* A - B$. Thus, we are
+searching for $x^*$ with $(D x^*)\T D x^* = 0$. Therefore,
+$x^* \in \ker(D)$. In fact,
+$\ker(D) = \ker(\mu^* A - B)$.\footnote{Clearly,
+  $\ker(D) \subseteq \ker(\mu^* A - B)$. Conversely, let
+  $x \in \ker(\mu^* A - B)$. Then
+  $(Dx)\T Dx = \norm{Dx}_2^2 = (\mu^* A - B)x = 0$. But then $Dx = 0$.}
+Moreover, $\skal{A}{x^*(x^*)\T} = (x^*)\T A x^* = \gamma$ needs to hold.
+Consider a generator matrix $C \in \R^{n \times r}$ of the kernel of
+$\mu^* A - B$, i.e., $\ker(\mu^* A - B) = \{C y \suchthat y \in \R^r\}$.
+Then by scaling, the problem reduces to the question whether there exists
+$y^* \in \R^r$ such that
+\[
+(y^*)\T C\T A C y^*
+\begin{cases}
+  > 0 & \text{if } \gamma > 0,\\
+  < 0 & \text{if } \gamma < 0.
+\end{cases}
+\]
+Computing a maximal/minimal eigenvalue/eigenvector of $C\T A C$ will decide
+this.
+
+\paragraph{Case 2, $\boldsymbol{\mu^* = \ell}$:}
+
+In this case, $\beta^* = 0$ has to hold.
+
+If $\gamma \geq 0$, we can take
+$(X^*, \alpha^*, \beta^*) = (0, \gamma, 0)$, which is feasible with
+objective value $\gamma \ell = \gamma \mu^*$ as needed. Therefore, this
+point is optimal.
+
+If $\gamma < 0$, the conditions are
+\[
+\skal{B}{X^*} + \ell\, \alpha^* = \gamma\, \ell,\quad
+\skal{A}{X^*} + \alpha^* = \gamma,\quad X^* \succeq 0,\; \alpha^* \geq 0.
+\]
+This yields
+\[
+\skal{B}{X^*} + \ell\, \alpha^* = \skal{A}{X^*}\, \ell + \alpha^*\, \ell
+\quad\Leftrightarrow\quad
+\skal{\ell\, A - B}{X^*} = 0.
+\]
+As above, we are looking for a rank-1 solution $(x^*)\T x^*$. Let
+$C \in \R^{n \times r}$ be a generator matrix of $\ker(\ell\, A - B)$. Then
+we need $y^* \in \R^r$ such that
+\[
+(y^*)\T C\T A C y^* < 0.
+\]
+If this is impossible, the problem is infeasible (e.g., if $A \succeq
+0$). Otherwise, we can scale $x^* = C y^*$ and set $\alpha^* = 0$.
+
+\paragraph{Case 3, $\boldsymbol{\mu^* = u}$:}
+
+This case is symmetric to Case 2. If $\gamma < 0$, we can set
+$(X^*, \alpha^*, \beta^*) = (0, 0, -\gamma)$.
+
+If $\gamma \geq 0$, we can construct a rank-1 solution as above.
+
+\paragraph{Case 4, infeasible:}
+
+If~\eqref{eq:basic} is infeasible, we are searching for a rank-1 solution
+$X^* = (x^*)\T x^*$ such that
+\[
+\skal{B}{X^*}
+\begin{cases}
+ > 0 & \text{if } \gamma > 0,\\
+ < 0 & \text{if } \gamma < 0
+\end{cases}
+\]
+and $\skal{A}{X^*} = 0$ (and $\alpha^* = \beta^* = 0$). Let again $C^{n
+  \times r}$ be a generator matrix of $\ker(A)$ and compute
+\[
+y\T C\T B C y
+\begin{cases}
+  > 0 & \text{if } \gamma > 0,\\
+  < 0 & \text{if } \gamma < 0.
+\end{cases}
+\]
+By scaling, this produces the wanted solution.
+
+% -------------------------------------------------------------------------
+\subsubsection{Obtaining Results from SDP with One Variable}
+
+The semi-smooth Newton algorithm for solving SDPs with one variable can
+also produce the corresponding solutions, see~\cite{MatP22}.
+
+\paragraph{Infeasibility I}
+
+The implementation can determine one kind of infeasibility
+of~\eqref{eq:basic} by computing a unit eigenvector $w$ for a minimal
+eigenvalue $\lambda$ of $A u - B$. If $\lambda < 0$ and $w\T A w > 0$, then
+the problem is infeasible.
+
+In this case, we can use $(X^*, \alpha^*, \beta^*) = (w w\T, 0, w\T A w)$
+as a ray. To see this, note that
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = w\T A w - w\T A w = 0.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = w\T B w - u\, w\T A w = w\T (B -
+u A) w = -\lambda\, w\T w > 0,
+\]
+and this holds for each positive multiple of $(X^*, \alpha^*, \beta^*)$.
+
+\paragraph{Infeasibility II}
+
+A second case of infeasibility of~\eqref{eq:basic} arises if a unit
+eigenvector $v$ for a minimal eigenvalue $\lambda$ of $A \ell - B$
+satisfies $\lambda < 0$ and $v\T A v \leq 0$.
+
+In this case, we can use $(X^*, \alpha^*, \beta^*) = (v v\T, -v\T A v, 0)$
+as a ray. To see this, note that
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = v\T A v - v\T A v = 0.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = v\T B v - \ell\, v\T A v = v\T (B -
+\ell A) v = -\lambda\, v\T v > 0,
+\]
+and this holds for each positive multiple of $(X^*, \alpha^*, \beta^*)$.
+
+\paragraph{Infeasibility III}
+
+The third case of infeasibility arises if the iteration terminates with
+$\mu \define \mu_k$ and $(v^k)\T A v^k = 0$, where $v \define v^k$ is a
+unit eigenvector of $A \mu - B$ corresponding to eigenvalue
+$\lambda \define \lambda_k < 0$. In this case, we can take
+$(X^*, \alpha^*, \beta^*) = (v v\T, 0, 0)$. To see this, first note that
+$(A \mu - B)v = \lambda v$. This implies that
+$\mu\, v\T A v - v\T B v = \lambda$, i.e., $- v\T B v = \lambda < 0$. Then
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = v\T A v = 0.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = v\T B v > 0,
+\]
+and this holds for each positive multiple of $(X^*, \alpha^*, \beta^*)$.
+
+
+\paragraph{Optimality I}
+
+Optimality is determined at the beginning of the algorithm if $\gamma > 0$
+and the minimal eigenvalue~$\lambda$ of $A \ell - B$ is nonnegative. We can
+take $(X^*, \alpha^*, \beta^*) = (0, \gamma, 0)$. To see this, note that
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = \gamma.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = \ell\, \gamma = \gamma\, \mu,
+\]
+as it should be.
+
+\paragraph{Optimality II}
+
+Let $\mu$ and $v$ be the final values of the algorithm in the case that no
+infeasibility was determined. Then $v$ is a unit eigenvector of $A \mu - B$
+corresponding to eigenvalue $\lambda$. Thus, the algorithm terminated
+because the condition in the while loop is not satisfied anymore, i.e.,
+$\lambda \geq 0$ or $v\T A v \leq 0$. Since the problem is feasible, we
+always have $\lambda \geq 0$ and in exact arithmetic the algorithm would
+stop with $\lambda = 0$.
+
+First assume that $\delta \define v\T A v > 0$. Note that $\lambda = 0$
+implies $(A \mu - B)v = 0$ and thus $v\T B v = \mu\, v\T A v$. Then we can
+use $(X^*, \alpha^*, \beta^*) = (\frac{\gamma}{\delta} v v\T, 0, 0)$. To
+see this, note that
+\[
+\skal{A}{X^*} + \alpha^* - \beta^* = \frac{\gamma}{\delta}\, v\T A v = \gamma.
+\]
+Moreover, the objective function satisfies
+\[
+\skal{B}{X^*} + \ell \alpha^* - u \beta^* = \frac{\gamma}{\delta}\, v\T B v
+= \frac{\gamma}{\delta}\, \mu\, v\T A v = \gamma\, \mu,
+\]
+as it should be.
+
+Now assume that $v\T A v = 0$. In this case, strong duality does not need
+to hold and it is harder to construct any feasible solution, because we
+would need $\skal{A}{X^*} = \gamma$. For instance, if $A$ is negative
+semidefinite and $\gamma > 0$, this is impossible to achieve.
+
+
+
+
+% -------------------------------------------------------------------------
+\subsubsection{SDPs with All Fixed Variables}
+
+Consider the general problem with fixed variables:
+\[
+  \inf\; \{ b\T y \suchthat \sum_{i=1}^m A^i\, y_i - A^0 \succeq 0,\; \ell \leq y \leq \ell\},
+\]
+and its dual:
+\[
+  \sup\; \{\skal{A^0}{X} + \ell\T \alpha - \ell\T \beta \suchthat \skal{A}{X} +
+  \alpha_i - \beta_i = b_i\; \forall i \in [m],\; X \succeq 0,\; \alpha,\; \beta \geq 0\}.
+\]
+We can take
+\[
+X^* = 0,\quad
+\alpha^*_i = \max\,\{0, b_i\}, \quad
+\beta^*_i = -\min\,\{0, b_i\}.
+\]
+This solution is feasible for the dual and has objective value $\ell\T b$.
+
+\begin{small}
+   \bibliographystyle{plain}
+   \bibliography{ConflictAnalysis.bib}
+\end{small}
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

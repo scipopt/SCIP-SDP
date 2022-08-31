@@ -2727,21 +2727,18 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    return SCIP_OKAY;
 }
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
+/** gets the solution corresponding to the lower and upper variable-bounds in the primal problem
  *
- *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown.
+ *  The arrays need to have size nvars.
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real*            lbvals,             /**< array to store the values of the variables corresponding to lower bounds in the primal problems */
+   SCIP_Real*            ubvals              /**< array to store the values of the variables corresponding to upper bounds in the primal problems */
    )
-{/*lint !e1784*/
+{  /*lint !e1784*/
    int i;
    SCIP_Real* X; /* block of primal solution matrix corresponding to the LP-part */
    SDPA_INT lpblockind;
@@ -2752,41 +2749,29 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
 
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL );
-   assert( lbvars != NULL );
-   assert( ubvars != NULL );
-   assert( arraylength != NULL );
-   assert( *arraylength >= 0 );
+   assert( lbvals != NULL );
+   assert( ubvals != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-
-   /* check if the arrays are long enough */
-   if ( *arraylength < sdpisolver->nvars )
-   {
-      *arraylength = sdpisolver->nvars;
-      SCIPdebugMessage("Insufficient length of array in SCIPsdpiSolverGetPrimalBoundVars (gave %d, needed %d)\n", *arraylength, sdpisolver->nvars);
-      return SCIP_OKAY;
-   }
 
    /* initialize the return-arrays with zero */
    for (i = 0; i < sdpisolver->nvars; i++)
    {
-      lbvars[i] = 0.0;
-      ubvars[i] = 0.0;
+      lbvals[i] = 0.0;
+      ubvals[i] = 0.0;
    }
 
    /* if no variable bounds were added, we return the zero vector (we do this separately, because in this case there might be no LP-block) */
    if ( sdpisolver->nvarbounds == 0 )
    {
-      SCIPdebugMessage("Asked for PrimalBoundVars, but there were no variable bounds in sdpa, returning zero vector!\n");
+      SCIPdebugMessage("Asked for PrimalBoundVars, but there were no variable bounds in SDPA, returning zero vector!\n");
       return SCIP_OKAY;
    }
 
-   /* get the block of primal solution matrix corresponding to the LP-part from sdpa */
+   /* get the block of primal solution matrix corresponding to the LP-part from SDPA */
    lpblockind = (int) sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and sdpa counts from one */
    if ( sdpisolver->sdpa->getBlockType(lpblockind) != SDPA::LP )
    {
       /* if the last block is not an LP-block, no variable bounds existed */
-      *arraylength = 0;
-
       return SCIP_OKAY;
    }
    nlpcons = (int) sdpisolver->sdpa->getBlockSize(lpblockind);
@@ -2810,7 +2795,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
          pos = sdpisolver->sdpatoinputmapper[sdpapos];
          assert( 0 <= pos && pos < sdpisolver->nvars );
          /* the last nvarbounds entries correspond to the varbounds */
-         lbvars[pos] = X[nlpcons - sdpisolver->nvarbounds + i];
+         lbvals[pos] = X[nlpcons - sdpisolver->nvarbounds + i];
       }
       else /* if it is an upper bound */
       {
@@ -2819,11 +2804,25 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
          pos = sdpisolver->sdpatoinputmapper[sdpapos];
          assert( 0 <= pos && pos < sdpisolver->nvars );
          /* the last nvarbounds entries correspond to the varbounds */
-         ubvars[pos] = X[nlpcons - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
+         ubvals[pos] = X[nlpcons - sdpisolver->nvarbounds + i]; /*lint !e679, !e834 */
       }
    }
 
    return SCIP_OKAY;
+}
+
+/** gets the primal solution corresponding to the LP row sides */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   int                   nlpcons,            /**< number of LP rows */
+   SCIP_Real*            lplhs,              /**< lhs of LP rows */
+   SCIP_Real*            lprhs,              /**< rhs of LP rows */
+   SCIP_Real*            lhsvals,            /**< array to store the values of the variables corresponding to LP lhs */
+   SCIP_Real*            rhsvals             /**< array to store the values of the variables corresponding to LP rhs */
+   )
+{  /*lint --e{715}*/
+   SCIPdebugMessage("Not implemented yet\n");
+   return SCIP_LPERROR;
 }
 
 /** return number of nonzeros for each block of the primal solution matrix X (including lp block) */
@@ -3059,6 +3058,22 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
       startXnblocknonz[b] = 0;
 
    return SCIP_OKAY;
+}
+
+/** returns the primal solution matrix (without LP rows) */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nsdpblocks,         /**< number of blocks */
+   int*                  sdpblocksizes,      /**< sizes of the blocks */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
+   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
+   SCIP_Real**           primalmatrices      /**< pointer to store values of the primal matrix */
+   )
+{  /*lint --e{715}*/
+   SCIPdebugMessage("Not implemented yet\n");
+   return SCIP_LPERROR;
 }
 
 /** return the maximum absolute value of the optimal primal matrix */

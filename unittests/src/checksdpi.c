@@ -130,9 +130,15 @@ static
 SCIP_RETCODE solveTest(
    int                   ncols,              /**< number of columns */
    int                   nrows,              /**< number of rows */
+   int                   blocksize,          /**< SDP block size */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
    SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
-   SCIP_Real*            exp_dualsol         /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
+   SCIP_Real*            exp_dualsol,        /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
+   SCIP_Real*            exp_primallbvals,   /**< expected primal solution for lower bounds or NULL */
+   SCIP_Real*            exp_primalubvals,   /**< expected primal solution for upper bounds or NULL */
+   SCIP_Real*            exp_primallhsvals,  /**< expected primal solution for LP lhs or NULL */
+   SCIP_Real*            exp_primalrhsvals,  /**< expected primal solution for LP rhs or NULL */
+   SCIP_Real*            exp_primalmatrix    /**< expected primal matrix solution or NULL */
    )
 {
    /* solution data */
@@ -163,7 +169,6 @@ SCIP_RETCODE solveTest(
    cr_assert( nrows == ntmprows );
    cr_assert( ncols == ntmpcols );
 
-   /* solve problem: no Slater-check, no time limit */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
 
    /* check status */
@@ -288,6 +293,70 @@ SCIP_RETCODE solveTest(
 
    BMSfreeMemoryArray(&dualsol);
 
+   if ( exp_primallbvals != NULL || exp_primalubvals != NULL )
+   {
+      SCIP_Real* lbvals;
+      SCIP_Real* ubvals;
+      SCIP_Bool success;
+
+      BMSallocMemoryArray(&lbvals, ncols);
+      BMSallocMemoryArray(&ubvals, ncols);
+
+      SCIP_CALL( SCIPsdpiGetPrimalBoundVars(sdpi, lbvals, ubvals, &success) );
+      cr_assert( success );
+      for (j = 0; j < ncols; ++j)
+      {
+         if ( exp_primallbvals != NULL )
+            cr_assert_float_eq(lbvals[j], exp_primallbvals[j], EPS, "Violation of primal lower bounds solution %d: %g != %g\n", j, lbvals[j], exp_primallbvals[j]);
+         if ( exp_primalubvals != NULL )
+         cr_assert_float_eq(ubvals[j], exp_primalubvals[j], EPS, "Violation of primal upper bounds solution %d: %g != %g\n", j, ubvals[j], exp_primalubvals[j]);
+      }
+
+      BMSfreeMemoryArray(&ubvals);
+      BMSfreeMemoryArray(&lbvals);
+   }
+
+   if ( exp_primallhsvals != NULL || exp_primalrhsvals != NULL )
+   {
+      SCIP_Real* lhsvals;
+      SCIP_Real* rhsvals;
+      SCIP_Bool success;
+
+      BMSallocMemoryArray(&lhsvals, nrows);
+      BMSallocMemoryArray(&rhsvals, nrows);
+
+      SCIP_CALL( SCIPsdpiGetPrimalLPSides(sdpi, lhsvals, rhsvals, &success) );
+      cr_assert( success );
+      for (j = 0; j < nrows; ++j)
+      {
+         if ( exp_primallhsvals != NULL )
+            cr_assert_float_eq(lhsvals[j], exp_primallhsvals[j], EPS, "Violation of primal LP lhs solution %d: %g != %g\n", j, lhsvals[j], exp_primallhsvals[j]);
+         if ( exp_primalrhsvals != NULL )
+         cr_assert_float_eq(rhsvals[j], exp_primalrhsvals[j], EPS, "Violation of primal LP rhs solution %d: %g != %g\n", j, rhsvals[j], exp_primalrhsvals[j]);
+      }
+
+      BMSfreeMemoryArray(&rhsvals);
+      BMSfreeMemoryArray(&lhsvals);
+   }
+
+   if ( exp_primalmatrix != NULL )
+   {
+      SCIP_Real* primalmatrix;
+      SCIP_Real** primalmatrices;
+      SCIP_Bool success;
+
+      BMSallocMemoryArray(&primalmatrix, blocksize * blocksize);
+      primalmatrices = &primalmatrix;
+
+      SCIP_CALL( SCIPsdpiGetPrimalSolutionMatrix(sdpi, primalmatrices, &success) );
+      cr_assert( success );
+      for (j = 0; j < blocksize * blocksize; ++j)
+      {
+         cr_assert_float_eq(primalmatrix[j], exp_primalmatrix[j], EPS, "Violation of primal matrix solution %d: %g != %g\n", j, primalmatrix[j], exp_primalmatrix[j]);
+      }
+      BMSfreeMemoryArray(&primalmatrix);
+   }
+
    return SCIP_OKAY;
 }
 
@@ -307,7 +376,11 @@ SCIP_RETCODE performLPTest(
    SCIP_Real*            val,                /**< values of constraint-matrix entries */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
    SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
-   SCIP_Real*            exp_dualsol         /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
+   SCIP_Real*            exp_dualsol,        /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
+   SCIP_Real*            exp_primallbvals,   /**< expected primal solution for lower bounds or NULL */
+   SCIP_Real*            exp_primalubvals,   /**< expected primal solution for upper bounds or NULL */
+   SCIP_Real*            exp_primallhsvals,  /**< expected primal solution for LP lhs or NULL */
+   SCIP_Real*            exp_primalrhsvals   /**< expected primal solution for LP rhs or NULL */
    )
 {
    /* load LP data, but leave SDP block empty */
@@ -317,7 +390,7 @@ SCIP_RETCODE performLPTest(
    cr_assert( ! SCIPsdpiWasSolved(sdpi) );
 
    /* solve problem */
-   SCIP_CALL( solveTest(ncols, nrows, exp_primalfeas, exp_dualfeas, exp_dualsol) );
+   SCIP_CALL( solveTest(ncols, nrows, 0, exp_primalfeas, exp_dualfeas, exp_dualsol, exp_primallbvals, exp_primalubvals, exp_primallhsvals, exp_primalrhsvals, NULL) );
 
    return SCIP_OKAY;
 }
@@ -358,7 +431,12 @@ SCIP_RETCODE performSDPTest(
    SCIP_Real*            val,                /**< values of constraint-matrix entries */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
    SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
-   SCIP_Real*            exp_dualsol         /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
+   SCIP_Real*            exp_dualsol,        /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
+   SCIP_Real*            exp_primallbvals,   /**< expected primal solution for lower bounds or NULL */
+   SCIP_Real*            exp_primalubvals,   /**< expected primal solution for upper bounds or NULL */
+   SCIP_Real*            exp_primallhsvals,  /**< expected primal solution for LP lhs or NULL */
+   SCIP_Real*            exp_primalrhsvals,  /**< expected primal solution for LP rhs or NULL */
+   SCIP_Real*            exp_primalmatrix    /**< expected primal matrix solution or NULL */
    )
 {
    /* load LP data, but leave SDP block empty */
@@ -368,7 +446,7 @@ SCIP_RETCODE performSDPTest(
    cr_assert( ! SCIPsdpiWasSolved(sdpi) );
 
    /* solve problem */
-   SCIP_CALL( solveTest(ncols, nrows, exp_primalfeas, exp_dualfeas, exp_dualsol) );
+   SCIP_CALL( solveTest(ncols, nrows, sdpblocksizes[0], exp_primalfeas, exp_dualfeas, exp_dualsol, exp_primallbvals, exp_primalubvals, exp_primallhsvals, exp_primalrhsvals, exp_primalmatrix) );
 
    return SCIP_OKAY;
 }
@@ -458,7 +536,7 @@ SCIP_RETCODE checkData(
  *        x1 + 3 x2 <= 15
  *        x1,    x2 >= 0
  *
- * with optimal solution (5, 0).
+ * with optimal solution (5, 0) and optimal value -15.
  */
 Test(checksdpi, test1)
 {
@@ -476,6 +554,8 @@ Test(checksdpi, test1)
 
    /* expected solutions */
    SCIP_Real exp_dualsol[2] = {5, 0};
+   SCIP_Real exp_primallbvals[2] = {0, 0.5};
+   SCIP_Real exp_primalrhsvals[2] = {1.5, 0};
 
    /* fill variable data */
    ub[0] = SCIPsdpiInfinity(sdpi);
@@ -483,7 +563,7 @@ Test(checksdpi, test1)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, exp_primallbvals, NULL, NULL, exp_primalrhsvals) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -520,7 +600,7 @@ Test(checksdpi, test2)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas, SCIPunbounded, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas, SCIPunbounded, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -555,7 +635,7 @@ Test(checksdpi, test3)
    ub[0] = SCIPsdpiInfinity(sdpi);
    ub[1] = SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded,  SCIPinfeas, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded,  SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -568,7 +648,7 @@ Test(checksdpi, test3)
  *    - x1 + x2 <= -1
  *      x1,  x2 free
  *
- * which primal and dual infeasible.
+ * which is primal and dual infeasible.
  *
  * Note: This test crashes with DSDP, since DSDP has only four solution statuses (see dsdpbasictypes.h):
  * DSDP_PDUNKNOWN  (0):  Not sure whether (D) or (P) is feasible,
@@ -602,7 +682,7 @@ Test(checksdpi, test4)
       lhs[0] = -SCIPsdpiInfinity(sdpi);
       lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas,  SCIPinfeas, NULL) );
+      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas,  SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
       /* check that data stored in sdpi is still the same */
       SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -640,7 +720,7 @@ Test(checksdpi, test5)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -674,7 +754,7 @@ Test(checksdpi, test6)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -708,7 +788,7 @@ Test(checksdpi, test7)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -808,7 +888,7 @@ Test(checksdpi, test8, .disabled=1)
 
    SCIP_CALL( performSDPTest(3, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, 0, sdpconstnblocknonz,
          NULL, NULL, NULL, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
-         2, lhs, rhs, 3, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol) );
+         2, lhs, rhs, 3, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(3, obj, lb, ub, 2, lhs, rhs, 5) );
@@ -914,7 +994,7 @@ Test(checksdpi, test9)
 
    SCIP_CALL( performSDPTest(2, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
          &sdpconstrow, &sdpconstcol, &sdpconstval, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
-         4, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL) );
+         4, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 4, lhs, rhs, 4) );
@@ -979,6 +1059,9 @@ Test(checksdpi, test10)
 
    /* expected solutions */
    SCIP_Real exp_dualsol[2] = {1.0, 1.0};
+   SCIP_Real exp_primallhsvals[4] = {0.0, 1.0, 0.0, 1.0};
+   SCIP_Real exp_primalrhsvals[4] = {0.0, 0.0, 0.0, 0.0};
+   SCIP_Real exp_primalmatrix[4] = {0.0, 0.0, 0.0, 0.0};
 
    sdpnblockvarnonz = &sdpnblockvarnonzs[0];
    sdpvar = &sdpvars[0];
@@ -1008,8 +1091,87 @@ Test(checksdpi, test10)
 
    SCIP_CALL( performSDPTest(2, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
          NULL, NULL, NULL, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
-         4, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol) );
+         4, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, exp_primallhsvals, exp_primalrhsvals, exp_primalmatrix) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 4, lhs, rhs, 4) );
+}
+
+
+/** Test 11
+ *
+ *  inf   x1
+ *        [1,  0] x1 - [1 2]  psd
+ *        [0,  1]      [2 4]
+ *        = A1 x1 - A0
+ *
+ *  The constant matrix has eigenvalues 0 and 5. Thus, the optimal solution is x1 = 5.
+ *
+ *  The dual is
+ *  sup  <A0,X>
+ *       <A1,X> = 1
+ *       X psd.
+ *
+ *  This problem is also feasible with optimal solution X = [0.2 0.4][0.4 0.8].
+ */
+Test(checksdpi, test11)
+{
+   /* data with fixed values: */
+   SCIP_Real obj = 1.0;
+   int nsdpblocks = 1;
+   int sdpblocksizes[1] = {2};
+   int sdpnblockvars[1] = {1};
+   int sdpconstnblocknonz[1] = {3};
+   int sdpconstnnonz = 3;
+   int sdpnnonz = 2;
+   int* sdpnblockvarnonz;
+   int* sdpvar;
+   int** sdprow;
+   int** sdpcol;
+   SCIP_Real** sdpval;
+
+   int sdpnblockvarnonzs[1] = {2};
+   int sdpvars[1] = {0};
+   int sdprowss[2] = {0, 1};
+   int sdpcolss[2] = {0, 1};
+   SCIP_Real sdpvalss[2] = {1.0, 1.0};
+
+   int sdpconstrowss[3] = {0, 1, 1};
+   int sdpconstcolss[3] = {0, 0, 1};
+   SCIP_Real sdpconstvalss[3] = {1.0, 2.0, 4.0};
+
+   /* data to be filled */
+   int* sdprows;
+   int* sdpcols;
+   SCIP_Real* sdpvals;
+   int* sdpconstrows;
+   int* sdpconstcols;
+   SCIP_Real* sdpconstvals;
+
+   SCIP_Real lb;
+   SCIP_Real ub;
+
+   /* expected solutions */
+   SCIP_Real exp_dualsol[1] = {5.0};
+   SCIP_Real exp_primalmatrix[4] = {0.2, 0.4, 0.4, 0.8};
+
+   sdpnblockvarnonz = &sdpnblockvarnonzs[0];
+   sdpvar = &sdpvars[0];
+   sdprows = &sdprowss[0];
+   sdpcols = &sdpcolss[0];
+   sdpvals = &sdpvalss[0];
+   sdprow = &sdprows;
+   sdpcol = &sdpcols;
+   sdpval = &sdpvals;
+   sdpconstrows = &sdpconstrowss[0];
+   sdpconstcols = &sdpconstcolss[0];
+   sdpconstvals = &sdpconstvalss[0];
+
+   /* fill data */
+   lb = -SCIPsdpiInfinity(sdpi);
+   ub = SCIPsdpiInfinity(sdpi);
+
+   SCIP_CALL( performSDPTest(1, &obj, &lb, &ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
+         &sdpconstrows, &sdpconstcols, &sdpconstvals, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
+         0, NULL, NULL, 0, NULL, NULL, NULL, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL, exp_primalmatrix) );
 }
