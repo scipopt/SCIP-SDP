@@ -1635,12 +1635,9 @@ SCIP_RETCODE computeConflictCut(
       SCIP_AGGRROW* aggrrow;
       SCIP_Real* vals;
       SCIP_Real* coefs;
-      SCIP_Real cutefficacy;
       SCIP_Real cutrhs;
-      SCIP_Bool cutislocal;
       int* inds;
       int cnt = 0;
-      int cutrank;
 
       SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
       SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars ) );
@@ -1666,7 +1663,6 @@ SCIP_RETCODE computeConflictCut(
 
          /* try to generate CMIR inequality */
          cnt = 0;
-         cutefficacy = - SCIPinfinity(scip);
 
          /* @todo to be implemented */
          *success = FALSE;
