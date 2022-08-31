@@ -4084,9 +4084,9 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
       {
          /* fill in dual variables for single constraint */
          if ( sdpi->onevarsdpoptval > sdpi->feastol )
-            ubvals[sdpi->onevarsdpidx] = sdpi->onevarsdpoptval;
+            ubvals[sdpi->onevarsdpidx] = sdpi->onevarsdpcertval;
          else if ( sdpi->onevarsdpoptval < - sdpi->feastol )
-            lbvals[sdpi->onevarsdpidx] = - sdpi->onevarsdpoptval;
+            lbvals[sdpi->onevarsdpidx] = - sdpi->onevarsdpcertval;
       }
       else
       {
