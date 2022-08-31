@@ -1267,14 +1267,6 @@ SCIP_RETCODE putLpDataInInterface(
    return SCIP_OKAY;
 }
 
-/* default values for CMIR generation */
-#define BOUNDSWITCH                0.51 /**< threshold for bound switching - see cuts.c */
-#define POSTPROCESS               FALSE /**< apply postprocessing to the cut - see cuts.c */
-#define USEVBDS                   FALSE /**< use variable bounds - see cuts.c */
-#define ALLOWLOCAL                FALSE /**< allow to generate local cuts - see cuts. */
-#define MINFRAC                   0.05  /**< minimal fractionality of floor(rhs) - see cuts.c */
-#define MAXFRAC                   0.999 /**< maximal fractionality of floor(rhs) - see cuts.c */
-
 /** computes dual cut: aggregate dual constraints using the primal information */
 static
 SCIP_RETCODE computeConflictCut(
@@ -1676,16 +1668,8 @@ SCIP_RETCODE computeConflictCut(
          cnt = 0;
          cutefficacy = - SCIPinfinity(scip);
 
-#if 0
-         /* Unfortunately, the CMIR routines only return success if the cutefficacy is positve, which rarely happens here. */
-         SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, sol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
-               MINFRAC, MAXFRAC, aggrrow, coefs, &cutrhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
-         SCIP_CALL( SCIPcalcMIR(scip, sol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, FALSE, NULL, NULL,
-               MINFRAC, MAXFRAC, 1.0, aggrrow, coefs, &cutrhs, inds, &cnt, &cutefficacy, &cutrank, &cutislocal, success) );
-#endif
-         /* We use flow cover cuts, since the function also works if the cut is not efficient. */
-         SCIP_CALL( SCIPcalcFlowCover(scip, sol, POSTPROCESS, BOUNDSWITCH, ALLOWLOCAL, aggrrow, coefs, &cutrhs, inds, &cnt,
-               &cutefficacy, &cutrank, &cutislocal, success) );
+         /* @todo to be implemented */
+         *success = FALSE;
 
          if ( *success )
          {
