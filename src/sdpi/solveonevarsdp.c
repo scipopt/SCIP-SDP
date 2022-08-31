@@ -269,11 +269,6 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
          *objval = infinity;
          *optval = ub;
 
-         if ( certificatevalue != NULL )
-            *certificatevalue = supergradient;
-         if ( certificatevector != NULL )
-            BMScopyMemoryArray(certificatevector, eigenvector, blocksize);
-
          goto TERMINATE;
       }
    }
