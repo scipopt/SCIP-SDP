@@ -911,7 +911,18 @@ SCIP_RETCODE produceCutFromEigenvector(
    int cnt = 0;
    int j;
 
+   assert( conshdlr != NULL );
+   assert( conshdlrdata != NULL );
+   assert( cons != NULL );
+   assert( consdata != NULL );
+   assert( fullconstmatrix != NULL );
+   assert( eigenvector != NULL );
+   assert( vector != NULL );
+   assert( vars != NULL );
+   assert( vals != NULL );
+   assert( ngen != NULL );
    assert( success != NULL );
+   assert( result != NULL );
 
    *success = TRUE;
 
