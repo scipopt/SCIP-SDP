@@ -1501,7 +1501,7 @@ SCIP_RETCODE addMultipleSparseCuts(
 
       /* produce cut/constraint */
       SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
-            blocksize, fullconstmatrix, eigenvector, vector, vars, vals, support, ncuts, success, result) );
+            blocksize, fullconstmatrix, liftedev, vector, vars, vals, support, ncuts, success, result) );
 
       /* compute A(y) = A(y) - \lambda_{min} w w^T */
       for (i = 0; i < blocksize; i++)
