@@ -76,7 +76,7 @@
 /* hack to change default parameter values*/
 #include "scip/struct_paramset.h"
 
-#define SCIPSDP_DEFAULT_READ_REMOVESMALLVAL  FALSE     /**< Should small values in the constraints be removed when reading CBF or SDPA-files? */
+#define SCIPSDP_DEFAULT_READ_REMOVESMALLVAL  TRUE      /**< Should small values in the constraints be removed when reading CBF or SDPA-files? */
 
 /* The functions SCIPparamSetDefaultBool() and SCIPparamSetDefaultInt() are internal functions of SCIP. To nevertheless
  * change the default parameters, we add our own locate methods below. */
