@@ -951,7 +951,7 @@ SCIP_RETCODE produceCutFromEigenvector(
          isfixed = FALSE;
 
       /* safely round coefficients to 0 */
-      if ( isfixed || SCIPisZero(scip, coef) )
+      if ( ! enforce && (isfixed || SCIPisZero(scip, coef)) )
       {
          if ( REALABS(coef) > COEFZERO )
          {
