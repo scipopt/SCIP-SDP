@@ -73,10 +73,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    SCIP_RELAX*           relax               /**< SDP-relaxator to compute analytic centers for */
    );
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
- *
- *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown.
+/** gets the primal solution corresponding to the lower and upper variable-bounds for a subset of the variables in the dual problem
  *
  *  @note If a variable is either fixed or unbounded in the dual
  *  problem, a zero will be returned for the non-existent primal variable.

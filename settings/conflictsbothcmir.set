@@ -1,0 +1,4 @@
+relaxing/SDP/conflictconss = true
+relaxing/SDP/conflictfeas = true
+relaxing/SDP/conflictinfeas = true
+relaxing/SDP/conflictcmir = true

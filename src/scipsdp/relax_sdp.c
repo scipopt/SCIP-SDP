@@ -47,6 +47,8 @@
 #define SLATERSOLVED_ABSOLUTE /* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 #include "relax_sdp.h"
+#include "scip/dbldblarith.h"
+#include "scip/debug.h"
 
 #include "assert.h"                     /*lint !e451*/
 #include "string.h"                     /* for strcmp */
@@ -58,6 +60,8 @@
 #include "scipsdp/cons_sdp.h"
 #include "scipsdp/cons_savesdpsol.h"
 #include "scipsdp/cons_savedsdpsettings.h"
+
+#include <scip/cons_linear.h>
 
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
@@ -97,6 +101,11 @@
 #define DEFAULT_USEPRESOLVING       FALSE    /**< whether presolving of SDP-solver should be used */
 #define DEFAULT_USESCALING          TRUE     /**< whether the SDP-solver should use scaling */
 #define DEFAULT_SCALEOBJ            FALSE    /**< whether the objective should be scaled in order to get a more stable behavior */
+#define DEFAULT_CONFLICTCONSS       TRUE     /**< whether conflict constraints should be generated */
+#define DEFAULT_CONFLICTFEAS        TRUE     /**< whether conflict constraints should be generated for feasible subproblems */
+#define DEFAULT_CONFLICTOBJCUT      FALSE    /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
+#define DEFAULT_CONFLICTINFEAS      TRUE     /**< whether conflict constraints should be generated for infeasible subproblems */
+#define DEFAULT_CONFLICTCMIR        FALSE    /**< whether conflict constraints should be strengthened by the CMIR procedure */
 
 #define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
@@ -134,6 +143,11 @@ struct SCIP_RelaxData
    SCIP_Bool             usepresolving;      /**< whether presolving of SDP-solver should be used */
    SCIP_Bool             usescaling;         /**< whether the SDP-solver should use scaling */
    SCIP_Bool             scaleobj;           /**< whether the objective should be scaled in order to get a more stable behavior */
+   SCIP_Bool             conflictconss;      /**< whether conflict constraints should be generated */
+   SCIP_Bool             conflictfeas;       /**< whether conflict constraints should be generated for feasible subproblems */
+   SCIP_Bool             conflictobjcut;     /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
+   SCIP_Bool             conflictinfeas;     /**< whether conflict constraints should be generated for infeasible subproblems */
+   SCIP_Bool             conflictcmir;       /**< whether conflict constraints should be strengthened by the CMIR procedure */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -1253,6 +1267,525 @@ SCIP_RETCODE putLpDataInInterface(
    return SCIP_OKAY;
 }
 
+/** computes dual cut: aggregate dual constraints using the primal information */
+static
+SCIP_RETCODE computeConflictCut(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_SOL*             sol,                /**< relaxation solution */
+   SCIP_Bool             tightenrows,        /**< whether rows should be tightened */
+   SCIP_Bool             usecmir,            /**< whether the cut should be strengthened using the CMIR procedure */
+   SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
+   SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
+   SCIP_Bool             conflictobjcut,     /**< whether an objective cut should be used if the SDP was feasible */
+   SCIP_Real*            conflictcut,        /**< coefficients of cut */
+   SCIP_Real*            conflictcutlhs,     /**< lhs of cut */
+   SCIP_Bool*            success             /**< pointer to return whether computation was successful */
+   )
+{
+   SCIP_Real** primalmatrices;
+   SCIP_ROW** rows;
+   SCIP_VAR** vars;
+   SCIP_Real* cutcoefs;
+   SCIP_Real QUAD(cutlhs);
+   SCIP_Real QUAD(c);
+   int nsdpblocks;
+   int nrows;
+   int nvars;
+   int b;
+   int j;
+
+   assert( scip != NULL );
+   assert( sdpi != NULL );
+   assert( conflictcut != NULL );
+   assert( conflictcutlhs != NULL );
+   assert( success != NULL );
+
+   /* only run if we can get a primal solution */
+   if ( ! SCIPsdpiHavePrimalSol(sdpi) )
+   {
+      *success = FALSE;
+      return SCIP_OKAY;
+   }
+   *success = TRUE;
+
+   nvars = SCIPgetNVars(scip);
+   assert( nvars >= 0 );
+   vars = SCIPgetVars(scip);
+   assert( vars != NULL );
+
+   /* prepare cut */
+   SCIP_CALL( SCIPallocBufferArray(scip, &cutcoefs, QUAD_ARRAY_SIZE(nvars)) );
+   BMSclearMemoryArray(cutcoefs, QUAD_ARRAY_SIZE(nvars));
+   QUAD_ASSIGN(cutlhs, 0.0);
+
+   /* get primal solution */
+   SCIP_CALL( SCIPsdpiGetNSDPBlocks(sdpi, &nsdpblocks) );
+   if ( nsdpblocks > 0 )
+   {
+      int* sdpblocksizes;
+      int* sdpnblockvars;
+      int** sdpnblockvarnonz;
+      int** sdpvar;
+      int*** sdprow;
+      int*** sdpcol;
+      SCIP_Real*** sdpval;
+      int* sdpconstnblocknonz;
+      int** sdpconstrow;
+      int** sdpconstcol;
+      SCIP_Real** sdpconstval;
+
+      SCIP_CALL( SCIPsdpiGetSDPdata(sdpi, &sdpblocksizes, &sdpnblockvars, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval, &sdpconstnblocknonz, &sdpconstrow, &sdpconstcol, &sdpconstval) );
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &primalmatrices, nsdpblocks) );
+      for (b = 0; b < nsdpblocks; ++b)
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &primalmatrices[b], sdpblocksizes[b] * sdpblocksizes[b]) );
+      }
+
+      SCIP_CALL( SCIPsdpiGetPrimalSolutionMatrix(sdpi, primalmatrices, success) );
+
+      if ( *success )
+      {
+         /* loop through blocks and matrices */
+         for (b = 0; b < nsdpblocks; ++b)
+         {
+            SCIP_VAR* var;
+            SCIP_Real eigenvalue;
+            SCIP_Real primalval;
+            int row;
+            int col;
+            int blocksize;
+            int varidx;
+            int v;
+            int k;
+
+            blocksize = sdpblocksizes[b];
+            for (v = 0; v < sdpnblockvars[b]; v++)
+            {
+               var = SCIPsdpVarmapperGetSCIPvar(varmapper, sdpvar[b][v]);
+               varidx = SCIPvarGetProbindex(var);
+               assert( 0 <= varidx && varidx < nvars );
+               assert( vars[varidx] == var );
+
+               QUAD_ARRAY_LOAD(c, cutcoefs, varidx);
+
+               /* compute inner product of primal matrix and constraint matrix */
+               for (k = 0; k < sdpnblockvarnonz[b][v]; k++)
+               {
+                  row = sdprow[b][v][k];
+                  col = sdpcol[b][v][k];
+                  assert( 0 <= row && row < blocksize );
+                  assert( 0 <= col && col < blocksize );
+
+                  primalval = primalmatrices[b][row * blocksize + col];
+                  assert( SCIPisEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
+
+                  if ( row == col )
+                     SCIPquadprecSumQD(c, c, sdpval[b][v][k] * primalval);
+                  else
+                     SCIPquadprecSumQD(c, c, 2.0 * sdpval[b][v][k] * primalval);
+               }
+               QUAD_ARRAY_STORE(cutcoefs, varidx, c);
+            }
+
+            /* treat constant matrix */
+            for (k = 0; k < sdpconstnblocknonz[b]; k++)
+            {
+               row = sdpconstrow[b][k];
+               col = sdpconstcol[b][k];
+               assert( 0 <= row && row < blocksize );
+               assert( 0 <= col && col < blocksize );
+
+               primalval = primalmatrices[b][row * blocksize + col];
+               assert( SCIPisEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
+
+               if ( row == col )
+                  SCIPquadprecSumQD(cutlhs, cutlhs, sdpconstval[b][k] * primalval);
+               else
+                  SCIPquadprecSumQD(cutlhs, cutlhs, 2.0 * sdpconstval[b][k] * primalval);
+            }
+
+            /* compute minimal eigenvalue of primal matrix (matrix will be destroyed) */
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, primalmatrices[b], 1, &eigenvalue, NULL) );
+
+            /* possibly correct the fact that the primal matrix might be psd only up to a certain precision */
+            SCIPdebugMsg(scip, "Correcting rhs of generated cut by %g.\n", MIN(eigenvalue, 0.0));
+            SCIPquadprecSumQD(cutlhs, cutlhs, MIN(eigenvalue, 0.0));
+         }
+      }
+      assert( ! SCIPisInfinity(scip, REALABS(QUAD_TO_DBL(cutlhs))) );
+
+      /* free memory */
+      for (b = 0; b < nsdpblocks; ++b)
+      {
+         SCIPfreeBufferArray(scip, &primalmatrices[b]);
+      }
+      SCIPfreeBufferArray(scip, &primalmatrices);
+   }
+
+   /* add LP rows */
+   SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
+   if ( nrows > 0 && *success )
+   {
+      SCIP_Real* lhsvals;
+      SCIP_Real* rhsvals;
+      SCIP_Real primallhsval;
+      SCIP_Real primalrhsval;
+      int nactiverows = 0;
+      int ntightenedrows = 0;
+      int nlpcons;
+      int i;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &lhsvals, nrows) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &rhsvals, nrows) );
+
+      SCIP_CALL( SCIPsdpiGetPrimalLPSides(sdpi, lhsvals, rhsvals, success) );
+
+      if ( *success )
+      {
+         for (i = 0; i < nrows; i++)
+         {
+            SCIP_ROW* row;
+            SCIP_COL** rowcols;
+            SCIP_Real* rowvals;
+            SCIP_Real rowlhs;
+            SCIP_Real rowrhs;
+            SCIP_Bool lhsredundant = FALSE;
+            SCIP_Bool rhsredundant = FALSE;
+            int rownnonz;
+            int varidx;
+
+            row = rows[i];
+            assert( row != 0 );
+
+            rownnonz = SCIProwGetNNonz(row);
+            rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
+            rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+
+            /* possibly check whether tightened cut is redundant */
+            if ( tightenrows )
+            {
+               SCIP_CALL( SCIPduplicateBufferArray(scip, &rowvals, SCIProwGetVals(row), rownnonz) );
+               SCIP_CALL( SCIPduplicateBufferArray(scip, &rowcols, SCIProwGetCols(row), rownnonz) );
+
+               /* The tightened rows are only locally valid, so we use the original data below and only retain whether the row is redundant. */
+               SCIP_CALL( tightenRowCoefs(scip, rowvals, rowcols, &rownnonz, &rowlhs, &rowrhs, &lhsredundant, &rhsredundant, &ntightenedrows) );
+
+               SCIPfreeBufferArray(scip, &rowcols);
+               SCIPfreeBufferArray(scip, &rowvals);
+            }
+
+            if ( (! lhsredundant || ! rhsredundant) )
+            {
+               if ( ! SCIProwIsLocal(row) && ! SCIPisInfinity(scip, REALABS(lhsvals[i])) && ! SCIPisInfinity(scip, REALABS(rhsvals[i])) )
+               {
+                  /* (re)init row data */
+                  rownnonz = SCIProwGetNNonz(row);
+                  rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
+                  rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+                  rowvals = SCIProwGetVals(row);
+                  rowcols = SCIProwGetCols(row);
+
+                  /* make sure that the primal values are >= 0 */
+                  primallhsval = MAX(lhsvals[i], 0.0);
+                  primalrhsval = MAX(rhsvals[i], 0.0);
+                  assert( SCIPisFeasGE(scip, primallhsval, 0.0) );
+                  assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
+
+                  if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
+                     SCIPquadprecSumQD(cutlhs, cutlhs, rowlhs * primallhsval);
+
+                  if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
+                     SCIPquadprecSumQD(cutlhs, cutlhs, - rowrhs * primalrhsval);
+
+                  for (j = 0; j < rownnonz; j++)
+                  {
+                     if ( (! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval)) || ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) ) )
+                     {
+                        assert( SCIPcolGetVar(rowcols[j]) != NULL );
+                        varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
+                        assert( 0 <= varidx && varidx < nvars );
+                        assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
+
+                        QUAD_ARRAY_LOAD(c, cutcoefs, varidx);
+                        if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
+                           SCIPquadprecSumQD(c, c, rowvals[j] * primallhsval);
+
+                        if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
+                           SCIPquadprecSumQD(c, c, - rowvals[j] * primalrhsval);
+
+                        QUAD_ARRAY_STORE(cutcoefs, varidx, c);
+                     }
+                  }
+               }
+               ++nactiverows;
+            }
+         }
+         assert( ! SCIPisInfinity(scip, REALABS(QUAD_TO_DBL(cutlhs))) );
+
+         SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &nlpcons) );
+         assert( nlpcons == nactiverows );
+
+         /* possibly add objective cut */
+         if ( conflictobjcut )
+         {
+            SCIP_Real primalbound;
+            SCIP_Bool objintegral = TRUE;
+            SCIP_Real obj;
+
+            primalbound = SCIPgetCutoffbound(scip);
+            if ( ! SCIPisInfinity(scip, REALABS(primalbound)) )
+            {
+               for (j = 0; j < nvars; ++j)
+               {
+                  obj = SCIPvarGetObj(vars[j]);
+                  if ( ! SCIPisZero(scip, obj) )
+                  {
+                     QUAD_ARRAY_LOAD(c, cutcoefs, j);
+                     SCIPquadprecSumQD(c, c, -obj);
+                     QUAD_ARRAY_STORE(cutcoefs, j, c);
+
+                     if ( ! SCIPvarIsIntegral(vars[j]) || ! SCIPisIntegral(scip, obj) )
+                        objintegral = FALSE;
+                  }
+               }
+
+               if ( objintegral )
+                  primalbound -= 1.0;
+               else
+                  primalbound -= SCIPfeastol(scip);
+
+               SCIPquadprecSumQD(cutlhs, cutlhs, -primalbound);
+            }
+         }
+      }
+
+      SCIPfreeBufferArray(scip, &rhsvals);
+      SCIPfreeBufferArray(scip, &lhsvals);
+   }
+
+   /* safely cleanup cut (adapted from conflict.c) */
+   if ( *success )
+   {
+      for (j = 0; j < nvars; ++j)
+      {
+         SCIP_Real lb;
+         SCIP_Real ub;
+         SCIP_Bool isfixed;
+
+         lb = SCIPvarGetLbGlobal(vars[j]);
+         ub = SCIPvarGetUbGlobal(vars[j]);
+
+         if ( ! (SCIPisInfinity(scip, -lb) || SCIPisInfinity(scip, ub)) && SCIPisEQ(scip, ub, lb) )
+            isfixed = TRUE;
+         else
+            isfixed = FALSE;
+
+         QUAD_ARRAY_LOAD(c, cutcoefs, j);
+         if ( isfixed || SCIPisZero(scip, QUAD_TO_DBL(c)) )
+         {
+            if( REALABS(QUAD_TO_DBL(c)) > QUAD_EPSILON )
+            {
+               /* adjust lhs with max contribution */
+               if ( QUAD_TO_DBL(c) > 0.0 )
+               {
+                  if( SCIPisInfinity(scip, ub) )
+                  {
+                     *success = FALSE; /* cut is redundant */
+                     break;
+                  }
+                  else
+                  {
+                     SCIPquadprecProdQD(c, c, ub);
+                     SCIPquadprecSumQQ(cutlhs, cutlhs, -c);
+                  }
+               }
+               else
+               {
+                  if ( SCIPisInfinity(scip, -lb) )
+                  {
+                     *success = FALSE; /* cut is redundant */
+                     break;
+                  }
+                  else
+                  {
+                     SCIPquadprecProdQD(c, c, lb);
+                     SCIPquadprecSumQQ(cutlhs, cutlhs, -c);
+                  }
+               }
+            }
+            conflictcut[j] = 0.0;
+         }
+         else
+            conflictcut[j] = QUAD_TO_DBL(c);
+      }
+
+      /* relax lhs to 0, if it is very close to 0 */
+      if ( QUAD_TO_DBL(cutlhs) > 0.0 && QUAD_TO_DBL(cutlhs) <= SCIPepsilon(scip) )
+         QUAD_ASSIGN(cutlhs, 0.0);
+
+      *conflictcutlhs = QUAD_TO_DBL(cutlhs);
+   }
+
+   SCIPfreeBufferArray(scip, &cutcoefs);
+
+   /* possibly use CMIR */
+   if ( usecmir && *success )
+   {
+      SCIP_AGGRROW* aggrrow;
+      SCIP_Real* vals;
+      SCIP_Real* coefs;
+      SCIP_Real cutrhs;
+      int* inds;
+      int cnt = 0;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars ) );
+
+      /* construct data and switch direction */
+      for (j = 0; j < nvars; ++j)
+      {
+         if ( conflictcut[j] != 0.0 )
+         {
+            vals[cnt] = - conflictcut[j];
+            inds[cnt++] = SCIPvarGetProbindex(vars[j]);
+         }
+      }
+
+      if ( cnt > 0 )
+      {
+         SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &coefs, nvars ) );
+
+         /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
+         cutrhs = - (*conflictcutlhs);
+         SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, cutrhs, 1.0, 0, FALSE) );
+
+         /* try to generate CMIR inequality */
+         cnt = 0;
+
+         /* @todo to be implemented */
+         *success = FALSE;
+
+         if ( *success )
+         {
+            SCIPdebugMsg(scip, "Strengthened cut by CMIR ...\n");
+            BMSclearMemoryArray(conflictcut, nvars);
+            for (j = 0; j < cnt; ++j)
+               conflictcut[inds[j]] = - coefs[j];       /* flip direction */
+            *conflictcutlhs = - cutrhs;
+         }
+         SCIPfreeBufferArray(scip, &coefs);
+         SCIPaggrRowFree(scip, &aggrrow);
+      }
+
+      SCIPfreeBufferArray(scip, &inds);
+      SCIPfreeBufferArray(scip, &vals);
+
+      *success = TRUE;
+   }
+
+   return SCIP_OKAY;
+}
+
+
+/** generate conflict constraint */
+static
+SCIP_RETCODE generateConflictCons(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_RELAX*           relax,              /**< relaxator */
+   SCIP_SOL*             sol                 /**< relaxation solution */
+   )
+{
+   SCIP_RELAXDATA* relaxdata;
+   SCIP_Real* conflictcut = NULL;
+   SCIP_Real conflictcutlhs;
+   SCIP_Bool success;
+   SCIP_SDPI* sdpi;
+   SCIP_VAR** vars;
+   int nvars;
+   int i;
+
+   assert( scip != NULL );
+   assert( relax != NULL );
+   assert( sol != NULL );
+
+   relaxdata = SCIPrelaxGetData(relax);
+   assert( relaxdata != NULL );
+
+   if ( ! relaxdata->conflictconss )
+      return SCIP_OKAY;
+
+   sdpi = relaxdata->sdpi;
+   if ( ! SCIPsdpiWasSolved(sdpi) )
+      return SCIP_OKAY;
+
+   if ( ! ( SCIPsdpiIsDualFeasible(sdpi) && relaxdata->conflictfeas ) || ( SCIPsdpiIsDualInfeasible(sdpi) && relaxdata->conflictinfeas ) )
+      return SCIP_OKAY;
+
+   nvars = SCIPgetNVars(scip);
+   assert( nvars >= 0 );
+   vars = SCIPgetVars(scip);
+   assert( vars != NULL );
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
+   SCIP_CALL( computeConflictCut(scip, sol, relaxdata->tightenrows, relaxdata->conflictcmir, relaxdata->varmapper,
+         relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &success) );
+
+   /* generate constraint if dual cut is valid */
+   if ( success )
+   {
+      char consname[SCIP_MAXSTRLEN];
+      SCIP_CONS* cons;
+      SCIP_VAR** consvars;
+      SCIP_Real* consvals;
+      int cnt = 0;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
+
+      for (i = 0; i < nvars; ++i)
+      {
+         if ( ! SCIPisZero(scip, conflictcut[i]) )
+         {
+            consvars[cnt] = vars[i];
+            consvals[cnt++] = conflictcut[i];
+         }
+      }
+      (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "conflictcut#%d", SCIPrelaxGetNCalls(relax));
+      SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
+            FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+
+#ifdef SCIP_MORE_DEBUG
+      SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
+      SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+      SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+      /* add constraint as a conflict (will add and release constraint) */
+#ifndef WITH_DEBUG_SOLUTION
+      if ( cnt > 0 )
+      {
+         SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut && ! SCIPisInfinity(scip, SCIPgetCutoffbound(scip))) );
+         cons = NULL;
+      }
+      else
+#endif
+      {
+         SCIP_CALL( SCIPaddCons(scip, cons) );
+         SCIP_CALL( SCIPdebugCheckConss(scip, &cons, 1) );
+         SCIP_CALL( SCIPreleaseCons(scip, &cons) );
+      }
+
+      SCIPfreeBufferArray(scip, &consvals);
+      SCIPfreeBufferArray(scip, &consvars);
+   }
+   SCIPfreeBufferArray(scip, &conflictcut);
+
+   return SCIP_OKAY;
+}
+
+
 /** calculate relaxation and process the relaxation results */
 static
 SCIP_RETCODE calcRelax(
@@ -1293,7 +1826,7 @@ SCIP_RETCODE calcRelax(
 
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
-   vars = SCIPgetVars (scip);
+   vars = SCIPgetVars(scip);
 
    sdpi = relaxdata->sdpi;
    assert( sdpi != NULL );
@@ -3604,6 +4137,9 @@ SCIP_RETCODE calcRelax(
          relaxdata->feasible = TRUE;
          *result = SCIP_SUCCESS;
 
+         /* possibly create conflict constraint */
+         SCIP_CALL( generateConflictCons(scip, relax, scipsol) );
+
          /* save solution for warmstarts (only if we did not use the penalty formulation, since this would change the problem structure) */
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
          {
@@ -4910,6 +5446,26 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          "whether the objective should be scaled in order to get a more stable behavior",
          &(relaxdata->scaleobj), TRUE, DEFAULT_SCALEOBJ, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictconss",
+         "whether conflict constraints should be generated",
+         &(relaxdata->conflictconss), TRUE, DEFAULT_CONFLICTCONSS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictfeas",
+         "whether conflict constraints should be generated for feasible subproblems",
+         &(relaxdata->conflictfeas), TRUE, DEFAULT_CONFLICTFEAS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictobjcut",
+         "whether an objective cut should be used to generate conflict constraints for feasible subproblems",
+         &(relaxdata->conflictobjcut), TRUE, DEFAULT_CONFLICTOBJCUT, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictinfeas",
+         "whether conflict constraints should be generated for infeasible subproblems",
+         &(relaxdata->conflictinfeas), TRUE, DEFAULT_CONFLICTINFEAS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictcmir",
+         "whether conflict constraints should be strengthened by the CMIR procedure",
+         &(relaxdata->conflictcmir), TRUE, DEFAULT_CONFLICTCMIR, NULL, NULL) );
+
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled",
          &(relaxdata->warmstartipfactor), TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
@@ -5435,7 +5991,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    return SCIP_OKAY;
 }
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
+/** gets the primal solution corresponding to the lower and upper variable-bounds for a subset of the variables in the dual problem
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent
  *  primal variable.
@@ -5453,7 +6009,6 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_RELAXDATA* relaxdata;
    SCIP_Real* lb;
    SCIP_Real* ub;
-   int arraylength;
    int j;
 
    assert( scip != NULL );
@@ -5470,12 +6025,9 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
    SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvars) );
 
-   arraylength = nvars;
-   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lb, ub, &arraylength) );
-   if ( arraylength >= 0 )
+   SCIP_CALL( SCIPsdpiGetPrimalBoundVars(relaxdata->sdpi, lb, ub, success) );
+   if ( *success )
    {
-      assert( arraylength == nvars );
-
       for (j = 0; j < nvars; ++j)
       {
          int idx;
@@ -5484,10 +6036,7 @@ SCIP_RETCODE SCIPrelaxSdpGetPrimalBoundVars(
          lbvars[j] = lb[idx];
          ubvars[j] = ub[idx];
       }
-      *success = TRUE;
    }
-   else
-      *success = FALSE;
 
    SCIPfreeBufferArray(scip, &ub);
    SCIPfreeBufferArray(scip, &lb);

@@ -172,7 +172,7 @@ Test(checksdpi, test1)
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.0);
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 1, sdpconstrow, sdpconstcol, sdpconstval, 1, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 1, sdpconstrow, sdpconstcol, sdpconstval, 1, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
 
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of 1d solution: %g != %g\n", dualsol, 1.0);
 }
@@ -238,7 +238,7 @@ Test(checksdpi, test2)
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.0);
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
 
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of 1d solution: %g != %g\n", dualsol, 1.0);
 }
@@ -302,7 +302,7 @@ Test(checksdpi, test3)
    cr_assert( SCIPsdpiIsDualInfeasible(sdpi) );
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
 
    cr_assert( objval >= 1e20 );
 }
@@ -332,7 +332,7 @@ Test(checksdpi, test4)
    SCIP_Real dualsol;
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 3, sdpconstrow, sdpconstcol, sdpconstval, 3, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 3, sdpconstrow, sdpconstcol, sdpconstval, 3, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
 
    cr_assert(objval >= 1e20);
 }
@@ -411,6 +411,6 @@ Test(checksdpi, test5)
    cr_assert_float_eq(dualsol, 1.541381, EPS, "Violation of dual solution: %g != %g\n", dualsol,  1.541381);
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 3, sdpconstrow, sdpconstcol, sdpconstval, 3, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 3, sdpconstrow, sdpconstcol, sdpconstval, 3, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
    cr_assert_float_eq(dualsol, 1.541381, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.541381);
 }

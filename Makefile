@@ -95,6 +95,10 @@ OMP 		= 	false
 endif
 endif
 
+ifeq ($(DEBUGSOL),true)
+FLAGS		+=	-DWITH_DEBUG_SOLUTION
+endif
+
 #-----------------------------------------------------------------------------
 # MOSEK solver
 SDPIOPTIONS	+=	msk
