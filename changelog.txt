@@ -27,6 +27,8 @@ parameters:
 - new parameter <constraints/SDP/nonconst3minors> to propagate 3 by 3 minors even if the diagonals are not constant (default: FALSE)
 - new parameter <constraints/SDP/additionalstats> to show the number of propagations (default: FALSE)
 - new parameter <constraints/SDP/generatecmir> to separate CMIR from eigenvalue cuts (default: FALSE)
+- new parameter <reading/removesmallval> to remove small values when reading an instance in CBF or SDPA format (default: TRUE)
+- new parameter <constraints/SDP/removesmallval> to remove small values in SDP constraints (default: FALSE)
 
 fixed bugs:
 - fixed bug in tighten matrices (never ran previously)
