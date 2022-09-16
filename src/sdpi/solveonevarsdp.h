@@ -66,6 +66,8 @@ SCIP_RETCODE SCIPsolveOneVarSDP(
    SCIP_Real*            sdpval,             /**< array of nonzero values */
    SCIP_Real             infinity,           /**< infinity value */
    SCIP_Real             feastol,            /**< feasibility tolerance */
+   SCIP_Real*            certificatevector,  /**< array to store a certificate (eigen)vector (or NULL if not required) */
+   SCIP_Real*            certificatevalue,   /**< array to store a certificate value (or NULL if not required) */
    SCIP_Real*            objval,             /**< pointer to store optimal objective value */
    SCIP_Real*            optval              /**< pointer to store optimal value of variable */
    );

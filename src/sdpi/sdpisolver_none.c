@@ -674,19 +674,31 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    return SCIP_PLUGINNOTFOUND;
 }
 
-/** gets the primal variables corresponding to the lower and upper variable-bounds in the dual problem
+/** gets the solution corresponding to the lower and upper variable-bounds in the primal problem
  *
- *  The last input should specify the length of the arrays. If this is less than the number of variables, the needed
- *  length will be returned and a debug message thrown.
+ *  The arrays need to have size nvars.
  *
  *  @note If a variable is either fixed or unbounded in the dual problem, a zero will be returned for the non-existent primal variable.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   SCIP_Real*            lbvars,             /**< pointer to store the values of the variables corresponding to lower bounds in the dual problems */
-   SCIP_Real*            ubvars,             /**< pointer to store the values of the variables corresponding to upper bounds in the dual problems */
-   int*                  arraylength         /**< input: length of lbvars and ubvars <br>
-                                              *   output: number of elements inserted into lbvars/ubvars (or needed length if it wasn't sufficient) */
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   SCIP_Real*            lbvals,             /**< array to store the values of the variables corresponding to lower bounds in the primal problems */
+   SCIP_Real*            ubvals              /**< array to store the values of the variables corresponding to upper bounds in the primal problems */
+   )
+{
+   SCIP_CALL( errorMessageAbort() );
+
+   return SCIP_PLUGINNOTFOUND;
+}
+
+/** gets the primal solution corresponding to the LP row sides */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
+   int                   nlpcons,            /**< number of LP rows */
+   SCIP_Real*            lplhs,              /**< lhs of LP rows */
+   SCIP_Real*            lprhs,              /**< rhs of LP rows */
+   SCIP_Real*            lhsvals,            /**< array to store the values of the variables corresponding to LP lhs */
+   SCIP_Real*            rhsvals             /**< array to store the values of the variables corresponding to LP rhs */
    )
 {
    SCIP_CALL( errorMessageAbort() );
@@ -720,6 +732,23 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    int**                 startXrow,          /**< pointer to store row indices of X */
    int**                 startXcol,          /**< pointer to store column indices of X */
    SCIP_Real**           startXval           /**< pointer to store values of X */
+   )
+{
+   SCIP_CALL( errorMessageAbort() );
+
+   return SCIP_PLUGINNOTFOUND;
+}
+
+/** returns the primal solution matrix (without LP rows) */
+SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   int                   nsdpblocks,         /**< number of blocks */
+   int*                  sdpblocksizes,      /**< sizes of the blocks */
+   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][nonz]=-1, then
+                                              *   the index can be removed, otherwise it gives the number of indices removed before this */
+   int*                  nremovedinds,       /**< pointer to store the number of rows/cols to be fixed for each block */
+   int*                  blockindchanges,    /**< pointer to store index change for each block, system is the same as for indchanges */
+   SCIP_Real**           primalmatrices      /**< pointer to store values of the primal matrix */
    )
 {
    SCIP_CALL( errorMessageAbort() );

@@ -10,6 +10,17 @@ features:
 - add example for tighten matrices
 - added check whether propagation of upper bounds can be applied in principle
 
+API changes:
+- new function SCIPsdpiSolverGetPrimalSolutionMatrix() to access primal matrix solutions
+- new function SCIPsdpiGetPrimalSolutionMatrix() to access primal matrix solutions
+- new function SCIPsdpiSolverGetPrimalLPSides() to access primal solutions for LP sides
+- new function SCIPsdpiGetPrimalLPSides() to access primal solutions for LP sides
+- function SCIPsdpiSolverGetPrimalBoundVars() uses a success pointer instead of arraylength
+- function SCIPsdpiGetPrimalBoundVars() uses a success pointer instead of arraylength
+- new function SCIPsdpiGetSDPdata() to retrieve SDP data from SDPI
+- new function SCIPsdpiHavePrimalSol() to determine whether a primal solution is available
+- function SCIPsolveOneVarSDP() can now return a certificate of the decision (certificatevector/certificatevalue)
+
 parameters:
 - new parameter <constraints/SDP/presollinconssparam> to decide how linear constraints are handled during presolving
 - new parameter <constraints/SDP/prop3minors> to propagate 3 by 3 minors (default: FALSE)
