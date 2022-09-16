@@ -144,6 +144,7 @@
 #define DEFAULT_PRESOLLINCONSSPARAM   0 /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
 #define DEFAULT_ADDITIONALSTATS   FALSE /**< Should additional statistics be output at the end? */
 #define DEFAULT_ENABLEPROPTIMING  FALSE /**< Should timing be activated for propagation routines? */
+#define DEFAULT_REMOVESMALLVAL    FALSE /**< Should small values in the constraints be removed? */
 
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -255,6 +256,8 @@ struct SCIP_ConshdlrData
    int                   presollinconssparam; /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
    SCIP_Bool             additionalstats;    /**< Should additional statistics be output at the end? */
    SCIP_Bool             enableproptiming;   /**< Should timing be activated for propagation routines? */
+   SCIP_Bool             removesmallval;     /**< Should small values in the constraints be removed? */
+
    int                   ncallspropub;       /**< Number of calls of propagateUpperBounds in propagation */
    int                   ncallsproptb;       /**< Number of calls of tightenBounds in propagation */
    int                   ncallsprop3minor;   /**< Number of calls of propagate3Minors in propagation */
@@ -2501,7 +2504,6 @@ SCIP_RETCODE diagZeroImpl(
             colidx = consdata->col[v][j];
             assert( 0 <= rowidx && rowidx < blocksize );
             assert( 0 <= colidx && colidx < blocksize );
-            assert( ! SCIPisZero(scip, consdata->val[v][j]) );
 
             pos = rowidx * (rowidx + 1)/2 + colidx;
             nonzeroentries[pos] = TRUE;
@@ -9091,6 +9093,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should timing be activated for propagation routines?",
          &(conshdlrdata->enableproptiming), TRUE, DEFAULT_ENABLEPROPTIMING, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/removesmallval",
+         "Should small values in the constraints be removed?",
+         &(conshdlrdata->removesmallval), TRUE, DEFAULT_REMOVESMALLVAL, NULL, NULL) );
+
    return SCIP_OKAY;
 }
 
@@ -9862,6 +9868,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
 {
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata = NULL;
+   SCIP_CONSHDLRDATA* conshdlrdata = NULL;
    int i;
    int j;
 
@@ -9882,6 +9889,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
       SCIPerrorMessage("SDP constraint handler not found\n");
       return SCIP_PLUGINNOTFOUND;
    }
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    /* create constraint data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
@@ -9949,11 +9958,14 @@ SCIP_RETCODE SCIPcreateConsSdp(
                   ++cnt;
                }
 
-               consdata->row[i][c] = row[i][cnt];
-               consdata->col[i][c] = col[i][cnt];
-               consdata->val[i][c] = val[i][cnt];
+               if ( ! conshdlrdata->sdpconshdlrdata->removesmallval || ! SCIPisZero(scip, val[i][cnt]) )
+               {
+                  consdata->row[i][c] = row[i][cnt];
+                  consdata->col[i][c] = col[i][cnt];
+                  consdata->val[i][c] = val[i][cnt];
+                  ++c;
+               }
                ++cnt;
-               ++c;
             }
 
             /* possibly correct size; a reallocation should happen rarely */
@@ -10008,11 +10020,14 @@ SCIP_RETCODE SCIPcreateConsSdp(
             assert( 0 <= constcol[cnt] && constcol[cnt] < blocksize );
             assert( constrow[cnt] >= constcol[cnt] );
 
-            consdata->constrow[c] = constrow[cnt];
-            consdata->constcol[c] = constcol[cnt];
-            consdata->constval[c] = constval[cnt];
+            if ( ! conshdlrdata->sdpconshdlrdata->removesmallval || ! SCIPisZero(scip, constval[cnt]) )
+            {
+               consdata->constrow[c] = constrow[cnt];
+               consdata->constcol[c] = constcol[cnt];
+               consdata->constval[c] = constval[cnt];
+               ++c;
+            }
             ++cnt;
-            ++c;
          }
 
          /* possibly correct size; a reallocation should happen rarely */
@@ -10091,6 +10106,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
 {
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata = NULL;
+   SCIP_CONSHDLRDATA* conshdlrdata = NULL;
    int i;
    int j;
 
@@ -10111,6 +10127,8 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
       SCIPerrorMessage("Rank 1 SDP constraint handler not found\n");
       return SCIP_PLUGINNOTFOUND;
    }
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    /* create constraint data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
@@ -10178,11 +10196,14 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
                   ++cnt;
                }
 
-               consdata->row[i][c] = row[i][cnt];
-               consdata->col[i][c] = col[i][cnt];
-               consdata->val[i][c] = val[i][cnt];
+               if ( ! conshdlrdata->sdpconshdlrdata->removesmallval || ! SCIPisZero(scip, val[i][cnt]) )
+               {
+                  consdata->row[i][c] = row[i][cnt];
+                  consdata->col[i][c] = col[i][cnt];
+                  consdata->val[i][c] = val[i][cnt];
+                  ++c;
+               }
                ++cnt;
-               ++c;
             }
 
             /* possibly correct size; a reallocation should happen rarely */
@@ -10237,11 +10258,14 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
             assert( 0 <= constcol[cnt] && constcol[cnt] < blocksize );
             assert( constrow[cnt] >= constcol[cnt] );
 
-            consdata->constrow[c] = constrow[cnt];
-            consdata->constcol[c] = constcol[cnt];
-            consdata->constval[c] = constval[cnt];
+            if ( ! conshdlrdata->sdpconshdlrdata->removesmallval || ! SCIPisZero(scip, constval[cnt]) )
+            {
+               consdata->constrow[c] = constrow[cnt];
+               consdata->constcol[c] = constcol[cnt];
+               consdata->constval[c] = constval[cnt];
+               ++c;
+            }
             ++cnt;
-            ++c;
          }
 
          /* possibly correct size; a reallocation should happen rarely */
