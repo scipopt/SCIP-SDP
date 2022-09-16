@@ -140,7 +140,7 @@
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #define DEFAULT_USEDIMACSFEASTOL  FALSE /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
 #define DEFAULT_GENERATEROWS       TRUE /**< Should rows be generated (constraints otherwise)? */
-#define DEFAULT_GENERATECMIR      FALSE /**< Should CMIR cuts be generated? */
+#define DEFAULT_GENERATECMIR       TRUE /**< Should CMIR cuts be generated? */
 #define DEFAULT_PRESOLLINCONSSPARAM   0 /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
 #define DEFAULT_ADDITIONALSTATS   FALSE /**< Should additional statistics be output at the end? */
 #define DEFAULT_ENABLEPROPTIMING  FALSE /**< Should timing be activated for propagation routines? */
