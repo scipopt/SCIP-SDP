@@ -185,6 +185,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
 			scipsdp/scipsdpdefplugins.o \
+			scipsdp/sdpsymmetry.o \
 			scipsdp/table_relaxsdp.o \
 			scipsdp/table_slater.o \
 			sdpi/sdpi.o \
