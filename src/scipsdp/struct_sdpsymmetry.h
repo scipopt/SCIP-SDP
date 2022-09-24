@@ -46,7 +46,7 @@
 extern "C" {
 #endif
 
-/** data for symmetry group computation on linear constraints */
+/** data for symmetry group computation on SDP onstraints */
 struct SYM_Sdpdata
 {
    int                   nsdpconss;          /**< number of SDP constraints */
