@@ -125,8 +125,8 @@ SCIP_RETCODE storeSDPSymmetryData(
    maxsdpconstnnonz = 0;
    for (c = 0; c < nconss; c++)
    {
-      assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDP") == 0 ||
-         strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])),"SDPrank1") == 0 );
+      assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDP") == 0 ||
+         strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "SDPrank1") == 0 );
 
       SCIP_CALL( SCIPconsSdpGetNNonz(scip, conss[c], &sdpnnonz, &sdpconstnnonz) );
 
@@ -298,8 +298,7 @@ SCIP_RETCODE findColorsSDPSymmetryData(
    SCIPsort(consperm, SYMsortNumbers, (void*) sdpdata->blocksizes, nconss);
 
    /* allocate memory to store all coefficients of SDP constraints of same block size, use block memory
-    * since this can become large
-    */
+    * since this can become large */
    maxnblockvals = 0;
    for (c = 0; c < nconss; ++c)
       maxnblockvals += sdpdata->valsbegins[c][sdpdata->nvars[c] + 1] - sdpdata->valsbegins[c][0];
