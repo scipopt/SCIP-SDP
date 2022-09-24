@@ -292,6 +292,16 @@ SCIP_RETCODE findColorsSDPSymmetryData(
    assert( mincolorval >= 0 );
 
    nconss = sdpdata->nsdpconss;
+   if ( nconss <= 0 )
+      return SCIP_OKAY;
+
+   assert( sdpdata->valsbegins != NULL );
+   assert( sdpdata->blocksizes != NULL );
+   assert( sdpdata->vals != NULL );
+   assert( sdpdata->rows != NULL );
+   assert( sdpdata->cols != NULL );
+   assert( sdpdata->colors != NULL );
+   assert( sdpdata->colors2 != NULL );
 
    /* sort SDP constraints based on their block size */
    SCIP_CALL( SCIPallocBufferArray(scip, &consperm, nconss) );
