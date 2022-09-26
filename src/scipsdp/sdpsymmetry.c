@@ -40,7 +40,7 @@
 #include "scipsdp/sdpsymmetry.h"
 #include "scipsdp/cons_sdp.h"
 
-/** sorts numbers
+/** sorts real numbers
  *
  *  result:
  *    < 0: ind1 comes before (is better than) ind2
@@ -48,12 +48,36 @@
  *    > 0: ind2 comes after (is worse than) ind2
  */
 static
-SCIP_DECL_SORTINDCOMP(SYMsortNumbers)
+SCIP_DECL_SORTINDCOMP(SYMsortReal)
 {
    SCIP_Real diffvals;
    SCIP_Real* vals;
 
    vals = (SCIP_Real*) dataptr;
+   diffvals = vals[ind1] - vals[ind2];
+
+   if ( diffvals < 0.0 )
+      return -1;
+   else if ( diffvals > 0.0 )
+      return 1;
+
+   return 0;
+}
+
+/** sorts integer numbers
+ *
+ *  result:
+ *    < 0: ind1 comes before (is better than) ind2
+ *    = 0: both indices have the same value
+ *    > 0: ind2 comes after (is worse than) ind2
+ */
+static
+SCIP_DECL_SORTINDCOMP(SYMsortInt)
+{
+   SCIP_Real diffvals;
+   int* vals;
+
+   vals = (int*) dataptr;
    diffvals = vals[ind1] - vals[ind2];
 
    if ( diffvals < 0.0 )
@@ -305,7 +329,7 @@ SCIP_RETCODE findColorsSDPSymmetryData(
 
    /* sort SDP constraints based on their block size */
    SCIP_CALL( SCIPallocBufferArray(scip, &consperm, nconss) );
-   SCIPsort(consperm, SYMsortNumbers, (void*) sdpdata->blocksizes, nconss);
+   SCIPsort(consperm, SYMsortInt, (void*) sdpdata->blocksizes, nconss);
 
    /* allocate memory to store all coefficients of SDP constraints of same block size, use block memory
     * since this can become large */
@@ -346,7 +370,7 @@ SCIP_RETCODE findColorsSDPSymmetryData(
       if ( c == nconss - 1 || sdpdata->blocksizes[consperm[c + 1]] > curblocksize )
       {
          /* sort coefficients */
-         SCIPsort(blockperm, SYMsortNumbers, (void*) blockvals, nblockvals);
+         SCIPsort(blockperm, SYMsortReals, (void*) blockvals, nblockvals);
 
          /* iterate over coefficients and store their colors */
          ++curcolor;
