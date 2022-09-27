@@ -184,6 +184,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/reader_sdpa.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
+			scipsdp/prop_sdpsymmetry.o \
 			scipsdp/scipsdpdefplugins.o \
 			scipsdp/sdpsymmetry.o \
 			scipsdp/table_relaxsdp.o \
@@ -194,6 +195,8 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/lapack_interface.o \
 			sdpi/arpack_interface.o \
 			sdpi/sdpiclock.o \
+			symmetry/compute_symmetry_bliss.o \
+			symmetry/compute_symmetry_none.o \
 			scipsdpgithash.o
 
 SCIPSDPCCOBJ 	=
