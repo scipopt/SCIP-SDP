@@ -141,8 +141,14 @@ SCIP_RETCODE storeSDPSymmetryData(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->valsbegins), nconss) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->cols), nconss) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->rows), nconss) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constvals), nconss) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->nconstvals), nconss) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcols), nconss) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constrows), nconss) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->colors), nconss) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->colors2), nconss) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcolors), nconss) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcolors2), nconss) );
 
    /* temporary memory for copying constraints */
    maxsdpnnonz = 0;
@@ -175,7 +181,6 @@ SCIP_RETCODE storeSDPSymmetryData(
       int sdpnvars;
       int sdpblocksize;
       int sdparraylength;
-      int totalnnonz;
       int pos;
       int v;
       int i;
@@ -193,14 +198,15 @@ SCIP_RETCODE storeSDPSymmetryData(
       sdpdata->blocksizes[c] = sdpblocksize;
       sdpdata->nvars[c] = sdpnvars;
 
-      totalnnonz = sdpnnonz + sdpconstnnonz;
-
       /* allocate memory */
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->valsbegins[c]), sdpnvars + 2) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->vals[c]), totalnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->valsbegins[c]), sdpnvars + 1) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->vals[c]), sdpnnonz) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->vars[c]), sdpnvars) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->cols[c]), totalnnonz) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->rows[c]), totalnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->cols[c]), sdpnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->rows[c]), sdpnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constvals[c]), sdpconstnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcols[c]), sdpconstnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constrows[c]), sdpconstnnonz) );
 
       /* copy data for variable matrices */
       pos = 0;
@@ -216,20 +222,22 @@ SCIP_RETCODE storeSDPSymmetryData(
             sdpdata->rows[c][pos++] = sdprow[v][i];
          }
       }
+      sdpdata->valsbegins[c][sdpnvars] = pos;
 
       /* copy data for constant matrix */
-      sdpdata->valsbegins[c][sdpnvars] = pos;
       for (i = 0; i < sdpconstnnonz; ++i)
       {
-         sdpdata->vals[c][pos] = sdpconstval[i];
-         sdpdata->cols[c][pos] = sdpconstcol[i];
-         sdpdata->rows[c][pos++] = sdpconstrow[i];
+         sdpdata->constvals[c][i] = sdpconstval[i];
+         sdpdata->constcols[c][i] = sdpconstcol[i];
+         sdpdata->constrows[c][i] = sdpconstrow[i];
       }
-      sdpdata->valsbegins[c][sdpnvars + 1] = pos;
+      sdpdata->nconstvals[c] = sdpconstnnonz;
 
       /* allocate memory for colors */
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->colors[c]), totalnnonz) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->colors2[c]), totalnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->colors[c]), sdpnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->colors2[c]), sdpnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcolors[c]), sdpconstnnonz) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcolors2[c]), sdpconstnnonz) );
    }
 
    SCIPfreeBufferArray(scip, &sdpconstval);
@@ -265,15 +273,21 @@ SCIP_RETCODE freeSDPSymmetryData(
       int totalnnonz;
 
       sdpnvars = sdpdata->nvars[c];
-      totalnnonz = sdpdata->valsbegins[c][sdpdata->nvars[c] + 1] - sdpdata->valsbegins[c][0];
+      totalnnonz = sdpdata->valsbegins[c][sdpnvars] - sdpdata->valsbegins[c][0];
 
-      SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->valsbegins[c]), sdpnvars + 2);
+      SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->valsbegins[c]), sdpnvars + 1);
       SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->vals[c]), totalnnonz);
       SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->vars[c]), sdpnvars);
       SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->cols[c]), totalnnonz);
       SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->rows[c]), totalnnonz);
+      SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constvals[c]), sdpdata->nconstvals[c]);
+      SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constcols[c]), sdpdata->nconstvals[c]);
+      SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constrows[c]), sdpdata->nconstvals[c]);
       SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->colors[c]), totalnnonz);
       SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->colors2[c]), totalnnonz);
+      SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constcolors[c]), sdpdata->nconstvals[c]);
+      SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constcolors2[c]), sdpdata->nconstvals[c]);
+
    }
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->blocksizes), sdpdata->nsdpconss);
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->nvars), sdpdata->nsdpconss);
@@ -282,10 +296,123 @@ SCIP_RETCODE freeSDPSymmetryData(
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->valsbegins), sdpdata->nsdpconss);
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->cols), sdpdata->nsdpconss);
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->rows), sdpdata->nsdpconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->nconstvals), sdpdata->nsdpconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constvals), sdpdata->nsdpconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constcols), sdpdata->nsdpconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constrows), sdpdata->nsdpconss);
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->colors), sdpdata->nsdpconss);
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->colors2), sdpdata->nsdpconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constcolors), sdpdata->nsdpconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constcolors2), sdpdata->nsdpconss);
 
    return SCIP_OKAY;
+}
+
+/** stores colors in data structure and returns index of last color */
+static
+int storeColorsSDPSymmetryData(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SYM_SDPDATA*          sdpdata,            /**< pointer to store SDP symmetry data */
+   int                   mincolorval,        /**< value of smallest color */
+   int*                  consperm,           /**< permutation of SDP conss (sorted by block sizes) */
+   SCIP_Real*            blockvals,          /**< allocated array to hold variable coefficients of all SDP conss */
+   int*                  considx,            /**< allocated array to hold index of cons associated with coefficient */
+   int*                  valinconsidx,       /**< alloctaed array to hold index of coefficient in blockvals */
+   int*                  blockperm,          /**< allocated array for permutation of blockvals */
+   SCIP_Bool             storevarcolors      /**< Should colors for variable coefficients be computed */
+   )
+{
+   int** colors;
+   int** colors2;
+   int oldblocksize;
+   int curblocksize;
+   int nblockvals = 0;
+   int curcolor;
+   int cidx;
+   int c;
+   int v;
+   int i;
+
+   if ( storevarcolors )
+   {
+      colors = sdpdata->colors;
+      colors2 = sdpdata->colors2;
+   }
+   else
+   {
+      colors = sdpdata->constcolors;
+      colors2 = sdpdata->constcolors2;
+   }
+
+   /* iterate through SDP constraints with same block size, get their variable coefficients, and assign colors */
+   curcolor = mincolorval;
+   oldblocksize = 0;
+   for (c = 0; c < sdpdata->nsdpconss; ++c)
+   {
+      cidx = consperm[c];
+      curblocksize = sdpdata->blocksizes[cidx];
+
+      /* we have detected a new group of constraints */
+      if ( curblocksize > oldblocksize )
+      {
+         oldblocksize = curblocksize;
+         nblockvals = 0;
+      }
+
+      /* store coefficients of variable or constant blocks and their relation to the constraints */
+      if ( storevarcolors )
+      {
+         for (v = 0; v < sdpdata->nvars[cidx]; ++v)
+         {
+            for (i = sdpdata->valsbegins[cidx][v]; i < sdpdata->valsbegins[cidx][v + 1]; ++i)
+            {
+               blockvals[nblockvals] = sdpdata->vals[cidx][i];
+               considx[nblockvals] = cidx;
+               valinconsidx[nblockvals++] = i;
+            }
+         }
+      }
+      else
+      {
+         for (i = 0; i < sdpdata->nconstvals[cidx]; ++i)
+         {
+            blockvals[nblockvals] = sdpdata->constvals[cidx][i];
+            considx[nblockvals] = cidx;
+            valinconsidx[nblockvals++] = i;
+         }
+      }
+
+      /* store colors of SDP constraints in case the group of constraints ends here */
+      if ( c == sdpdata->nsdpconss - 1 || sdpdata->blocksizes[consperm[c + 1]] > curblocksize )
+      {
+         /* sort coefficients */
+         SCIPsort(blockperm, SYMsortReal, (void*) blockvals, nblockvals);
+
+         /* iterate over coefficients and store their colors */
+         ++curcolor;
+         colors[considx[blockperm[0]]][valinconsidx[blockperm[0]]] = curcolor;
+         for (i = 1; i < nblockvals; ++i)
+         {
+            /* if we have found a new color */
+            if ( SCIPisGT(scip, blockvals[blockperm[i]], blockvals[blockperm[i - 1]]) )
+               ++curcolor;
+            colors[considx[blockperm[i]]][valinconsidx[blockperm[i]]] = curcolor;
+         }
+
+         /* iterate over coefficients and store their second colors */
+         ++curcolor;
+         colors2[considx[blockperm[0]]][valinconsidx[blockperm[0]]] = curcolor;
+         for (i = 1; i < nblockvals; ++i)
+         {
+            /* if we have found a new color */
+            if ( SCIPisGT(scip, blockvals[blockperm[i]], blockvals[blockperm[i - 1]]) )
+               ++curcolor;
+            colors2[considx[blockperm[i]]][valinconsidx[blockperm[i]]] = curcolor;
+         }
+      }
+   }
+
+   return curcolor;
 }
 
 /** finds colors for symmetry detection graph */
@@ -297,18 +424,14 @@ SCIP_RETCODE findColorsSDPSymmetryData(
 {
    int* consperm;
    int* blockperm;
-   int oldblocksize = 0;
-   int curblocksize;
    int* considx;
    int* valinconsidx;
    SCIP_Real* blockvals;
    int maxnblockvals;
-   int nblockvals;
+   int tmpsize;
    int nconss;
    int curcolor;
-   int cidx;
    int c;
-   int v;
    int i;
 
    assert( scip != NULL );
@@ -335,66 +458,21 @@ SCIP_RETCODE findColorsSDPSymmetryData(
     * since this can become large */
    maxnblockvals = 0;
    for (c = 0; c < nconss; ++c)
-      maxnblockvals += sdpdata->valsbegins[c][sdpdata->nvars[c] + 1] - sdpdata->valsbegins[c][0];
+      maxnblockvals += sdpdata->valsbegins[c][sdpdata->nvars[c]] - sdpdata->valsbegins[c][0];
+   tmpsize = 0;
+   for (c = 0; c < nconss; ++c)
+      tmpsize += sdpdata->nconstvals[c];
+   maxnblockvals = MAX(maxnblockvals, tmpsize);
+
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &blockvals, maxnblockvals) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &considx, maxnblockvals) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &valinconsidx, maxnblockvals) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &blockperm, maxnblockvals) );
 
-   /* iterate through SDP constraints with same block size, get their coefficients, and assign colors */
-   curcolor = mincolorval;
-   for (c = 0; c < nconss; ++c)
-   {
-      cidx = consperm[c];
-      curblocksize = sdpdata->blocksizes[cidx];
-
-      /* we have detected a new group of constraints */
-      if ( curblocksize > oldblocksize )
-      {
-         oldblocksize = curblocksize;
-         nblockvals = 0;
-      }
-
-      /* store coefficients (including constant block) and their relation to the constraints */
-      for (v = 0; v <= sdpdata->nvars[cidx]; ++v)
-      {
-         for (i = sdpdata->valsbegins[cidx][v]; i < sdpdata->valsbegins[cidx][v + 1]; ++i)
-         {
-            blockvals[nblockvals] = sdpdata->vals[cidx][i];
-            considx[nblockvals] = cidx;
-            valinconsidx[nblockvals++] = i;
-         }
-      }
-
-      /* store colors of SDP constraints in case the group of constraints ends here */
-      if ( c == nconss - 1 || sdpdata->blocksizes[consperm[c + 1]] > curblocksize )
-      {
-         /* sort coefficients */
-         SCIPsort(blockperm, SYMsortReals, (void*) blockvals, nblockvals);
-
-         /* iterate over coefficients and store their colors */
-         ++curcolor;
-         sdpdata->colors[considx[blockperm[0]]][valinconsidx[blockperm[0]]] = curcolor;
-         for (i = 1; i < nblockvals; ++i)
-         {
-            /* if we have found a new color */
-            if ( SCIPisGT(scip, blockvals[blockperm[i]], blockvals[blockperm[i - 1]]) )
-               ++curcolor;
-            sdpdata->colors[considx[blockperm[i]]][valinconsidx[blockperm[i]]] = curcolor;
-         }
-
-         /* iterate over coefficients and store their second colors */
-         ++curcolor;
-         sdpdata->colors2[considx[blockperm[0]]][valinconsidx[blockperm[0]]] = curcolor;
-         for (i = 1; i < nblockvals; ++i)
-         {
-            /* if we have found a new color */
-            if ( SCIPisGT(scip, blockvals[blockperm[i]], blockvals[blockperm[i - 1]]) )
-               ++curcolor;
-            sdpdata->colors2[considx[blockperm[i]]][valinconsidx[blockperm[i]]] = curcolor;
-         }
-      }
-   }
+   curcolor = storeColorsSDPSymmetryData(scip, sdpdata, mincolorval, consperm,
+      blockvals, considx, valinconsidx, blockperm, TRUE);
+   curcolor = storeColorsSDPSymmetryData(scip, sdpdata, curcolor + 1, consperm,
+      blockvals, considx, valinconsidx, blockperm, FALSE);
 
    SCIPfreeBlockMemoryArrayNull(scip, &blockperm, maxnblockvals);
    SCIPfreeBlockMemoryArrayNull(scip, &valinconsidx, maxnblockvals);
@@ -420,8 +498,8 @@ SCIP_RETCODE findColorsSDPSymmetryData(
          printf("\n");
       }
       printf("\tConst:");
-      for (i = sdpdata->valsbegins[c][sdpdata->nvars[c]]; i < sdpdata->valsbegins[c][sdpdata->nvars[c]+1]; ++i)
-         printf(" [(%d,%d) %f -> (%d,%d)]", sdpdata->rows[c][i], sdpdata->cols[c][i], sdpdata->vals[c][i], sdpdata->colors[c][i], sdpdata->colors2[c][i]);
+      for (i = 0; i < sdpdata->nconstvals[c]; ++i)
+         printf(" [(%d,%d) %f -> (%d,%d)]", sdpdata->constrows[c][i], sdpdata->constcols[c][i], sdpdata->constvals[c][i], sdpdata->constcolors[c][i], sdpdata->constcolors2[c][i]);
       printf("\n");
    }
 

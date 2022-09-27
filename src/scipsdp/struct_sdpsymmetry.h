@@ -52,14 +52,19 @@ struct SYM_Sdpdata
    int                   nsdpconss;          /**< number of SDP constraints */
    int*                  blocksizes;         /**< for each SDP cons, the size of the SDP-block */
    int*                  nvars;              /**< for each SDP cons, the number of variables in this cons */
-   SCIP_Real**           vals;               /**< for each SDP cons, the values of nonzeros for each variable and
-                                              *   constant block */
+   SCIP_Real**           vals;               /**< for each SDP cons, the values of nonzeros for each variable block */
    SCIP_VAR***           vars;               /**< for each SDP cons, the variables present in the cons */
    int**                 valsbegins;         /**< for each SDP cons, the begin positions of new matrix in vals */
    int**                 cols;               /**< for each SDP cons, the column index of value in vals */
    int**                 rows;               /**< for each SDP cons, the row index of value in vals */
+   SCIP_Real**           constvals;          /**< for each SDP cons, the values of nonzeros for each constant block */
+   int*                  nconstvals;         /**< for each SDP cons, the number of nonzeros in the constant block */
+   int**                 constcols;          /**< for each SDP cons, the column index of value in constvals */
+   int**                 constrows;          /**< for each SDP cons, the row index of value in constvals */
    int**                 colors;             /**< for each SDP cons, the color of the coefficients */
    int**                 colors2;            /**< for each SDP cons, the second color of the coefficients */
+   int**                 constcolors;        /**< for each SDP cons, the color of constant coefficients */
+   int**                 constcolors2;       /**< for each SDP cons, the second color of constant coefficients */
 };
 typedef struct SYM_Sdpdata SYM_SDPDATA;
 
