@@ -581,12 +581,12 @@ static
 SCIP_DECL_HASHKEYEQ(SDPSYMhashKeyEQVartype)
 {
    SCIP* scip;
-   SYM_VARTYPE* k1;
-   SYM_VARTYPE* k2;
+   SDPSYM_VARTYPE* k1;
+   SDPSYM_VARTYPE* k2;
 
    scip = (SCIP*) userptr;
-   k1 = (SYM_VARTYPE*) key1;
-   k2 = (SYM_VARTYPE*) key2;
+   k1 = (SDPSYM_VARTYPE*) key1;
+   k2 = (SDPSYM_VARTYPE*) key2;
 
    /* first check objective coefficients */
    if ( ! SCIPisEQ(scip, k1->obj, k2->obj) )
@@ -615,9 +615,9 @@ SCIP_DECL_HASHKEYEQ(SDPSYMhashKeyEQVartype)
 static
 SCIP_DECL_HASHKEYVAL(SDPSYMhashKeyValVartype)
 {  /*lint --e{715}*/
-   SYM_VARTYPE* k;
+   SDPSYM_VARTYPE* k;
 
-   k = (SYM_VARTYPE*) key;
+   k = (SDPSYM_VARTYPE*) key;
 
    return SCIPhashFour(SCIPrealHashCode(k->obj), SCIPrealHashCode(k->lb), SCIPrealHashCode((double) k->nconss), SCIPrealHashCode(k->ub));
 }
@@ -2682,8 +2682,8 @@ SCIP_RETCODE computeSymmetryGroup(
    if ( matrixdata.nuniquevars < nvars && (matrixdata.nuniquemat == 0 || matrixdata.nuniquemat < matrixdata.nmatcoef) )
    {
       /* determine generators */
-      SCIP_CALL( SDPSYMcomputeSymmetryGenerators(scip, maxgenerators, &matrixdata, &exprdata, nperms, nmaxperms,
-            perms, log10groupsize) );
+      SCIP_CALL( SDPSYMcomputeSymmetryGenerators(scip, maxgenerators, &matrixdata, &exprdata, &sdpdata,
+            nperms, nmaxperms, perms, log10groupsize) );
       assert( *nperms <= *nmaxperms );
 
       /* SCIPisStopped() might call SCIPgetGap() which is only available after initpresolve */
