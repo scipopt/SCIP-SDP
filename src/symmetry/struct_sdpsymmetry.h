@@ -115,6 +115,7 @@ struct SDPSYM_Sdpdata
    int**                 colors2;            /**< for each SDP cons, the second color of the coefficients */
    int**                 constcolors;        /**< for each SDP cons, the color of constant coefficients */
    int**                 constcolors2;       /**< for each SDP cons, the second color of constant coefficients */
+   int                   lastcolorused;      /**< last used color */
 };
 
 

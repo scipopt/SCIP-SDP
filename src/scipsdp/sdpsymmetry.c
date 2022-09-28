@@ -118,6 +118,7 @@ SCIP_RETCODE storeSDPSymmetryData(
 
    /* (partially) intialize SDP data */
    sdpdata->nsdpconss = 0;
+   sdpdata->lastcolorused = INT_MAX;
 
    /* find SDP conshdlr */
    conshdlr = SCIPfindConshdlr(scip, "SDP");
@@ -473,6 +474,8 @@ SCIP_RETCODE findColorsSDPSymmetryData(
       blockvals, considx, valinconsidx, blockperm, TRUE);
    curcolor = storeColorsSDPSymmetryData(scip, sdpdata, curcolor + 1, consperm,
       blockvals, considx, valinconsidx, blockperm, FALSE);
+
+   sdpdata->lastcolorused = curcolor;
 
    SCIPfreeBlockMemoryArrayNull(scip, &blockperm, maxnblockvals);
    SCIPfreeBlockMemoryArrayNull(scip, &valinconsidx, maxnblockvals);
