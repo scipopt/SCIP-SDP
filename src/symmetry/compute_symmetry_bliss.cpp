@@ -1018,7 +1018,7 @@ SCIP_RETCODE fillGraphBySDPConss(
    for (c = 0; c < nsdpconss; ++c)
    {
       /* for each constraint, add nodes for the dimensions of the matrix */
-      unsigned firstblocknode = (int) G->add_vertex((unsigned) colordimnodes);
+      unsigned int firstblocknode = G->add_vertex((unsigned) colordimnodes);
       for (i = 1; i < blocksizes[c]; ++i)
          (void) G->add_vertex((unsigned) colordimnodes);
 
@@ -1028,24 +1028,24 @@ SCIP_RETCODE fillGraphBySDPConss(
       {
          for (i = valsbegins[c][v]; i < valsbegins[c][v + 1]; ++i)
          {
-            unsigned node =  G->add_vertex((unsigned) colors[c][i]);
-            unsigned node2 =  G->add_vertex((unsigned) colors2[c][i]);
+            unsigned int node = G->add_vertex((unsigned) colors[c][i]);
+            unsigned int node2 = G->add_vertex((unsigned) colors2[c][i]);
 
-            G->add_edge(node, SCIPvarGetProbindex(sdpdata->vars[c][v]));
-            G->add_edge(node2, SCIPvarGetProbindex(sdpdata->vars[c][v]));
-            G->add_edge(node, firstblocknode + sdpdata->rows[c][i]);
-            G->add_edge(node2, firstblocknode + sdpdata->cols[c][i]);
+            G->add_edge(node, (unsigned) SCIPvarGetProbindex(sdpdata->vars[c][v]));
+            G->add_edge(node2, (unsigned) SCIPvarGetProbindex(sdpdata->vars[c][v]));
+            G->add_edge(node, firstblocknode + (unsigned) sdpdata->rows[c][i]);
+            G->add_edge(node2, firstblocknode + (unsigned) sdpdata->cols[c][i]);
             G->add_edge(node, node2);
          }
          for (i = valsbegins[c][v]; i < valsbegins[c][v + 1]; ++i)
          {
-            unsigned node = G->add_vertex((unsigned) colors[c][i]);
-            unsigned node2 = G->add_vertex((unsigned) colors2[c][i]);
+            unsigned int node = G->add_vertex((unsigned) colors[c][i]);
+            unsigned int node2 = G->add_vertex((unsigned) colors2[c][i]);
 
-            G->add_edge(node, SCIPvarGetProbindex(sdpdata->vars[c][v]));
-            G->add_edge(node2, SCIPvarGetProbindex(sdpdata->vars[c][v]));
-            G->add_edge(node, firstblocknode + sdpdata->cols[c][i]);
-            G->add_edge(node2, firstblocknode + sdpdata->rows[c][i]);
+            G->add_edge(node, (unsigned) SCIPvarGetProbindex(sdpdata->vars[c][v]));
+            G->add_edge(node2, (unsigned) SCIPvarGetProbindex(sdpdata->vars[c][v]));
+            G->add_edge(node, firstblocknode + (unsigned) sdpdata->cols[c][i]);
+            G->add_edge(node2, firstblocknode + (unsigned) sdpdata->rows[c][i]);
             G->add_edge(node, node2);
          }
       }
@@ -1054,20 +1054,20 @@ SCIP_RETCODE fillGraphBySDPConss(
        * row/column index and connect it with dimension nodes */
       for (i = 0; i < sdpdata->nconstvals[c]; ++i)
       {
-         unsigned node =  G->add_vertex((unsigned) constcolors[c][i]);
-         unsigned node2 =  G->add_vertex((unsigned) constcolors2[c][i]);
+         unsigned int node = G->add_vertex((unsigned) constcolors[c][i]);
+         unsigned int node2 = G->add_vertex((unsigned) constcolors2[c][i]);
 
-         G->add_edge(node, firstblocknode + sdpdata->constrows[c][i]);
-         G->add_edge(node2, firstblocknode + sdpdata->constcols[c][i]);
+         G->add_edge(node, firstblocknode + (unsigned) sdpdata->constrows[c][i]);
+         G->add_edge(node2, firstblocknode + (unsigned) sdpdata->constcols[c][i]);
          G->add_edge(node, node2);
       }
       for (i = 0; i < sdpdata->nconstvals[c]; ++i)
       {
-         unsigned node = G->add_vertex((unsigned) constcolors[c][i]);
-         unsigned node2 =  G->add_vertex((unsigned) constcolors2[c][i]);
+         unsigned int node = G->add_vertex((unsigned) constcolors[c][i]);
+         unsigned int node2 = G->add_vertex((unsigned) constcolors2[c][i]);
 
-         G->add_edge(node, firstblocknode + sdpdata->constcols[c][i]);
-         G->add_edge(node2, firstblocknode + sdpdata->constrows[c][i]);
+         G->add_edge(node, firstblocknode + (unsigned) sdpdata->constcols[c][i]);
+         G->add_edge(node2, firstblocknode + (unsigned) sdpdata->constrows[c][i]);
          G->add_edge(node, node2);
       }
    }
