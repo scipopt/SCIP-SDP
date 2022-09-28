@@ -28,7 +28,7 @@
 
 #include <scip/scip.h>
 
-#include <symmetry/type_symmetry.h>
+#include <symmetry/type_sdpsymmetry.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,13 +36,13 @@ extern "C" {
 
 /** include symmetry propagator */
 SCIP_EXPORT
-SCIP_RETCODE SCIPincludePropSymmetry(
+SCIP_RETCODE SCIPincludePropSdpSymmetry(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
 /** return currently available symmetry group information */
 SCIP_EXPORT
-SCIP_RETCODE SCIPgetSymmetry(
+SCIP_RETCODE SCIPgetSdpSymmetry(
    SCIP*                 scip,               /**< SCIP data structure */
    int*                  npermvars,          /**< pointer to store number of variables for permutations */
    SCIP_VAR***           permvars,           /**< pointer to store variables on which permutations act */
@@ -60,13 +60,13 @@ SCIP_RETCODE SCIPgetSymmetry(
 
 /** return whether orbital fixing is enabled */
 SCIP_EXPORT
-SCIP_Bool SCIPisOrbitalfixingEnabled(
+SCIP_Bool SCIPSDPisOrbitalfixingEnabled(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
 /** return number of the symmetry group's generators */
 SCIP_EXPORT
-int SCIPgetSymmetryNGenerators(
+int SCIPgetSdpSymmetryNGenerators(
    SCIP*                 scip                /**< SCIP data structure */
    );
 

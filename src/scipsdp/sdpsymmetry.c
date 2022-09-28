@@ -91,7 +91,7 @@ SCIP_DECL_SORTINDCOMP(SYMsortInt)
 /** stores information about SDP constraints */
 SCIP_RETCODE storeSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
-   SYM_SDPDATA*          sdpdata             /**< pointer to store SDP symmetry data */
+   SDPSYM_SDPDATA*       sdpdata             /**< pointer to store SDP symmetry data */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -255,7 +255,7 @@ SCIP_RETCODE storeSDPSymmetryData(
 /** frees information about SDP constraints */
 SCIP_RETCODE freeSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
-   SYM_SDPDATA*          sdpdata             /**< pointer to store SDP symmetry data */
+   SDPSYM_SDPDATA*       sdpdata             /**< pointer to store SDP symmetry data */
    )
 {
    int c;
@@ -312,7 +312,7 @@ SCIP_RETCODE freeSDPSymmetryData(
 static
 int storeColorsSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
-   SYM_SDPDATA*          sdpdata,            /**< pointer to store SDP symmetry data */
+   SDPSYM_SDPDATA*       sdpdata,            /**< pointer to store SDP symmetry data */
    int                   mincolorval,        /**< value of smallest color */
    int*                  consperm,           /**< permutation of SDP conss (sorted by block sizes) */
    SCIP_Real*            blockvals,          /**< allocated array to hold variable coefficients of all SDP conss */
@@ -418,7 +418,7 @@ int storeColorsSDPSymmetryData(
 /** finds colors for symmetry detection graph */
 SCIP_RETCODE findColorsSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
-   SYM_SDPDATA*          sdpdata,            /**< pointer to store SDP symmetry data */
+   SDPSYM_SDPDATA*       sdpdata,            /**< pointer to store SDP symmetry data */
    int                   mincolorval         /**< value of smallest color */
    )
 {

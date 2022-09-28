@@ -42,7 +42,7 @@
 
 #include "scip/scip.h"
 
-#include "scipsdp/struct_sdpsymmetry.h"
+#include "symmetry/struct_sdpsymmetry.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,20 +52,20 @@ extern "C" {
 SCIP_EXPORT
 SCIP_RETCODE storeSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
-   SYM_SDPDATA*          sdpdata             /**< pointer to store SDP symmetry data */
+   SDPSYM_SDPDATA*       sdpdata             /**< pointer to store SDP symmetry data */
    );
 
 /** frees information about SDP constraints */
 SCIP_EXPORT
 SCIP_RETCODE freeSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
-   SYM_SDPDATA*          sdpdata             /**< pointer to store SDP symmetry data */
+   SDPSYM_SDPDATA*       sdpdata             /**< pointer to store SDP symmetry data */
    );
 
 /** finds colors for symmetry detection graph */
 SCIP_RETCODE findColorsSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
-   SYM_SDPDATA*          sdpdata,            /**< pointer to store SDP symmetry data */
+   SDPSYM_SDPDATA*       sdpdata,            /**< pointer to store SDP symmetry data */
    int                   mincolorval         /**< value of smallest color */
    );
 

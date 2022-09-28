@@ -22,7 +22,7 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#include "compute_symmetry.h"
+#include "compute_sdpsymmetry.h"
 
 /* include bliss graph */
 #include <bliss/defs.hh>
@@ -58,7 +58,7 @@ struct BLISS_Data
 
 /** gets the key of the given element */
 static
-SCIP_DECL_HASHGETKEY(SYMhashGetKeyOptype)
+SCIP_DECL_HASHGETKEY(SDPSYMhashGetKeyOptype)
 {  /*lint --e{715}*/
    return elem;
 }
@@ -68,13 +68,13 @@ SCIP_DECL_HASHGETKEY(SYMhashGetKeyOptype)
  *  Compare the types of two operators according to their name, level and, in case of power, exponent.
  */
 static
-SCIP_DECL_HASHKEYEQ(SYMhashKeyEQOptype)
+SCIP_DECL_HASHKEYEQ(SDPSYMhashKeyEQOptype)
 {
-   SYM_OPTYPE* k1;
-   SYM_OPTYPE* k2;
+   SDPSYM_OPTYPE* k1;
+   SDPSYM_OPTYPE* k2;
 
-   k1 = (SYM_OPTYPE*) key1;
-   k2 = (SYM_OPTYPE*) key2;
+   k1 = (SDPSYM_OPTYPE*) key1;
+   k2 = (SDPSYM_OPTYPE*) key2;
 
    /* first check operator name */
    if ( SCIPexprGetHdlr(k1->expr) != SCIPexprGetHdlr(k2->expr) )
@@ -94,12 +94,12 @@ SCIP_DECL_HASHKEYEQ(SYMhashKeyEQOptype)
 
 /** returns the hash value of the key */
 static
-SCIP_DECL_HASHKEYVAL(SYMhashKeyValOptype)
+SCIP_DECL_HASHKEYVAL(SDPSYMhashKeyValOptype)
 {  /*lint --e{715}*/
-   SYM_OPTYPE* k;
+   SDPSYM_OPTYPE* k;
    SCIP_Real exponent;
 
-   k = (SYM_OPTYPE*) key;
+   k = (SDPSYM_OPTYPE*) key;
 
    if ( SCIPisExprPower((SCIP*)userptr, k->expr) )
       exponent = SCIPgetExponentExprPow(k->expr);
@@ -114,7 +114,7 @@ SCIP_DECL_HASHKEYVAL(SYMhashKeyValOptype)
 
 /** gets the key of the given element */
 static
-SCIP_DECL_HASHGETKEY(SYMhashGetKeyConsttype)
+SCIP_DECL_HASHGETKEY(SDPSYMhashGetKeyConsttype)
 {  /*lint --e{715}*/
    return elem;
 }
@@ -124,24 +124,24 @@ SCIP_DECL_HASHGETKEY(SYMhashGetKeyConsttype)
  *  Compare two constants according to their values.
  */
 static
-SCIP_DECL_HASHKEYEQ(SYMhashKeyEQConsttype)
+SCIP_DECL_HASHKEYEQ(SDPSYMhashKeyEQConsttype)
 {
-   SYM_CONSTTYPE* k1;
-   SYM_CONSTTYPE* k2;
+   SDPSYM_CONSTTYPE* k1;
+   SDPSYM_CONSTTYPE* k2;
 
-   k1 = (SYM_CONSTTYPE*) key1;
-   k2 = (SYM_CONSTTYPE*) key2;
+   k1 = (SDPSYM_CONSTTYPE*) key1;
+   k2 = (SDPSYM_CONSTTYPE*) key2;
 
    return (SCIP_Bool)(k1->value == k2->value);  /*lint !e777*/
 }
 
 /** returns the hash value of the key */
 static
-SCIP_DECL_HASHKEYVAL(SYMhashKeyValConsttype)
+SCIP_DECL_HASHKEYVAL(SDPSYMhashKeyValConsttype)
 {  /*lint --e{715}*/
-   SYM_CONSTTYPE* k;
+   SDPSYM_CONSTTYPE* k;
 
-   k = (SYM_CONSTTYPE*) key;
+   k = (SDPSYM_CONSTTYPE*) key;
 
    return SCIPrealHashCode(k->value);
 }
@@ -150,7 +150,7 @@ SCIP_DECL_HASHKEYVAL(SYMhashKeyValConsttype)
 
 /** gets the key of the given element */
 static
-SCIP_DECL_HASHGETKEY(SYMhashGetKeyRhstype)
+SCIP_DECL_HASHGETKEY(SDPSYMhashGetKeyRhstype)
 {  /*lint --e{715}*/
    return elem;
 }
@@ -160,13 +160,13 @@ SCIP_DECL_HASHGETKEY(SYMhashGetKeyRhstype)
  *  Compare two constraint sides according to lhs and rhs.
  */
 static
-SCIP_DECL_HASHKEYEQ(SYMhashKeyEQRhstype)
+SCIP_DECL_HASHKEYEQ(SDPSYMhashKeyEQRhstype)
 {
-   SYM_RHSTYPE* k1;
-   SYM_RHSTYPE* k2;
+   SDPSYM_RHSTYPE* k1;
+   SDPSYM_RHSTYPE* k2;
 
-   k1 = (SYM_RHSTYPE*) key1;
-   k2 = (SYM_RHSTYPE*) key2;
+   k1 = (SDPSYM_RHSTYPE*) key1;
+   k2 = (SDPSYM_RHSTYPE*) key2;
 
    if ( k1->lhs != k2->lhs )  /*lint !e777*/
       return FALSE;
@@ -176,11 +176,11 @@ SCIP_DECL_HASHKEYEQ(SYMhashKeyEQRhstype)
 
 /** returns the hash value of the key */
 static
-SCIP_DECL_HASHKEYVAL(SYMhashKeyValRhstype)
+SCIP_DECL_HASHKEYVAL(SDPSYMhashKeyValRhstype)
 {  /*lint --e{715}*/
-   SYM_RHSTYPE* k;
+   SDPSYM_RHSTYPE* k;
 
-   k = (SYM_RHSTYPE*) key;
+   k = (SDPSYM_RHSTYPE*) key;
 
    return SCIPhashTwo(SCIPrealHashCode(k->lhs), SCIPrealHashCode(k->rhs));
 }
@@ -260,7 +260,7 @@ static
 SCIP_RETCODE createVariableNodes(
    SCIP*                 scip,               /**< SCIP instance */
    bliss::Graph*         G,                  /**< Graph to be constructed */
-   SYM_MATRIXDATA*       matrixdata,         /**< data for MIP matrix (also contains the relevant variables) */
+   SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix (also contains the relevant variables) */
    int&                  nnodes,             /**< buffer to store number of nodes in graph */
    const int&            nedges,             /**< buffer to store number of edges in graph */
    int&                  nusedcolors         /**< buffer to store number of used colors */
@@ -312,7 +312,7 @@ static
 SCIP_RETCODE fillGraphByLinearConss(
    SCIP*                 scip,               /**< SCIP instance */
    bliss::Graph*         G,                  /**< Graph to be constructed */
-   SYM_MATRIXDATA*       matrixdata,         /**< data for MIP matrix */
+   SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix */
    int&                  nnodes,             /**< buffer to store number of nodes in graph */
    int&                  nedges,             /**< buffer to store number of edges in graph */
    int&                  nusedcolors,        /**< buffer to store number of used colors */
@@ -474,7 +474,7 @@ static
 SCIP_RETCODE fillGraphByNonlinearConss(
    SCIP*                 scip,               /**< SCIP instance */
    bliss::Graph*         G,                  /**< Graph to be constructed */
-   SYM_EXPRDATA*         exprdata,           /**< data for nonlinear constraints */
+   SDPSYM_EXPRDATA*      exprdata,           /**< data for nonlinear constraints */
    int&                  nnodes,             /**< buffer to store number of nodes in graph */
    int&                  nedges,             /**< buffer to store number of edges in graph */
    int&                  nusedcolors,        /**< number of used colors ind the graph so far */
@@ -485,10 +485,10 @@ SCIP_RETCODE fillGraphByNonlinearConss(
    SCIP_HASHTABLE* consttypemap;
    SCIP_HASHTABLE* sumcoefmap;
    SCIP_HASHTABLE* rhstypemap;
-   SYM_OPTYPE* uniqueoparray = NULL;
-   SYM_CONSTTYPE* uniqueconstarray = NULL;
-   SYM_CONSTTYPE* sumcoefarray = NULL;
-   SYM_RHSTYPE* uniquerhsarray = NULL;
+   SDPSYM_OPTYPE* uniqueoparray = NULL;
+   SDPSYM_CONSTTYPE* uniqueconstarray = NULL;
+   SDPSYM_CONSTTYPE* sumcoefarray = NULL;
+   SDPSYM_RHSTYPE* uniquerhsarray = NULL;
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONS** conss;
    int nconss;
@@ -520,14 +520,14 @@ SCIP_RETCODE fillGraphByNonlinearConss(
    SCIPdebugMsg(scip, "Filling graph with colored coefficient nodes for non-linear part.\n");
 
    /* create maps for optypes, constants, sum coefficients and rhs to indices */
-   SCIP_CALL( SCIPhashtableCreate(&optypemap, SCIPblkmem(scip), oparraysize, SYMhashGetKeyOptype,
-         SYMhashKeyEQOptype, SYMhashKeyValOptype, (void*) scip) );
-   SCIP_CALL( SCIPhashtableCreate(&consttypemap, SCIPblkmem(scip), constarraysize, SYMhashGetKeyConsttype,
-         SYMhashKeyEQConsttype, SYMhashKeyValConsttype, (void*) scip) );
-   SCIP_CALL( SCIPhashtableCreate(&sumcoefmap, SCIPblkmem(scip), coefarraysize, SYMhashGetKeyConsttype,
-         SYMhashKeyEQConsttype, SYMhashKeyValConsttype, (void*) scip) );
-   SCIP_CALL( SCIPhashtableCreate(&rhstypemap, SCIPblkmem(scip), rhsarraysize, SYMhashGetKeyRhstype,
-         SYMhashKeyEQRhstype, SYMhashKeyValRhstype, (void*) scip) );
+   SCIP_CALL( SCIPhashtableCreate(&optypemap, SCIPblkmem(scip), oparraysize, SDPSYMhashGetKeyOptype,
+         SDPSYMhashKeyEQOptype, SDPSYMhashKeyValOptype, (void*) scip) );
+   SCIP_CALL( SCIPhashtableCreate(&consttypemap, SCIPblkmem(scip), constarraysize, SDPSYMhashGetKeyConsttype,
+         SDPSYMhashKeyEQConsttype, SDPSYMhashKeyValConsttype, (void*) scip) );
+   SCIP_CALL( SCIPhashtableCreate(&sumcoefmap, SCIPblkmem(scip), coefarraysize, SDPSYMhashGetKeyConsttype,
+         SDPSYMhashKeyEQConsttype, SDPSYMhashKeyValConsttype, (void*) scip) );
+   SCIP_CALL( SCIPhashtableCreate(&rhstypemap, SCIPblkmem(scip), rhsarraysize, SDPSYMhashGetKeyRhstype,
+         SDPSYMhashKeyEQRhstype, SDPSYMhashKeyValRhstype, (void*) scip) );
 
    assert( optypemap != NULL );
    assert( consttypemap != NULL );
@@ -613,7 +613,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                      /* create nodes for all aggregation variables and coefficients and connect them to the parent node */
                      for ( k = 0; k < requiredsize; ++k )
                      {
-                        SYM_CONSTTYPE* ct;
+                        SDPSYM_CONSTTYPE* ct;
                         int internode;
 
                         assert( vars[k] != NULL );
@@ -632,7 +632,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                         }
                         else
                         {
-                           color = ((SYM_CONSTTYPE*) SCIPhashtableRetrieve(sumcoefmap, (void *) ct))->color;
+                           color = ((SDPSYM_CONSTTYPE*) SCIPhashtableRetrieve(sumcoefmap, (void *) ct))->color;
                         }
 
                         /* add the intermediate node with the corresponding color */
@@ -655,7 +655,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                      /* add the node for the constant */
                      if ( constant != 0.0 )
                      {
-                        SYM_CONSTTYPE* ct;
+                        SDPSYM_CONSTTYPE* ct;
 
                         /* check whether we have to resize */
                         if ( nuniqueconsts >= constarraysize )
@@ -680,7 +680,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                         }
                         else
                         {
-                           color = ((SYM_CONSTTYPE*) SCIPhashtableRetrieve(consttypemap, (void *) ct))->color;
+                           color = ((SDPSYM_CONSTTYPE*) SCIPhashtableRetrieve(consttypemap, (void *) ct))->color;
                         }
 
                         /* add the node with a new color */
@@ -707,7 +707,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                /* for constant expressions, get the color of its type (value) or assign a new one */
                else if ( SCIPisExprValue(scip, expr) )
                {
-                  SYM_CONSTTYPE* ct;
+                  SDPSYM_CONSTTYPE* ct;
 
                   assert( nuniqueconsts < constarraysize );
 
@@ -723,13 +723,13 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                   }
                   else
                   {
-                     color = ((SYM_CONSTTYPE*) SCIPhashtableRetrieve(consttypemap, (void *) ct))->color;
+                     color = ((SDPSYM_CONSTTYPE*) SCIPhashtableRetrieve(consttypemap, (void *) ct))->color;
                   }
                }
                /* for all other expressions, get the color of its operator type or assign a new one */
                else
                {
-                  SYM_OPTYPE* ot;
+                  SDPSYM_OPTYPE* ot;
 
                   assert( nuniqueops < oparraysize );
 
@@ -747,7 +747,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                   }
                   else
                   {
-                     color = ((SYM_OPTYPE*) SCIPhashtableRetrieve(optypemap, (void *) ot))->color;
+                     color = ((SDPSYM_OPTYPE*) SCIPhashtableRetrieve(optypemap, (void *) ot))->color;
                   }
                }
 
@@ -755,7 +755,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                if ( SCIPexpriterGetParentDFS(it) == NULL )
                {
                   /* add the node corresponding to the constraint */
-                  SYM_RHSTYPE* rt;
+                  SDPSYM_RHSTYPE* rt;
                   int parentcolor;
 
                   assert( nuniquerhs < rhsarraysize );
@@ -773,7 +773,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                   }
                   else
                   {
-                     parentcolor = ((SYM_RHSTYPE*) SCIPhashtableRetrieve(rhstypemap, (void *) rt))->color;
+                     parentcolor = ((SDPSYM_RHSTYPE*) SCIPhashtableRetrieve(rhstypemap, (void *) rt))->color;
                   }
 
                   /* add the constraint side node with the corresponding color */
@@ -817,7 +817,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                   /* iterate over children from last to first, such that visitednodes array is in correct order */
                   for (int j = SCIPexprGetNChildren(expr) - 1; j >= 0; --j)
                   {
-                     SYM_CONSTTYPE* ct;
+                     SDPSYM_CONSTTYPE* ct;
 
                      assert( nuniquecoefs < coefarraysize );
 
@@ -833,7 +833,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                      }
                      else
                      {
-                        color = ((SYM_CONSTTYPE*) SCIPhashtableRetrieve(sumcoefmap, (void *) ct))->color;
+                        color = ((SDPSYM_CONSTTYPE*) SCIPhashtableRetrieve(sumcoefmap, (void *) ct))->color;
                      }
 
                      /* add the intermediate node with the corresponding color */
@@ -852,7 +852,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                   SCIP_Real constval = SCIPgetConstantExprSum(expr);
                   if ( constval != 0.0 )
                   {
-                     SYM_CONSTTYPE* ct;
+                     SDPSYM_CONSTTYPE* ct;
 
                      /* check whether we have to resize */
                      if ( nuniqueconsts >= constarraysize )
@@ -877,7 +877,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
                      }
                      else
                      {
-                        color = ((SYM_CONSTTYPE*) SCIPhashtableRetrieve(consttypemap, (void *) ct))->color;
+                        color = ((SDPSYM_CONSTTYPE*) SCIPhashtableRetrieve(consttypemap, (void *) ct))->color;
                      }
 
                      /* add the node with a new color */
@@ -947,7 +947,7 @@ SCIP_RETCODE fillGraphByNonlinearConss(
 }
 
 /** return whether symmetry can be computed */
-SCIP_Bool SYMcanComputeSymmetry(void)
+SCIP_Bool SDPSYMcanComputeSymmetry(void)
 {
    return TRUE;
 }
@@ -971,23 +971,23 @@ initStaticBlissName( )
 
 
 /** return name of external program used to compute generators */
-const char* SYMsymmetryGetName(void)
+const char* SDPSYMsymmetryGetName(void)
 {
    return blissname;
 }
 
 /** return description of external program used to compute generators */
-const char* SYMsymmetryGetDesc(void)
+const char* SDPSYMsymmetryGetDesc(void)
 {
    return "Computing Graph Automorphism Groups by T. Junttila and P. Kaski (www.tcs.hut.fi/Software/bliss/)";
 }
 
 /** compute generators of symmetry group */
-SCIP_RETCODE SYMcomputeSymmetryGenerators(
+SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    SCIP*                 scip,               /**< SCIP pointer */
    int                   maxgenerators,      /**< maximal number of generators constructed (= 0 if unlimited) */
-   SYM_MATRIXDATA*       matrixdata,         /**< data for MIP matrix */
-   SYM_EXPRDATA*         exprdata,           /**< data for nonlinear constraints */
+   SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix */
+   SDPSYM_EXPRDATA*      exprdata,           /**< data for nonlinear constraints */
    int*                  nperms,             /**< pointer to store number of permutations */
    int*                  nmaxperms,          /**< pointer to store maximal number of permutations (needed for freeing storage) */
    int***                perms,              /**< pointer to store permutation generators as (nperms x npermvars) matrix */

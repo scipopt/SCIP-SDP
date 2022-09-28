@@ -29,27 +29,27 @@
 extern "C" {
 #endif
 
-#include "symmetry/struct_symmetry.h"
+#include "symmetry/struct_sdpsymmetry.h"
 
 /** return whether symmetry can be computed */
 SCIP_EXPORT
-SCIP_Bool SYMcanComputeSymmetry(void);
+SCIP_Bool SDPSYMcanComputeSymmetry(void);
 
 /** return name of external program used to compute generators */
 SCIP_EXPORT
-const char* SYMsymmetryGetName(void);
+const char* SDPSYMsymmetryGetName(void);
 
 /** return description of external program used to compute generators */
 SCIP_EXPORT
-const char* SYMsymmetryGetDesc(void);
+const char* SDPSYMsymmetryGetDesc(void);
 
 /** compute generators of symmetry group */
 SCIP_EXPORT
-SCIP_RETCODE SYMcomputeSymmetryGenerators(
+SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    SCIP*                 scip,               /**< SCIP pointer */
    int                   maxgenerators,      /**< maximal number of generators constructed (= 0 if unlimited) */
-   SYM_MATRIXDATA*       matrixdata,         /**< data for MIP matrix */
-   SYM_EXPRDATA*         exprdata,           /**< data for nonlinear constraints */
+   SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix */
+   SDPSYM_EXPRDATA*      exprdata,           /**< data for nonlinear constraints */
    int*                  nperms,             /**< pointer to store number of permutations */
    int*                  nmaxperms,          /**< pointer to store maximal number of permutations (needed for freeing storage) */
    int***                perms,              /**< pointer to store permutation generators as (nperms x npermvars) matrix */

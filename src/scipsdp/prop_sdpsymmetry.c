@@ -145,13 +145,14 @@
 #include <scip/scip_datastructures.h>
 
 #include <scipsdp/prop_sdpsymmetry.h>
-#include <symmetry/compute_symmetry.h>
+#include <scipsdp/sdpsymmetry.h>
+#include <symmetry/compute_sdpsymmetry.h>
 #include <scip/symmetry.h>
 
 #include <string.h>
 
 /* propagator properties */
-#define PROP_NAME            "symmetry"
+#define PROP_NAME            "sdpsymmetry"
 #define PROP_DESC            "propagator for handling symmetry"
 #define PROP_TIMING    SCIP_PROPTIMING_BEFORELP   /**< propagation timing mask */
 #define PROP_PRIORITY          -1000000           /**< propagator priority */
@@ -201,11 +202,11 @@
 #define DEFAULT_SSTMIXEDCOMPONENTS    TRUE   /**< Should Schreier Sims constraints be added if a symmetry component contains variables of different types? */
 
 /* event handler properties */
-#define EVENTHDLR_SYMMETRY_NAME    "symmetry"
+#define EVENTHDLR_SYMMETRY_NAME    "sdpsymmetry"
 #define EVENTHDLR_SYMMETRY_DESC    "filter global variable fixing event handler for orbital fixing"
 
 /* output table properties */
-#define TABLE_NAME_ORBITALFIXING        "orbitalfixing"
+#define TABLE_NAME_ORBITALFIXING        "sdporbitalfixing"
 #define TABLE_DESC_ORBITALFIXING        "orbital fixing statistics"
 #define TABLE_POSITION_ORBITALFIXING    7001                    /**< the position of the statistics table */
 #define TABLE_EARLIEST_ORBITALFIXING    SCIP_STAGE_SOLVING      /**< output of the statistics table is only printed from this stage onwards */
@@ -299,6 +300,7 @@ struct SCIP_PropData
    int                   norbitopes;         /**< number of orbitope constraints */
    SCIP_Bool*            isnonlinvar;        /**< array indicating whether variables apper non-linearly */
    SCIP_CONSHDLR*        conshdlr_nonlinear; /**< nonlinear constraint handler */
+   SCIP_CONSHDLR*        conshdlr_sdp;       /**< constraint handler for SDP constraints */
    int                   maxnconsssubgroup;  /**< maximum number of constraints up to which subgroup structures are detected */
    SCIP_Bool             usedynamicprop;     /**< whether dynamic propagation should be used for full orbitopes */
    SCIP_Bool             preferlessrows;     /**< Shall orbitopes with less rows be preferred in detection? */
@@ -566,7 +568,7 @@ SCIP_DECL_TABLEFREE(tableFreeOrbitalfixing)
 
 /** gets the key of the given element */
 static
-SCIP_DECL_HASHGETKEY(SYMhashGetKeyVartype)
+SCIP_DECL_HASHGETKEY(SDPSYMhashGetKeyVartype)
 {  /*lint --e{715}*/
    return elem;
 }
@@ -576,7 +578,7 @@ SCIP_DECL_HASHGETKEY(SYMhashGetKeyVartype)
  *  Compare the types of two variables according to objective, lower and upper bound, variable type, and column sparsity.
  */
 static
-SCIP_DECL_HASHKEYEQ(SYMhashKeyEQVartype)
+SCIP_DECL_HASHKEYEQ(SDPSYMhashKeyEQVartype)
 {
    SCIP* scip;
    SYM_VARTYPE* k1;
@@ -611,7 +613,7 @@ SCIP_DECL_HASHKEYEQ(SYMhashKeyEQVartype)
 
 /** returns the hash value of the key */
 static
-SCIP_DECL_HASHKEYVAL(SYMhashKeyValVartype)
+SCIP_DECL_HASHKEYVAL(SDPSYMhashKeyValVartype)
 {  /*lint --e{715}*/
    SYM_VARTYPE* k;
 
@@ -621,21 +623,21 @@ SCIP_DECL_HASHKEYVAL(SYMhashKeyValVartype)
 }
 
 /** data structure to store arrays used for sorting rhs types */
-struct SYM_Sortrhstype
+struct SDPSYM_Sortrhstype
 {
    SCIP_Real*            vals;               /**< array of values */
-   SYM_RHSSENSE*         senses;             /**< array of senses of rhs */
+   SDPSYM_RHSSENSE*      senses;             /**< array of senses of rhs */
    int                   nrhscoef;           /**< size of arrays (for debugging) */
 };
-typedef struct SYM_Sortrhstype SYM_SORTRHSTYPE;
+typedef struct SDPSYM_Sortrhstype SDPSYM_SORTRHSTYPE;
 
 /** data structure to store arrays used for sorting colored component types */
-struct SYM_Sortgraphcompvars
+struct SDPSYM_Sortgraphcompvars
 {
    int*                  components;         /**< array of components */
    int*                  colors;             /**< array of colors */
 };
-typedef struct SYM_Sortgraphcompvars SYM_SORTGRAPHCOMPVARS;
+typedef struct SDPSYM_Sortgraphcompvars SDPSYM_SORTGRAPHCOMPVARS;
 
 /** sorts rhs types - first by sense, then by value
  *
@@ -647,12 +649,12 @@ typedef struct SYM_Sortgraphcompvars SYM_SORTGRAPHCOMPVARS;
  *    > 0: ind2 comes after (is worse than) ind2
  */
 static
-SCIP_DECL_SORTINDCOMP(SYMsortRhsTypes)
+SCIP_DECL_SORTINDCOMP(SDPSYMsortRhsTypes)
 {
-   SYM_SORTRHSTYPE* data;
+   SDPSYM_SORTRHSTYPE* data;
    SCIP_Real diffvals;
 
-   data = (SYM_SORTRHSTYPE*) dataptr;
+   data = (SDPSYM_SORTRHSTYPE*) dataptr;
    assert( 0 <= ind1 && ind1 < data->nrhscoef );
    assert( 0 <= ind2 && ind2 < data->nrhscoef );
 
@@ -681,7 +683,7 @@ SCIP_DECL_SORTINDCOMP(SYMsortRhsTypes)
  *    > 0: ind2 comes after (is worse than) ind2
  */
 static
-SCIP_DECL_SORTINDCOMP(SYMsortMatCoef)
+SCIP_DECL_SORTINDCOMP(SDPSYMsortMatCoef)
 {
    SCIP_Real diffvals;
    SCIP_Real* vals;
@@ -708,11 +710,11 @@ SCIP_DECL_SORTINDCOMP(SYMsortMatCoef)
  *    > 0: ind2 comes after (is worse than) ind2
  */
 static
-SCIP_DECL_SORTINDCOMP(SYMsortGraphCompVars)
+SCIP_DECL_SORTINDCOMP(SDPSYMsortGraphCompVars)
 {
-   SYM_SORTGRAPHCOMPVARS* data;
+   SDPSYM_SORTGRAPHCOMPVARS* data;
 
-   data = (SYM_SORTGRAPHCOMPVARS*) dataptr;
+   data = (SDPSYM_SORTGRAPHCOMPVARS*) dataptr;
 
    if ( data->colors[ind1] < data->colors[ind2] )
       return -1;
@@ -1184,15 +1186,15 @@ SCIP_RETCODE delSymConss(
 /** determines whether variable should be fixed by permutations */
 static
 SCIP_Bool SymmetryFixVar(
-   SYM_SPEC              fixedtype,          /**< bitset of variable types that should be fixed */
+   SDPSYM_SPEC           fixedtype,          /**< bitset of variable types that should be fixed */
    SCIP_VAR*             var                 /**< variable to be considered */
    )
 {
-   if ( (fixedtype & SYM_SPEC_INTEGER) && SCIPvarGetType(var) == SCIP_VARTYPE_INTEGER )
+   if ( (fixedtype & SDPSYM_SPEC_INTEGER) && SCIPvarGetType(var) == SCIP_VARTYPE_INTEGER )
       return TRUE;
    if ( (fixedtype & SYM_SPEC_BINARY) && SCIPvarGetType(var) == SCIP_VARTYPE_BINARY )
       return TRUE;
-   if ( (fixedtype & SYM_SPEC_REAL) &&
+   if ( (fixedtype & SDPSYM_SPEC_REAL) &&
       (SCIPvarGetType(var) == SCIP_VARTYPE_CONTINUOUS || SCIPvarGetType(var) == SCIP_VARTYPE_IMPLINT) )
       return TRUE;
    return FALSE;
@@ -1259,8 +1261,8 @@ SCIP_RETCODE collectCoefficients(
    SCIP_Real             lhs,                /**< left hand side */
    SCIP_Real             rhs,                /**< right hand side */
    SCIP_Bool             istransformed,      /**< whether the constraint is transformed */
-   SYM_RHSSENSE          rhssense,           /**< identifier of constraint type */
-   SYM_MATRIXDATA*       matrixdata,         /**< matrix data to be filled in */
+   SDPSYM_RHSSENSE       rhssense,           /**< identifier of constraint type */
+   SDPSYM_MATRIXDATA*    matrixdata,         /**< matrix data to be filled in */
    int*                  nconssforvar        /**< pointer to array to store for each var the number of conss */
    )
 {
@@ -1347,10 +1349,10 @@ SCIP_RETCODE collectCoefficients(
       matrixdata->rhscoef[nrhscoef] = rhs;
 
       /* if we deal with special constraints */
-      if ( rhssense >= SYM_SENSE_XOR )
+      if ( rhssense >= SDPSYM_SENSE_XOR )
          matrixdata->rhssense[nrhscoef] = rhssense;
       else
-         matrixdata->rhssense[nrhscoef] = SYM_SENSE_EQUATION;
+         matrixdata->rhssense[nrhscoef] = SDPSYM_SENSE_EQUATION;
       matrixdata->rhsidx[nrhscoef] = nrhscoef;
 
       for (j = 0; j < nvars; ++j)
@@ -1386,7 +1388,7 @@ SCIP_RETCODE collectCoefficients(
             matrixdata->matvaridx[nmatcoef] = SCIPvarGetProbindex(vars[j]);
             matrixdata->matcoef[nmatcoef++] = -vals[j];
          }
-         matrixdata->rhssense[nrhscoef] = SYM_SENSE_EQUATION;
+         matrixdata->rhssense[nrhscoef] = SDPSYM_SENSE_EQUATION;
          matrixdata->rhsidx[nrhscoef] = nrhscoef;
          matrixdata->rhscoef[nrhscoef++] = -rhs;
       }
@@ -1394,7 +1396,7 @@ SCIP_RETCODE collectCoefficients(
    else
    {
 #ifndef NDEBUG
-      if ( rhssense == SYM_SENSE_BOUNDIS_TYPE_2 )
+      if ( rhssense == SDPSYM_SENSE_BOUNDIS_TYPE_2 )
       {
          assert( ! SCIPisInfinity(scip, -lhs) );
          assert( ! SCIPisInfinity(scip, rhs) );
@@ -1404,13 +1406,13 @@ SCIP_RETCODE collectCoefficients(
       if ( ! SCIPisInfinity(scip, -lhs) )
       {
          matrixdata->rhscoef[nrhscoef] = -lhs;
-         if ( rhssense >= SYM_SENSE_XOR )
+         if ( rhssense >= SDPSYM_SENSE_XOR )
          {
-            assert( rhssense == SYM_SENSE_BOUNDIS_TYPE_2 );
+            assert( rhssense == SDPSYM_SENSE_BOUNDIS_TYPE_2 );
             matrixdata->rhssense[nrhscoef] = rhssense;
          }
          else
-            matrixdata->rhssense[nrhscoef] = SYM_SENSE_INEQUALITY;
+            matrixdata->rhssense[nrhscoef] = SDPSYM_SENSE_INEQUALITY;
 
          matrixdata->rhsidx[nrhscoef] = nrhscoef;
 
@@ -1434,13 +1436,13 @@ SCIP_RETCODE collectCoefficients(
       if ( ! SCIPisInfinity(scip, rhs) )
       {
          matrixdata->rhscoef[nrhscoef] = rhs;
-         if ( rhssense >= SYM_SENSE_XOR )
+         if ( rhssense >= SDPSYM_SENSE_XOR )
          {
-            assert( rhssense == SYM_SENSE_BOUNDIS_TYPE_2 );
+            assert( rhssense == SDPSYM_SENSE_BOUNDIS_TYPE_2 );
             matrixdata->rhssense[nrhscoef] = rhssense;
          }
          else
-            matrixdata->rhssense[nrhscoef] = SYM_SENSE_INEQUALITY;
+            matrixdata->rhssense[nrhscoef] = SDPSYM_SENSE_INEQUALITY;
 
          matrixdata->rhsidx[nrhscoef] = nrhscoef;
 
@@ -1479,8 +1481,8 @@ SCIP_RETCODE collectCoefficients(
 static
 SCIP_RETCODE checkSymmetriesAreSymmetries(
    SCIP*                 scip,               /**< SCIP data structure */
-   SYM_SPEC              fixedtype,          /**< variable types that must be fixed by symmetries */
-   SYM_MATRIXDATA*       matrixdata,         /**< matrix data */
+   SDPSYM_SPEC           fixedtype,          /**< variable types that must be fixed by symmetries */
+   SDPSYM_MATRIXDATA*    matrixdata,         /**< matrix data */
    int                   nperms,             /**< number of permutations */
    int**                 perms               /**< permutations */
    )
@@ -1737,7 +1739,8 @@ SCIP_RETCODE checkSymmetriesAreSymmetries(
 static
 int getNSymhandableConss(
    SCIP*                 scip,               /**< SCIP instance */
-   SCIP_CONSHDLR*        conshdlr_nonlinear  /**< nonlinear constraint handler, if included */
+   SCIP_CONSHDLR*        conshdlr_nonlinear, /**< nonlinear constraint handler, if included */
+   SCIP_CONSHDLR*        conshdlr_sdp        /**< constraint handler for SDP constraints, if included */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -1767,6 +1770,8 @@ int getNSymhandableConss(
    nhandleconss += SCIPconshdlrGetNActiveConss(conshdlr);
    if( conshdlr_nonlinear != NULL )
       nhandleconss += SCIPconshdlrGetNActiveConss(conshdlr_nonlinear);
+   if( conshdlr_sdp != NULL )
+      nhandleconss += SCIPconshdlrGetNActiveConss(conshdlr_sdp);
 
    return nhandleconss;
 }
@@ -1921,11 +1926,12 @@ SCIP_RETCODE computeSymmetryGroup(
    SCIP_Bool             compresssymmetries, /**< Should non-affected variables be removed from permutation to save memory? */
    SCIP_Real             compressthreshold,  /**< Compression is used if percentage of moved vars is at most the threshold. */
    int                   maxgenerators,      /**< maximal number of generators constructed (= 0 if unlimited) */
-   SYM_SPEC              fixedtype,          /**< variable types that must be fixed by symmetries */
+   SDPSYM_SPEC           fixedtype,          /**< variable types that must be fixed by symmetries */
    SCIP_Bool             local,              /**< Use local variable bounds? */
    SCIP_Bool             checksymmetries,    /**< Should all symmetries be checked after computation? */
    SCIP_Bool             usecolumnsparsity,  /**< Should the number of conss a variable is contained in be exploited in symmetry detection? */
    SCIP_CONSHDLR*        conshdlr_nonlinear, /**< Nonlinear constraint handler, if included */
+   SCIP_CONSHDLR*        conshdlr_sdp,       /**< constraint handler for SDP constraints, if included */
    int*                  npermvars,          /**< pointer to store number of variables for permutations */
    int*                  nbinpermvars,       /**< pointer to store number of binary variables for permutations */
    SCIP_VAR***           permvars,           /**< pointer to store variables on which permutations act */
@@ -1941,8 +1947,9 @@ SCIP_RETCODE computeSymmetryGroup(
    )
 {
    SCIP_CONSHDLR* conshdlr;
-   SYM_MATRIXDATA matrixdata;
-   SYM_EXPRDATA exprdata;
+   SDPSYM_MATRIXDATA matrixdata;
+   SDPSYM_EXPRDATA exprdata;
+   SDPSYM_SDPDATA sdpdata;
    SCIP_HASHTABLE* vartypemap;
    SCIP_VAR** consvars;
    SCIP_Real* consvals;
@@ -1950,9 +1957,9 @@ SCIP_RETCODE computeSymmetryGroup(
    SCIP_VAR** vars;
    SCIP_EXPRITER* it = NULL;
    SCIP_HASHSET* auxvars = NULL;
-   SYM_VARTYPE* uniquevararray;
-   SYM_RHSSENSE oldsense = SYM_SENSE_UNKOWN;
-   SYM_SORTRHSTYPE sortrhstype;
+   SDPSYM_VARTYPE* uniquevararray;
+   SDPSYM_RHSSENSE oldsense = SDPSYM_SENSE_UNKOWN;
+   SDPSYM_SORTRHSTYPE sortrhstype;
    SCIP_Real oldcoef = SCIP_INVALID;
    SCIP_Real val;
    int* nconssforvar = NULL;
@@ -1980,7 +1987,7 @@ SCIP_RETCODE computeSymmetryGroup(
    assert( compressed != NULL );
    assert( success != NULL );
    assert( isnonlinvar != NULL );
-   assert( SYMcanComputeSymmetry() );
+   assert( SDPSYMcanComputeSymmetry() );
 
    /* init */
    *npermvars = 0;
@@ -2022,7 +2029,7 @@ SCIP_RETCODE computeSymmetryGroup(
    }
 
    /* before we set up the matrix, check whether we can handle all constraints */
-   nhandleconss = getNSymhandableConss(scip, conshdlr_nonlinear);
+   nhandleconss = getNSymhandableConss(scip, conshdlr_nonlinear, conshdlr_sdp);
    assert( nhandleconss <= nactiveconss );
    if ( nhandleconss < nactiveconss )
    {
@@ -2129,7 +2136,7 @@ SCIP_RETCODE computeSymmetryGroup(
       {
          SCIP_CALL( collectCoefficients(scip, doubleequations, SCIPgetVarsLinear(scip, cons), SCIPgetValsLinear(scip, cons),
                SCIPgetNVarsLinear(scip, cons), SCIPgetLhsLinear(scip, cons), SCIPgetRhsLinear(scip, cons),
-               SCIPconsIsTransformed(cons), SYM_SENSE_UNKOWN, &matrixdata, nconssforvar) );
+               SCIPconsIsTransformed(cons), SDPSYM_SENSE_UNKOWN, &matrixdata, nconssforvar) );
       }
       else if ( strcmp(conshdlrname, "linking") == 0 )
       {
@@ -2155,9 +2162,9 @@ SCIP_RETCODE computeSymmetryGroup(
          consvals[nconsvars - 1] = -1.0;
 
          SCIP_CALL( collectCoefficients(scip, doubleequations, consvars, consvals, nconsvars, 0.0, 0.0,
-               SCIPconsIsTransformed(cons), SYM_SENSE_UNKOWN, &matrixdata, nconssforvar) );
+               SCIPconsIsTransformed(cons), SDPSYM_SENSE_UNKOWN, &matrixdata, nconssforvar) );
          SCIP_CALL( collectCoefficients(scip, doubleequations, consvars, NULL, nconsvars - 1, 1.0, 1.0,
-               SCIPconsIsTransformed(cons), SYM_SENSE_UNKOWN, &matrixdata, nconssforvar) );
+               SCIPconsIsTransformed(cons), SDPSYM_SENSE_UNKOWN, &matrixdata, nconssforvar) );
       }
       else if ( strcmp(conshdlrname, "setppc") == 0 )
       {
@@ -2167,13 +2174,13 @@ SCIP_RETCODE computeSymmetryGroup(
          switch ( SCIPgetTypeSetppc(scip, cons) )
          {
          case SCIP_SETPPCTYPE_PARTITIONING :
-            SCIP_CALL( collectCoefficients(scip, doubleequations, linvars, 0, nconsvars, 1.0, 1.0, SCIPconsIsTransformed(cons), SYM_SENSE_EQUATION, &matrixdata, nconssforvar) );
+            SCIP_CALL( collectCoefficients(scip, doubleequations, linvars, 0, nconsvars, 1.0, 1.0, SCIPconsIsTransformed(cons), SDPSYM_SENSE_EQUATION, &matrixdata, nconssforvar) );
             break;
          case SCIP_SETPPCTYPE_PACKING :
-            SCIP_CALL( collectCoefficients(scip, doubleequations, linvars, 0, nconsvars, -SCIPinfinity(scip), 1.0, SCIPconsIsTransformed(cons), SYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
+            SCIP_CALL( collectCoefficients(scip, doubleequations, linvars, 0, nconsvars, -SCIPinfinity(scip), 1.0, SCIPconsIsTransformed(cons), SDPSYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
             break;
          case SCIP_SETPPCTYPE_COVERING :
-            SCIP_CALL( collectCoefficients(scip, doubleequations, linvars, 0, nconsvars, 1.0, SCIPinfinity(scip), SCIPconsIsTransformed(cons), SYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
+            SCIP_CALL( collectCoefficients(scip, doubleequations, linvars, 0, nconsvars, 1.0, SCIPinfinity(scip), SCIPconsIsTransformed(cons), SDPSYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
             break;
          default:
             SCIPerrorMessage("Unknown setppc type %d.\n", SCIPgetTypeSetppc(scip, cons));
@@ -2207,7 +2214,7 @@ SCIP_RETCODE computeSymmetryGroup(
          assert( nconsvars <= nallvars );
 
          SCIP_CALL( collectCoefficients(scip, doubleequations, consvars, consvals, nconsvars, (SCIP_Real) SCIPgetRhsXor(scip, cons),
-               (SCIP_Real) SCIPgetRhsXor(scip, cons), SCIPconsIsTransformed(cons), SYM_SENSE_XOR, &matrixdata, nconssforvar) );
+               (SCIP_Real) SCIPgetRhsXor(scip, cons), SCIPconsIsTransformed(cons), SDPSYM_SENSE_XOR, &matrixdata, nconssforvar) );
       }
       else if ( strcmp(conshdlrname, "and") == 0 )
       {
@@ -2232,7 +2239,7 @@ SCIP_RETCODE computeSymmetryGroup(
          assert( nconsvars <= nallvars );
 
          SCIP_CALL( collectCoefficients(scip, doubleequations, consvars, consvals, nconsvars, 0.0, 0.0,
-               SCIPconsIsTransformed(cons), SYM_SENSE_AND, &matrixdata, nconssforvar) );
+               SCIPconsIsTransformed(cons), SDPSYM_SENSE_AND, &matrixdata, nconssforvar) );
       }
       else if ( strcmp(conshdlrname, "or") == 0 )
       {
@@ -2257,12 +2264,12 @@ SCIP_RETCODE computeSymmetryGroup(
          assert( nconsvars <= nallvars );
 
          SCIP_CALL( collectCoefficients(scip, doubleequations, consvars, consvals, nconsvars, 0.0, 0.0,
-               SCIPconsIsTransformed(cons), SYM_SENSE_OR, &matrixdata, nconssforvar) );
+               SCIPconsIsTransformed(cons), SDPSYM_SENSE_OR, &matrixdata, nconssforvar) );
       }
       else if ( strcmp(conshdlrname, "logicor") == 0 )
       {
          SCIP_CALL( collectCoefficients(scip, doubleequations, SCIPgetVarsLogicor(scip, cons), 0, SCIPgetNVarsLogicor(scip, cons),
-               1.0, SCIPinfinity(scip), SCIPconsIsTransformed(cons), SYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
+               1.0, SCIPinfinity(scip), SCIPconsIsTransformed(cons), SDPSYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
       }
       else if ( strcmp(conshdlrname, "knapsack") == 0 )
       {
@@ -2277,7 +2284,7 @@ SCIP_RETCODE computeSymmetryGroup(
          assert( nconsvars <= nallvars );
 
          SCIP_CALL( collectCoefficients(scip, doubleequations, SCIPgetVarsKnapsack(scip, cons), consvals, nconsvars, -SCIPinfinity(scip),
-               (SCIP_Real) SCIPgetCapacityKnapsack(scip, cons), SCIPconsIsTransformed(cons), SYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
+               (SCIP_Real) SCIPgetCapacityKnapsack(scip, cons), SCIPconsIsTransformed(cons), SDPSYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
       }
       else if ( strcmp(conshdlrname, "varbound") == 0 )
       {
@@ -2288,7 +2295,7 @@ SCIP_RETCODE computeSymmetryGroup(
          consvals[1] = SCIPgetVbdcoefVarbound(scip, cons);
 
          SCIP_CALL( collectCoefficients(scip, doubleequations, consvars, consvals, 2, SCIPgetLhsVarbound(scip, cons),
-               SCIPgetRhsVarbound(scip, cons), SCIPconsIsTransformed(cons), SYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
+               SCIPgetRhsVarbound(scip, cons), SCIPconsIsTransformed(cons), SDPSYM_SENSE_INEQUALITY, &matrixdata, nconssforvar) );
       }
       else if ( strcmp(conshdlrname, "bounddisjunction") == 0 )
       {
@@ -2384,7 +2391,7 @@ SCIP_RETCODE computeSymmetryGroup(
          {
             /* add information for bounddisjunction of type 1 */
             SCIP_CALL( collectCoefficients(scip, doubleequations, consvars, consvals, nbounddisjvars, 0.0, 0.0,
-                  SCIPconsIsTransformed(cons), SYM_SENSE_BOUNDIS_TYPE_1, &matrixdata, nconssforvar) );
+                  SCIPconsIsTransformed(cons), SDPSYM_SENSE_BOUNDIS_TYPE_1, &matrixdata, nconssforvar) );
          }
          else
          {
@@ -2398,7 +2405,7 @@ SCIP_RETCODE computeSymmetryGroup(
             consvals[0] = 1.0;
 
             SCIP_CALL( collectCoefficients(scip, doubleequations, consvars, consvals, 1, lhs, rhs,
-                  SCIPconsIsTransformed(cons), SYM_SENSE_BOUNDIS_TYPE_2, &matrixdata, nconssforvar) );
+                  SCIPconsIsTransformed(cons), SDPSYM_SENSE_BOUNDIS_TYPE_2, &matrixdata, nconssforvar) );
          }
       }
       else if ( strcmp(conshdlrname, "nonlinear") == 0 )
@@ -2445,6 +2452,11 @@ SCIP_RETCODE computeSymmetryGroup(
             }
          }
       }
+      else if ( strcmp(conshdlrname, "SDP") == 0 )
+      {
+         /* SDP constraints are stored differently */
+         continue;
+      }
       else
       {
          /* if constraint is not one of the previous types, it cannot be handled */
@@ -2482,16 +2494,16 @@ SCIP_RETCODE computeSymmetryGroup(
    }
 
    /* sort matrix coefficients (leave matrix array intact) */
-   SCIPsort(matrixdata.matidx, SYMsortMatCoef, (void*) matrixdata.matcoef, matrixdata.nmatcoef);
+   SCIPsort(matrixdata.matidx, SDPSYMsortMatCoef, (void*) matrixdata.matcoef, matrixdata.nmatcoef);
 
    /* sort rhs types (first by sense, then by value, leave rhscoef intact) */
    sortrhstype.vals = matrixdata.rhscoef;
    sortrhstype.senses = matrixdata.rhssense;
    sortrhstype.nrhscoef = matrixdata.nrhscoef;
-   SCIPsort(matrixdata.rhsidx, SYMsortRhsTypes, (void*) &sortrhstype, matrixdata.nrhscoef);
+   SCIPsort(matrixdata.rhsidx, SDPSYMsortRhsTypes, (void*) &sortrhstype, matrixdata.nrhscoef);
 
    /* create map for variables to indices */
-   SCIP_CALL( SCIPhashtableCreate(&vartypemap, SCIPblkmem(scip), 5 * nvars, SYMhashGetKeyVartype, SYMhashKeyEQVartype, SYMhashKeyValVartype, (void*) scip) );
+   SCIP_CALL( SCIPhashtableCreate(&vartypemap, SCIPblkmem(scip), 5 * nvars, SDPSYMhashGetKeyVartype, SDPSYMhashKeyEQVartype, SDPSYMhashKeyValVartype, (void*) scip) );
    assert( vartypemap != NULL );
 
    /* allocate space for mappings to colors */
@@ -2520,7 +2532,7 @@ SCIP_RETCODE computeSymmetryGroup(
       }
       else
       {
-         SYM_VARTYPE* vt;
+         SDPSYM_VARTYPE* vt;
 
          vt = &uniquevararray[nuniquevararray];
          assert( nuniquevararray <= matrixdata.nuniquevars );
@@ -2552,9 +2564,9 @@ SCIP_RETCODE computeSymmetryGroup(
          }
          else
          {
-            SYM_VARTYPE* vtr;
+            SDPSYM_VARTYPE* vtr;
 
-            vtr = (SYM_VARTYPE*) SCIPhashtableRetrieve(vartypemap, (void*) vt);
+            vtr = (SDPSYM_VARTYPE*) SCIPhashtableRetrieve(vartypemap, (void*) vt);
             matrixdata.permvarcolors[j] = vtr->color;
          }
       }
@@ -2626,7 +2638,7 @@ SCIP_RETCODE computeSymmetryGroup(
    oldcoef = SCIP_INVALID;
    for (j = 0; j < matrixdata.nrhscoef; ++j)
    {
-      SYM_RHSSENSE sense;
+      SDPSYM_RHSSENSE sense;
       int idx;
 
       idx = matrixdata.rhsidx[j];
@@ -2663,11 +2675,14 @@ SCIP_RETCODE computeSymmetryGroup(
    SCIPdebugMsg(scip, "Number of detected different rhs types: %d (total: %d).\n", matrixdata.nuniquerhs, matrixdata.nrhscoef);
    SCIPdebugMsg(scip, "Number of detected different matrix coefficients: %d (total: %d).\n", matrixdata.nuniquemat, matrixdata.nmatcoef);
 
+   /* get SDP data */
+   SCIP_CALL( storeSDPSymmetryData(scip, &sdpdata) );
+
    /* do not compute symmetry if all variables are non-equivalent (unique) or if all matrix coefficients are different */
    if ( matrixdata.nuniquevars < nvars && (matrixdata.nuniquemat == 0 || matrixdata.nuniquemat < matrixdata.nmatcoef) )
    {
       /* determine generators */
-      SCIP_CALL( SYMcomputeSymmetryGenerators(scip, maxgenerators, &matrixdata, &exprdata, nperms, nmaxperms,
+      SCIP_CALL( SDPSYMcomputeSymmetryGenerators(scip, maxgenerators, &matrixdata, &exprdata, nperms, nmaxperms,
             perms, log10groupsize) );
       assert( *nperms <= *nmaxperms );
 
@@ -2694,6 +2709,9 @@ SCIP_RETCODE computeSymmetryGroup(
       SCIPfreeBlockMemoryArray(scip, &vars, nvars);
    }
    *success = TRUE;
+
+   /* free SDP data */
+   SCIP_CALL( freeSDPSymmetryData(scip, &sdpdata) );
 
    /* free matrix data */
    SCIPfreeBlockMemoryArray(scip, &uniquevararray, nvarsorig);
@@ -2733,8 +2751,8 @@ static
 SCIP_RETCODE determineSymmetry(
    SCIP*                 scip,               /**< SCIP instance */
    SCIP_PROPDATA*        propdata,           /**< propagator data */
-   SYM_SPEC              symspecrequire,     /**< symmetry specification for which we need to compute symmetries */
-   SYM_SPEC              symspecrequirefixed /**< symmetry specification of variables which must be fixed by symmetries */
+   SDPSYM_SPEC           symspecrequire,     /**< symmetry specification for which we need to compute symmetries */
+   SDPSYM_SPEC           symspecrequirefixed /**< symmetry specification of variables which must be fixed by symmetries */
    )
 { /*lint --e{641}*/
    SCIP_Bool successful;
@@ -2770,14 +2788,14 @@ SCIP_RETCODE determineSymmetry(
    }
 
    /* skip symmetry computation if no graph automorphism code was linked */
-   if ( ! SYMcanComputeSymmetry() )
+   if ( ! SDPSYMcanComputeSymmetry() )
    {
       propdata->ofenabled = FALSE;
       propdata->symconsenabled = FALSE;
       propdata->sstenabled = FALSE;
 
       nconss = SCIPgetNActiveConss(scip);
-      nhandleconss = getNSymhandableConss(scip, propdata->conshdlr_nonlinear);
+      nhandleconss = getNSymhandableConss(scip, propdata->conshdlr_nonlinear, propdata->conshdlr_sdp);
 
       /* print verbMessage only if problem consists of symmetry handable constraints */
       assert( nhandleconss <=  nconss );
@@ -2831,12 +2849,12 @@ SCIP_RETCODE determineSymmetry(
 
    /* determine symmetry specification */
    if ( SCIPgetNBinVars(scip) > 0 )
-      type |= (int) SYM_SPEC_BINARY;
+      type |= (int) SDPSYM_SPEC_BINARY;
    if ( SCIPgetNIntVars(scip) > 0 )
-      type |= (int) SYM_SPEC_INTEGER;
+      type |= (int) SDPSYM_SPEC_INTEGER;
    /* count implicit integer variables as real variables, since we cannot currently handle integral variables well */
    if ( SCIPgetNContVars(scip) > 0 || SCIPgetNImplVars(scip) > 0 )
-      type |= (int) SYM_SPEC_REAL;
+      type |= (int) SDPSYM_SPEC_REAL;
 
    /* skip symmetry computation if required variables are not present */
    if ( ! (type & symspecrequire) )
@@ -2847,9 +2865,9 @@ SCIP_RETCODE determineSymmetry(
          SCIPgetNBinVars(scip) > 0 ? '+' : '-',
          SCIPgetNIntVars(scip) > 0  ? '+' : '-',
          SCIPgetNContVars(scip) + SCIPgetNImplVars(scip) > 0 ? '+' : '-',
-         (symspecrequire & (int) SYM_SPEC_BINARY) != 0 ? '+' : '-',
-         (symspecrequire & (int) SYM_SPEC_INTEGER) != 0 ? '+' : '-',
-         (symspecrequire & (int) SYM_SPEC_REAL) != 0 ? '+' : '-');
+         (symspecrequire & (int) SDPSYM_SPEC_BINARY) != 0 ? '+' : '-',
+         (symspecrequire & (int) SDPSYM_SPEC_INTEGER) != 0 ? '+' : '-',
+         (symspecrequire & (int) SDPSYM_SPEC_REAL) != 0 ? '+' : '-');
 
       propdata->ofenabled = FALSE;
       propdata->symconsenabled = FALSE;
@@ -2875,7 +2893,7 @@ SCIP_RETCODE determineSymmetry(
 
    /* skip symmetry computation if there are constraints that cannot be handled by symmetry */
    nconss = SCIPgetNActiveConss(scip);
-   nhandleconss = getNSymhandableConss(scip, propdata->conshdlr_nonlinear);
+   nhandleconss = getNSymhandableConss(scip, propdata->conshdlr_nonlinear, propdata->conshdlr_sdp);
    if ( nhandleconss < nconss )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
@@ -2902,12 +2920,12 @@ SCIP_RETCODE determineSymmetry(
    SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
       "   (%.1fs) symmetry computation started: requiring (bin %c, int %c, cont %c), (fixed: bin %c, int %c, cont %c)\n",
       SCIPgetSolvingTime(scip),
-      (symspecrequire & (int) SYM_SPEC_BINARY) != 0 ? '+' : '-',
-      (symspecrequire & (int) SYM_SPEC_INTEGER) != 0 ? '+' : '-',
-      (symspecrequire & (int) SYM_SPEC_REAL) != 0 ? '+' : '-',
-      (symspecrequirefixed & (int) SYM_SPEC_BINARY) != 0 ? '+' : '-',
-      (symspecrequirefixed & (int) SYM_SPEC_INTEGER) != 0 ? '+' : '-',
-      (symspecrequirefixed & (int) SYM_SPEC_REAL) != 0 ? '+' : '-');
+      (symspecrequire & (int) SDPSYM_SPEC_BINARY) != 0 ? '+' : '-',
+      (symspecrequire & (int) SDPSYM_SPEC_INTEGER) != 0 ? '+' : '-',
+      (symspecrequire & (int) SDPSYM_SPEC_REAL) != 0 ? '+' : '-',
+      (symspecrequirefixed & (int) SDPSYM_SPEC_BINARY) != 0 ? '+' : '-',
+      (symspecrequirefixed & (int) SDPSYM_SPEC_INTEGER) != 0 ? '+' : '-',
+      (symspecrequirefixed & (int) SDPSYM_SPEC_REAL) != 0 ? '+' : '-');
 
    /* output warning if we want to fix certain symmetry parts that we also want to compute */
    if ( symspecrequire & symspecrequirefixed )
@@ -2918,9 +2936,10 @@ SCIP_RETCODE determineSymmetry(
    maxgenerators = MIN(maxgenerators, MAXGENNUMERATOR / nvars);
 
    /* actually compute (global) symmetry */
-   SCIP_CALL( computeSymmetryGroup(scip, propdata->doubleequations, propdata->compresssymmetries, propdata->compressthreshold,
-	 maxgenerators, symspecrequirefixed, FALSE, propdata->checksymmetries, propdata->usecolumnsparsity, propdata->conshdlr_nonlinear,
-         &propdata->npermvars, &propdata->nbinpermvars, &propdata->permvars, &propdata->nperms, &propdata->nmaxperms,
+   SCIP_CALL( computeSymmetryGroup(scip, propdata->doubleequations, propdata->compresssymmetries,
+         propdata->compressthreshold, maxgenerators, symspecrequirefixed, FALSE, propdata->checksymmetries,
+         propdata->usecolumnsparsity, propdata->conshdlr_nonlinear, propdata->conshdlr_sdp, &propdata->npermvars,
+         &propdata->nbinpermvars, &propdata->permvars, &propdata->nperms, &propdata->nmaxperms,
          &propdata->perms, &propdata->log10groupsize, &propdata->nmovedvars, &propdata->isnonlinvar,
          &propdata->binvaraffected, &propdata->compressed, &successful) );
 
@@ -3524,7 +3543,7 @@ SCIP_RETCODE buildSubgroupGraph(
    int* components;
    int* componentbegins;
    int* componentslastperm;
-   SYM_SORTGRAPHCOMPVARS graphcompvartype;
+   SDPSYM_SORTGRAPHCOMPVARS graphcompvartype;
    int npermvars;
    int nextcolor;
    int nextcomp;
@@ -3714,7 +3733,7 @@ SCIP_RETCODE buildSubgroupGraph(
    }
 
    /* sort graphcomponents first by color, then by component */
-   SCIPsort(*graphcomponents, SYMsortGraphCompVars, (void*) &graphcompvartype, npermvars);
+   SCIPsort(*graphcomponents, SDPSYMsortGraphCompVars, (void*) &graphcompvartype, npermvars);
 
    *ngraphcomponents = SCIPdisjointsetGetComponentCount(vartocomponent);
    *ncompcolors = SCIPdisjointsetGetComponentCount(comptocolor);
@@ -6508,11 +6527,11 @@ SCIP_RETCODE tryAddSymmetryHandlingConss(
       */
       if ( hasNonlinearConstraints(propdata) || propdata->symfixnonbinaryvars )
       {
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY, SYM_SPEC_INTEGER | SYM_SPEC_REAL) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY, SDPSYM_SPEC_INTEGER | SDPSYM_SPEC_REAL) );
       }
       else
       {
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY | SYM_SPEC_REAL, SYM_SPEC_INTEGER) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY | SDPSYM_SPEC_REAL, SDPSYM_SPEC_INTEGER) );
       }
 
       /* if there is no symmetry compatible with OF, check whether there are more general symmetries */
@@ -6523,12 +6542,12 @@ SCIP_RETCODE tryAddSymmetryHandlingConss(
          propdata->ofenabled = FALSE;
          propdata->sstenabled = FALSE;
 
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY | SYM_SPEC_INTEGER | SYM_SPEC_REAL, 0) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY | SDPSYM_SPEC_INTEGER | SDPSYM_SPEC_REAL, 0) );
       }
    }
    else
    {
-      SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY | SYM_SPEC_INTEGER | SYM_SPEC_REAL, 0) );
+      SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY | SDPSYM_SPEC_INTEGER | SDPSYM_SPEC_REAL, 0) );
    }
    assert( propdata->binvaraffected || ! propdata->ofenabled || ! propdata->symconsenabled );
 
@@ -6896,11 +6915,11 @@ SCIP_RETCODE propagateOrbitalFixing(
    /* possibly compute symmetry; fix non-binary potential branching variables */
    if ( hasNonlinearConstraints(propdata) || propdata->symfixnonbinaryvars )
    {
-      SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY, SYM_SPEC_INTEGER | SYM_SPEC_REAL) );
+      SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY, SDPSYM_SPEC_INTEGER | SDPSYM_SPEC_REAL) );
    }
    else
    {
-      SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY | SYM_SPEC_REAL, SYM_SPEC_INTEGER) );
+      SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY | SDPSYM_SPEC_REAL, SDPSYM_SPEC_INTEGER) );
    }
    assert( hasNonlinearConstraints(propdata) || propdata->binvaraffected || ! propdata->ofenabled );
 
@@ -7133,6 +7152,9 @@ SCIP_DECL_PROPINITPRE(propInitpreSymmetry)
    /* get nonlinear conshdlr for future checks on whether there are nonlinear constraints */
    propdata->conshdlr_nonlinear = SCIPfindConshdlr(scip, "nonlinear");
 
+   /* get SDP conshdlr for future checks on whether there are SDP constraints */
+   propdata->conshdlr_nonlinear = SCIPfindConshdlr(scip, "SDP");
+
    /* check whether we should run */
    if ( propdata->usesymmetry < 0 )
    {
@@ -7160,11 +7182,11 @@ SCIP_DECL_PROPINITPRE(propInitpreSymmetry)
       /* otherwise compute symmetry if timing requests it; fix non-binary potential branching variables */
       if ( hasNonlinearConstraints(propdata) || propdata->symfixnonbinaryvars )
       {
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY, SYM_SPEC_INTEGER | SYM_SPEC_REAL) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY, SDPSYM_SPEC_INTEGER | SDPSYM_SPEC_REAL) );
       }
       else
       {
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY | SYM_SPEC_REAL, SYM_SPEC_INTEGER) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY | SDPSYM_SPEC_REAL, SDPSYM_SPEC_INTEGER) );
       }
       assert( propdata->binvaraffected || ! propdata->ofenabled );
    }
@@ -7202,11 +7224,11 @@ SCIP_DECL_PROPEXITPRE(propExitpreSymmetry)
       /* fix non-binary potential branching variables */
       if ( hasNonlinearConstraints(propdata) || propdata->symfixnonbinaryvars )
       {
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY, SYM_SPEC_INTEGER | SYM_SPEC_REAL) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY, SDPSYM_SPEC_INTEGER | SDPSYM_SPEC_REAL) );
       }
       else
       {
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY | SYM_SPEC_REAL, SYM_SPEC_INTEGER) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY | SDPSYM_SPEC_REAL, SDPSYM_SPEC_INTEGER) );
       }
       assert( propdata->binvaraffected || ! propdata->ofenabled );
    }
@@ -7358,11 +7380,11 @@ SCIP_DECL_PROPPRESOL(propPresolSymmetry)
       /* otherwise compute symmetry early if timing requests it; fix non-binary potential branching variables */
       if ( hasNonlinearConstraints(propdata) || propdata->symfixnonbinaryvars )
       {
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY, SYM_SPEC_INTEGER | SYM_SPEC_REAL) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY, SDPSYM_SPEC_INTEGER | SDPSYM_SPEC_REAL) );
       }
       else
       {
-         SCIP_CALL( determineSymmetry(scip, propdata, SYM_SPEC_BINARY | SYM_SPEC_REAL, SYM_SPEC_INTEGER) );
+         SCIP_CALL( determineSymmetry(scip, propdata, SDPSYM_SPEC_BINARY | SDPSYM_SPEC_REAL, SDPSYM_SPEC_INTEGER) );
       }
       assert( propdata->binvaraffected || ! propdata->ofenabled );
    }
@@ -7530,7 +7552,7 @@ SCIP_DECL_PROPFREE(propFreeSymmetry)
  */
 
 /** include symmetry propagator */
-SCIP_RETCODE SCIPincludePropSymmetry(
+SCIP_RETCODE SCIPincludePropSdpSymmetry(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
@@ -7566,6 +7588,7 @@ SCIP_RETCODE SCIPincludePropSymmetry(
    propdata->binvaraffected = FALSE;
    propdata->computedsymmetry = FALSE;
    propdata->conshdlr_nonlinear = NULL;
+   propdata->conshdlr_sdp = NULL;
 
    propdata->usesymmetry = -1;
    propdata->symconsenabled = FALSE;
@@ -7777,9 +7800,9 @@ SCIP_RETCODE SCIPincludePropSymmetry(
          &propdata->preferlessrows, TRUE, DEFAULT_PREFERLESSROWS, NULL, NULL) );
 
    /* possibly add description */
-   if ( SYMcanComputeSymmetry() )
+   if ( SDPSYMcanComputeSymmetry() )
    {
-      SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SYMsymmetryGetName(), SYMsymmetryGetDesc()) );
+      SCIP_CALL( SCIPincludeExternalCodeInformation(scip, SDPSYMsymmetryGetName(), SDPSYMsymmetryGetDesc()) );
    }
 
    return SCIP_OKAY;
@@ -7787,7 +7810,7 @@ SCIP_RETCODE SCIPincludePropSymmetry(
 
 
 /** return currently available symmetry group information */
-SCIP_RETCODE SCIPgetSymmetry(
+SCIP_RETCODE SCIPgetSdpSymmetry(
    SCIP*                 scip,               /**< SCIP data structure */
    int*                  npermvars,          /**< pointer to store number of variables for permutations */
    SCIP_VAR***           permvars,           /**< pointer to store variables on which permutations act */
@@ -7867,7 +7890,7 @@ SCIP_RETCODE SCIPgetSymmetry(
 }
 
 /** return whether orbital fixing is enabled */
-SCIP_Bool SCIPisOrbitalfixingEnabled(
+SCIP_Bool SCIPSDPisOrbitalfixingEnabled(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
@@ -7887,7 +7910,7 @@ SCIP_Bool SCIPisOrbitalfixingEnabled(
 }
 
 /** return number of the symmetry group's generators */
-int SCIPgetSymmetryNGenerators(
+int SCIPgetSdpSymmetryNGenerators(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
