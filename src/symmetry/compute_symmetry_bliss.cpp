@@ -1081,13 +1081,13 @@ SCIP_Bool SDPSYMcanComputeSymmetry(void)
    return TRUE;
 }
 
-char*
-initStaticBlissName( );
+static
+char* initStaticBlissName( );
 
 static char* blissname = initStaticBlissName();
 
-char*
-initStaticBlissName( )
+static
+char* initStaticBlissName( )
 {
    blissname = new char[100];
 #ifdef BLISS_PATCH_PRESENT
