@@ -23,6 +23,7 @@
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
 #include "compute_sdpsymmetry.h"
+#include <scipsdp/sdpsymmetry.h>
 
 /* include bliss graph */
 #include <bliss/defs.hh>
@@ -946,6 +947,134 @@ SCIP_RETCODE fillGraphByNonlinearConss(
    return SCIP_OKAY;
 }
 
+/** Construct SDP part of colored graph for symmetry computations */
+static
+SCIP_RETCODE fillGraphBySDPConss(
+   SCIP*                 scip,               /**< SCIP instance */
+   bliss::Graph*         G,                  /**< Graph to be constructed */
+   SDPSYM_SDPDATA*       sdpdata,            /**< data for SDP constraints */
+   int&                  nnodes,             /**< buffer to store number of nodes in graph */
+   int&                  nedges,             /**< buffer to store number of edges in graph */
+   int&                  nusedcolors,        /**< number of used colors ind the graph so far */
+   SCIP_Bool&            success             /**< whether the construction was successful */
+   )
+{
+   int** valsbegins;
+   int** colors;
+   int** colors2;
+   int** constcolors;
+   int** constcolors2;
+   int* blocksizes;
+   int* nconstvals;
+   int* nvars;
+   int lastcolorused;
+   int colordimnodes;
+   int nsdpconss;
+   int c;
+   int i;
+   int v;
+
+   assert( scip != NULL );
+   assert( G != NULL );
+   assert( sdpdata != NULL );
+   assert( nnodes == (int) G->get_nof_vertices() );
+   assert( nnodes >= nusedcolors );
+
+   nsdpconss = sdpdata->nsdpconss;
+   blocksizes = sdpdata->blocksizes;
+   nvars = sdpdata->nvars;
+   valsbegins = sdpdata->valsbegins;
+   nconstvals = sdpdata->nconstvals;
+   colors = sdpdata->colors;
+   colors2 = sdpdata->colors2;
+   constcolors = sdpdata->constcolors;
+   constcolors2 = sdpdata->constcolors2;
+   lastcolorused = sdpdata->lastcolorused;
+   success = TRUE;
+
+   /* we don't need to extend the graph in case there are no SDP constraints */
+   if ( nsdpconss == 0 )
+      return SCIP_OKAY;
+
+#ifndef NDEBUG
+   /* check that colors have not been used already */
+   for (c = 0; c < nsdpconss; ++c)
+   {
+      for (i = valsbegins[c][0]; i < valsbegins[c][nvars[c]]; ++i)
+      {
+         assert( colors[c][i] > nusedcolors );
+         assert( colors2[c][i] > nusedcolors );
+      }
+      for (i = 0; i < nconstvals[c]; ++i)
+      {
+         assert( constcolors[c][i] > nusedcolors );
+         assert( constcolors2[c][i] > nusedcolors );
+      }
+   }
+   assert( lastcolorused != INT_MAX );
+#endif
+
+   colordimnodes = lastcolorused + 1;
+   for (c = 0; c < nsdpconss; ++c)
+   {
+      /* for each constraint, add nodes for the dimensions of the matrix */
+      unsigned firstblocknode = (int) G->add_vertex((unsigned) colordimnodes);
+      for (i = 1; i < blocksizes[c]; ++i)
+         (void) G->add_vertex((unsigned) colordimnodes);
+
+      /* for each variable matrix entry, add two nodes corresponding to
+       * row/column index and connect it with variable and dimension nodes */
+      for (v = 0; v < nvars[c]; ++v)
+      {
+         for (i = valsbegins[c][v]; i < valsbegins[c][v + 1]; ++i)
+         {
+            unsigned node =  G->add_vertex((unsigned) colors[c][i]);
+            unsigned node2 =  G->add_vertex((unsigned) colors2[c][i]);
+
+            G->add_edge(node, SCIPvarGetProbindex(sdpdata->vars[c][v]));
+            G->add_edge(node2, SCIPvarGetProbindex(sdpdata->vars[c][v]));
+            G->add_edge(node, firstblocknode + sdpdata->rows[c][i]);
+            G->add_edge(node2, firstblocknode + sdpdata->cols[c][i]);
+            G->add_edge(node, node2);
+         }
+         for (i = valsbegins[c][v]; i < valsbegins[c][v + 1]; ++i)
+         {
+            unsigned node = G->add_vertex((unsigned) colors[c][i]);
+            unsigned node2 = G->add_vertex((unsigned) colors2[c][i]);
+
+            G->add_edge(node, SCIPvarGetProbindex(sdpdata->vars[c][v]));
+            G->add_edge(node2, SCIPvarGetProbindex(sdpdata->vars[c][v]));
+            G->add_edge(node, firstblocknode + sdpdata->cols[c][i]);
+            G->add_edge(node2, firstblocknode + sdpdata->rows[c][i]);
+            G->add_edge(node, node2);
+         }
+      }
+
+      /* for each constant matrix entry, add two nodes corresponding to
+       * row/column index and connect it with dimension nodes */
+      for (i = 0; i < sdpdata->nconstvals[c]; ++i)
+      {
+         unsigned node =  G->add_vertex((unsigned) constcolors[c][i]);
+         unsigned node2 =  G->add_vertex((unsigned) constcolors2[c][i]);
+
+         G->add_edge(node, firstblocknode + sdpdata->constrows[c][i]);
+         G->add_edge(node2, firstblocknode + sdpdata->constcols[c][i]);
+         G->add_edge(node, node2);
+      }
+      for (i = 0; i < sdpdata->nconstvals[c]; ++i)
+      {
+         unsigned node = G->add_vertex((unsigned) constcolors[c][i]);
+         unsigned node2 =  G->add_vertex((unsigned) constcolors2[c][i]);
+
+         G->add_edge(node, firstblocknode + sdpdata->constcols[c][i]);
+         G->add_edge(node2, firstblocknode + sdpdata->constrows[c][i]);
+         G->add_edge(node, node2);
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
 /** return whether symmetry can be computed */
 SCIP_Bool SDPSYMcanComputeSymmetry(void)
 {
@@ -988,6 +1117,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    int                   maxgenerators,      /**< maximal number of generators constructed (= 0 if unlimited) */
    SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix */
    SDPSYM_EXPRDATA*      exprdata,           /**< data for nonlinear constraints */
+   SDPSYM_SDPDATA*       sdpdata,            /**< data for SDP constraints */
    int*                  nperms,             /**< pointer to store number of permutations */
    int*                  nmaxperms,          /**< pointer to store maximal number of permutations (needed for freeing storage) */
    int***                perms,              /**< pointer to store permutation generators as (nperms x npermvars) matrix */
@@ -997,6 +1127,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    assert( scip != NULL );
    assert( matrixdata != NULL );
    assert( exprdata != NULL );
+   assert( sdpdata != NULL );
    assert( nperms != NULL );
    assert( nmaxperms != NULL );
    assert( perms != NULL );
@@ -1040,6 +1171,10 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
       SCIPverbMessage(scip, SCIP_VERBLEVEL_MINIMAL, 0, "Graph construction failed during non-linear part.\n");
       return SCIP_OKAY;
    }
+
+   /* add the nodes/edges for SDP constraints to the graph */
+   SCIP_CALL( findColorsSDPSymmetryData(scip, sdpdata, nusedcolors + 1) );
+   SCIP_CALL( fillGraphBySDPConss(scip, &G, sdpdata, nnodes, nedges, nusedcolors, success) );
 
 #ifdef SCIP_OUTPUT
    G.write_dot("debug.dot");

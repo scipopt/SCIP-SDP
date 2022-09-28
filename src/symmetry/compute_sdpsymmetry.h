@@ -50,6 +50,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    int                   maxgenerators,      /**< maximal number of generators constructed (= 0 if unlimited) */
    SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix */
    SDPSYM_EXPRDATA*      exprdata,           /**< data for nonlinear constraints */
+   SDPSYM_SDPDATA*       sdpdata,            /**< data for SDP constraints */
    int*                  nperms,             /**< pointer to store number of permutations */
    int*                  nmaxperms,          /**< pointer to store maximal number of permutations (needed for freeing storage) */
    int***                perms,              /**< pointer to store permutation generators as (nperms x npermvars) matrix */
