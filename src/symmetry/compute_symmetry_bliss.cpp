@@ -262,9 +262,9 @@ SCIP_RETCODE createVariableNodes(
    SCIP*                 scip,               /**< SCIP instance */
    bliss::Graph*         G,                  /**< Graph to be constructed */
    SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix (also contains the relevant variables) */
-   int&                  nnodes,             /**< buffer to store number of nodes in graph */
-   const int&            nedges,             /**< buffer to store number of edges in graph */
-   int&                  nusedcolors         /**< buffer to store number of used colors */
+   int&                  nnodes,             /**< reference of number of nodes in graph */
+   const int&            nedges,             /**< reference of number of edges in graph */
+   int&                  nusedcolors         /**< reference of number of used colors */
    )
 {
    assert( scip != NULL );
@@ -314,9 +314,9 @@ SCIP_RETCODE fillGraphByLinearConss(
    SCIP*                 scip,               /**< SCIP instance */
    bliss::Graph*         G,                  /**< Graph to be constructed */
    SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix */
-   int&                  nnodes,             /**< buffer to store number of nodes in graph */
-   int&                  nedges,             /**< buffer to store number of edges in graph */
-   int&                  nusedcolors,        /**< buffer to store number of used colors */
+   int&                  nnodes,             /**< reference of number of nodes in graph */
+   int&                  nedges,             /**< reference of number of edges in graph */
+   int&                  nusedcolors,        /**< reference of number of used colors */
    SCIP_Bool&            success             /**< whether the construction was successful */
    )
 {
@@ -476,8 +476,8 @@ SCIP_RETCODE fillGraphByNonlinearConss(
    SCIP*                 scip,               /**< SCIP instance */
    bliss::Graph*         G,                  /**< Graph to be constructed */
    SDPSYM_EXPRDATA*      exprdata,           /**< data for nonlinear constraints */
-   int&                  nnodes,             /**< buffer to store number of nodes in graph */
-   int&                  nedges,             /**< buffer to store number of edges in graph */
+   int&                  nnodes,             /**< reference of number of nodes in graph */
+   int&                  nedges,             /**< reference of number of edges in graph */
    int&                  nusedcolors,        /**< number of used colors ind the graph so far */
    SCIP_Bool&            success             /**< whether the construction was successful */
    )
@@ -953,8 +953,8 @@ SCIP_RETCODE fillGraphBySDPConss(
    SCIP*                 scip,               /**< SCIP instance */
    bliss::Graph*         G,                  /**< Graph to be constructed */
    SDPSYM_SDPDATA*       sdpdata,            /**< data for SDP constraints */
-   int&                  nnodes,             /**< buffer to store number of nodes in graph */
-   int&                  nedges,             /**< buffer to store number of edges in graph */
+   int&                  nnodes,             /**< reference of number of nodes in graph */
+   int&                  nedges,             /**< reference of number of edges in graph */
    int&                  nusedcolors,        /**< number of used colors ind the graph so far */
    SCIP_Bool&            success             /**< whether the construction was successful */
    )
