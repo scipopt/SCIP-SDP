@@ -1015,12 +1015,14 @@ SCIP_RETCODE fillGraphBySDPConss(
 #endif
 
    colordimnodes = lastcolorused + 1;
+   nusedcolors = colordimnodes;
    for (c = 0; c < nsdpconss; ++c)
    {
       /* for each constraint, add nodes for the dimensions of the matrix */
       unsigned int firstblocknode = G->add_vertex((unsigned) colordimnodes);
       for (i = 1; i < blocksizes[c]; ++i)
          (void) G->add_vertex((unsigned) colordimnodes);
+      nnodes += blocksizes[c];
 
       /* for each variable matrix entry, add two nodes corresponding to
        * row/column index and connect it with variable and dimension nodes */
@@ -1030,23 +1032,27 @@ SCIP_RETCODE fillGraphBySDPConss(
          {
             unsigned int node = G->add_vertex((unsigned) colors[c][i]);
             unsigned int node2 = G->add_vertex((unsigned) colors2[c][i]);
+            nnodes += 2;
 
             G->add_edge(node, (unsigned) SCIPvarGetProbindex(sdpdata->vars[c][v]));
             G->add_edge(node2, (unsigned) SCIPvarGetProbindex(sdpdata->vars[c][v]));
             G->add_edge(node, firstblocknode + (unsigned) sdpdata->rows[c][i]);
             G->add_edge(node2, firstblocknode + (unsigned) sdpdata->cols[c][i]);
             G->add_edge(node, node2);
+            nedges += 5;
          }
          for (i = valsbegins[c][v]; i < valsbegins[c][v + 1]; ++i)
          {
             unsigned int node = G->add_vertex((unsigned) colors[c][i]);
             unsigned int node2 = G->add_vertex((unsigned) colors2[c][i]);
+            nnodes += 2;
 
             G->add_edge(node, (unsigned) SCIPvarGetProbindex(sdpdata->vars[c][v]));
             G->add_edge(node2, (unsigned) SCIPvarGetProbindex(sdpdata->vars[c][v]));
             G->add_edge(node, firstblocknode + (unsigned) sdpdata->cols[c][i]);
             G->add_edge(node2, firstblocknode + (unsigned) sdpdata->rows[c][i]);
             G->add_edge(node, node2);
+            nedges += 5;
          }
       }
 
@@ -1056,21 +1062,27 @@ SCIP_RETCODE fillGraphBySDPConss(
       {
          unsigned int node = G->add_vertex((unsigned) constcolors[c][i]);
          unsigned int node2 = G->add_vertex((unsigned) constcolors2[c][i]);
+         nnodes += 2;
 
          G->add_edge(node, firstblocknode + (unsigned) sdpdata->constrows[c][i]);
          G->add_edge(node2, firstblocknode + (unsigned) sdpdata->constcols[c][i]);
          G->add_edge(node, node2);
+         nedges += 3;
       }
       for (i = 0; i < sdpdata->nconstvals[c]; ++i)
       {
          unsigned int node = G->add_vertex((unsigned) constcolors[c][i]);
          unsigned int node2 = G->add_vertex((unsigned) constcolors2[c][i]);
+         nnodes += 2;
 
          G->add_edge(node, firstblocknode + (unsigned) sdpdata->constcols[c][i]);
          G->add_edge(node2, firstblocknode + (unsigned) sdpdata->constrows[c][i]);
          G->add_edge(node, node2);
+         nedges += 3;
       }
    }
+
+   assert( nnodes == (int) G->get_nof_vertices() );
 
    return SCIP_OKAY;
 }
