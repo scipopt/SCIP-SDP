@@ -1058,7 +1058,7 @@ SCIP_RETCODE fillGraphBySDPConss(
 
       /* for each constant matrix entry, add two nodes corresponding to
        * row/column index and connect it with dimension nodes */
-      for (i = 0; i < sdpdata->nconstvals[c]; ++i)
+      for (i = 0; i < nconstvals[c]; ++i)
       {
          unsigned int node = G->add_vertex((unsigned) constcolors[c][i]);
          unsigned int node2 = G->add_vertex((unsigned) constcolors2[c][i]);
@@ -1069,7 +1069,7 @@ SCIP_RETCODE fillGraphBySDPConss(
          G->add_edge(node, node2);
          nedges += 3;
       }
-      for (i = 0; i < sdpdata->nconstvals[c]; ++i)
+      for (i = 0; i < nconstvals[c]; ++i)
       {
          unsigned int node = G->add_vertex((unsigned) constcolors[c][i]);
          unsigned int node2 = G->add_vertex((unsigned) constcolors2[c][i]);

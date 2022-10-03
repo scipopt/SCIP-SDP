@@ -433,7 +433,9 @@ SCIP_RETCODE findColorsSDPSymmetryData(
    int nconss;
    int curcolor;
    int c;
+#ifdef SCIP_DEBUG
    int i;
+#endif
 
    assert( scip != NULL );
    assert( sdpdata != NULL );
