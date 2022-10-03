@@ -174,6 +174,7 @@
 #define DEFAULT_COMPRESSTHRESHOLD     0.5    /**< Compression is used if percentage of moved vars is at most the threshold. */
 #define DEFAULT_SYMFIXNONBINARYVARS FALSE    /**< Whether all non-binary variables shall be not affected by symmetries if OF is active? */
 #define DEFAULT_ONLYBINARYSYMMETRY   TRUE    /**< Is only symmetry on binary variables used? */
+#define DEFAULT_USESYMMETRY             7    /**< encodes which symmetry handling methods are active (mimics misc/usesymmetry) */
 
 /* default parameters for linear symmetry constraints */
 #define DEFAULT_CONSSADDLP           TRUE    /**< Should the symmetry breaking constraints be added to the LP? */
@@ -7158,7 +7159,7 @@ SCIP_DECL_PROPINITPRE(propInitpreSymmetry)
    /* check whether we should run */
    if ( propdata->usesymmetry < 0 )
    {
-      SCIP_CALL( SCIPgetIntParam(scip, "misc/usesymmetry", &propdata->usesymmetry) );
+      SCIP_CALL( SCIPgetIntParam(scip, "propagating/" PROP_NAME "/usesymmetry", &propdata->usesymmetry) );
       SCIP_CALL( setSymmetryMethodEnabledValues(propdata) );
    }
    else if ( SCIPgetNRuns(scip) > propdata->lastrestart && isSymmetryRecomputationRequired(scip, propdata) )
@@ -7426,7 +7427,7 @@ SCIP_DECL_PROPEXEC(propExecSymmetry)
    /* if usesymmetry has not been read so far */
    if ( propdata->usesymmetry < 0 )
    {
-      SCIP_CALL( SCIPgetIntParam(scip, "misc/usesymmetry", &propdata->usesymmetry) );
+      SCIP_CALL( SCIPgetIntParam(scip, "propagating/" PROP_NAME "/usesymmetry", &propdata->usesymmetry) );
       SCIP_CALL( setSymmetryMethodEnabledValues(propdata) );
    }
    else if ( SCIPgetNRuns(scip) > propdata->lastrestart && isSymmetryRecomputationRequired(scip, propdata) )
@@ -7798,6 +7799,11 @@ SCIP_RETCODE SCIPincludePropSdpSymmetry(
          "propagating/" PROP_NAME "/preferlessrows",
          "Shall orbitopes with less rows be preferred in detection?",
          &propdata->preferlessrows, TRUE, DEFAULT_PREFERLESSROWS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddIntParam(scip,
+         "propagating/" PROP_NAME "/usesymmetry",
+         "encodes which symmetry handling methods are active (mimics misc/usesymmetry)",
+         NULL, TRUE, DEFAULT_USESYMMETRY, 0, 7, NULL, NULL) );
 
    /* possibly add description */
    if ( SDPSYMcanComputeSymmetry() )
