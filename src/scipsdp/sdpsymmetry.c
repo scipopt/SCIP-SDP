@@ -485,7 +485,7 @@ SCIP_RETCODE findColorsSDPSymmetryData(
    SCIPfreeBlockMemoryArrayNull(scip, &blockvals, maxnblockvals);
    SCIPfreeBufferArray(scip, &consperm);
 
-#if SCIP_DEBUG
+#ifdef SCIP_DEBUG
    printf("Data visualization\n");
    for (c = 0; c < nconss; ++c)
    {
