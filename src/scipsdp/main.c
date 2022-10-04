@@ -55,7 +55,6 @@ SCIP_RETCODE runSCIP(
 
    /* change certain paramters: */
    SCIP_CALL( SCIPsetIntParam(scip, "display/verblevel", 5) );
-   SCIP_CALL( SCIPsetIntParam(scip, "misc/usesymmetry", 0) );
 
    /* we explicitly enable the use of a debug solution for this main SCIP instance */
    SCIPenableDebugSol(scip);

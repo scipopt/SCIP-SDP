@@ -189,6 +189,10 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    param = SCIPgetParam(scip, "conflict/enable");
    paramSetDefaultBool(param, FALSE);
 
+   /* turn off symmetry handling of default SCIP because it is superseeded by the local one */
+   param = SCIPgetParam(scip, "misc/usesymmetry");
+   paramSetDefaultBool(param, FALSE);
+
    /* now set parameters to their default value */
    SCIP_CALL( SCIPresetParams(scip) );
 
