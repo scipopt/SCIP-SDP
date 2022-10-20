@@ -266,16 +266,18 @@ SCIP_RETCODE createVariableNodes(
    int&                  nnodes,             /**< reference of number of nodes in graph */
    const int&            nedges,             /**< reference of number of edges in graph */
    int&                  nusedcolors,        /**< reference of number of used colors */
-   SCIP_Bool             fixsdpvars          /**< whether variables in SDP conss shall be fixed */
+   SCIP_HASHSET*         fixedvars,          /**< hash set storing variable that need to be fixed */
+   int                   nfixedvars          /**< number of fixed variables */
    )
 {
-   int nsdpvars = 0;
+   int ntmpfixedvars = 0;
 
    assert( scip != NULL );
    assert( G != NULL );
    assert( nnodes == 0 );
    assert( nedges == 0 );
    assert( nusedcolors == 0 );
+   assert( fixedvars != NULL || nfixedvars == 0 );
    SCIPdebugMsg(scip, "Creating graph with colored nodes for variables.\n");
 
    /* add nodes for variables */
@@ -285,25 +287,10 @@ SCIP_RETCODE createVariableNodes(
       assert( 0 <= color && color < matrixdata->nuniquevars );
 
       /* check whether variable needs to be fixed */
-      if ( fixsdpvars && sdpdata != NULL )
+      if ( ntmpfixedvars < nfixedvars && SCIPhashsetExists(fixedvars, matrixdata->permvars[v]) )
       {
-         int c;
-         int j;
-         SCIP_Bool found = FALSE;
-
-         for (c = 0; c < sdpdata->nsdpconss && ! found; ++c)
-         {
-            for (j = 0; j < sdpdata->nvars[c]; ++j)
-            {
-               if ( sdpdata->vars[c][j] == matrixdata->permvars[v] )
-               {
-                  found = TRUE;
-                  nsdpvars += 1;
-                  color = matrixdata->nuniquevars + nsdpvars;
-                  break;
-               }
-            }
-         }
+         ntmpfixedvars += 1;
+         color = matrixdata->nuniquevars + ntmpfixedvars;
       }
 
 #ifndef NDEBUG
@@ -318,7 +305,7 @@ SCIP_RETCODE createVariableNodes(
 
    /* this is not exactly true, since we skip auxvars or artificially increase the color index to
     * fix SDP variables, but it doesn't matter if some colors are not used at all */
-   nusedcolors = matrixdata->nuniquevars + nsdpvars;
+   nusedcolors = matrixdata->nuniquevars + ntmpfixedvars;
 
    return SCIP_OKAY;
 }
@@ -983,6 +970,8 @@ SCIP_RETCODE fillGraphBySDPConss(
    int&                  nnodes,             /**< reference of number of nodes in graph */
    int&                  nedges,             /**< reference of number of edges in graph */
    int&                  nusedcolors,        /**< number of used colors ind the graph so far */
+   SCIP_HASHSET*         fixedvars,          /**< hash set storing variable that need to be fixed */
+   int                   nfixedvars,         /**< number of fixed variables */
    SCIP_Bool&            success             /**< whether the construction was successful */
    )
 {
@@ -1045,6 +1034,8 @@ SCIP_RETCODE fillGraphBySDPConss(
    nusedcolors = colordimnodes;
    for (c = 0; c < nsdpconss; ++c)
    {
+      int naddedvarblocks = 0;
+
       /* for each constraint, add nodes for the dimensions of the matrix */
       unsigned int firstblocknode = G->add_vertex((unsigned) colordimnodes);
       for (i = 1; i < blocksizes[c]; ++i)
@@ -1055,6 +1046,11 @@ SCIP_RETCODE fillGraphBySDPConss(
        * row/column index and connect it with variable and dimension nodes */
       for (v = 0; v < nvars[c]; ++v)
       {
+         /* skip blocks whose variables are fixed*/
+         if ( SCIPhashsetExists(fixedvars, sdpdata->vars[c][v]) )
+            continue;
+         ++naddedvarblocks;
+
          for (i = valsbegins[c][v]; i < valsbegins[c][v + 1]; ++i)
          {
             unsigned int node = G->add_vertex((unsigned) colors[c][i]);
@@ -1082,6 +1078,10 @@ SCIP_RETCODE fillGraphBySDPConss(
             nedges += 5;
          }
       }
+
+      /* ignore the constant part if no variable block has been added */
+      if ( naddedvarblocks == 0 )
+         continue;
 
       /* for each constant matrix entry, add two nodes corresponding to
        * row/column index and connect it with dimension nodes */
@@ -1161,7 +1161,8 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    int*                  nmaxperms,          /**< pointer to store maximal number of permutations (needed for freeing storage) */
    int***                perms,              /**< pointer to store permutation generators as (nperms x npermvars) matrix */
    SCIP_Real*            log10groupsize,     /**< pointer to store size of group */
-   SCIP_Bool             fixsdpvars          /**< whether variables in SDP constraints shall be fixed */
+   SCIP_HASHSET*         fixedvars,          /**< hash set storing variable that need to be fixed */
+   int                   nfixedvars          /**< number of fixed variables */
    )
 {
    assert( scip != NULL );
@@ -1173,6 +1174,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    assert( perms != NULL );
    assert( log10groupsize != NULL );
    assert( maxgenerators >= 0 );
+   assert( fixedvars != NULL || nfixedvars = 0 );
 
    /* init */
    *nperms = 0;
@@ -1189,7 +1191,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    bliss::Graph G(0);
 
    /* create nodes corresponding to variables */
-   SCIP_CALL( createVariableNodes(scip, &G, matrixdata, sdpdata, nnodes, nedges, nusedcolors, fixsdpvars) );
+   SCIP_CALL( createVariableNodes(scip, &G, matrixdata, sdpdata, nnodes, nedges, nusedcolors, fixedvars, nfixedvars) );
 
    assert( nnodes == matrixdata->npermvars );
    assert( nusedcolors == matrixdata->nuniquevars );
@@ -1213,11 +1215,8 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    }
 
    /* add the nodes/edges for SDP constraints to the graph if SDP variable are not fixed */
-   if ( ! fixsdpvars )
-   {
-      SCIP_CALL( findColorsSDPSymmetryData(scip, sdpdata, nusedcolors + 1) );
-      SCIP_CALL( fillGraphBySDPConss(scip, &G, sdpdata, nnodes, nedges, nusedcolors, success) );
-   }
+   SCIP_CALL( findColorsSDPSymmetryData(scip, sdpdata, nusedcolors + 1) );
+   SCIP_CALL( fillGraphBySDPConss(scip, &G, sdpdata, nnodes, nedges, nusedcolors, fixedvars, nfixedvars, success) );
 
 #ifdef SCIP_OUTPUT
    G.write_dot("debug.dot");

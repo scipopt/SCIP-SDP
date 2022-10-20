@@ -2043,7 +2043,8 @@ SCIP_RETCODE computeSymmetryGroup(
    SCIP_Real oldcoef = SCIP_INVALID;
    SCIP_Real val;
    SCIP_Bool computesymmetries;
-   SCIP_Bool computesdpsymmetries;
+   SCIP_HASHSET* fixedvars = NULL;
+   int nfixedsdpvars = 0;
    int* nconssforvar = NULL;
    int nuniquevararray = 0;
    int nhandleconss;
@@ -2765,33 +2766,60 @@ SCIP_RETCODE computeSymmetryGroup(
    computesymmetries = computesymmetries && (matrixdata.nuniquemat == 0 || matrixdata.nuniquemat < matrixdata.nmatcoef);
 
    /* check whether all SDP blocks are different based on minimum/maximum values */
-   computesdpsymmetries = FALSE;
-   if ( computesymmetries && sdpdata.nsdpvarblocks > 1 )
+   if ( sdpdata.nsdpconss > 0 )
    {
       int* blockperm;
+      int nequivalentblocks;
+
+      SCIP_CALL( SCIPhashsetCreate(&fixedvars, SCIPblkmem(scip), nvars) );
 
       SCIP_CALL( SCIPallocBufferArray(scip, &blockperm, sdpdata.maxsdpvarblocks) );
 
       SCIPsort(blockperm, SDPSYMsortSDPcons, (void*) &sdpdata, sdpdata.nsdpvarblocks);
 
+      /* check whether a variable needs to be fixed since their block is unique */
+      nequivalentblocks = 1;
       for (j = 1; j < sdpdata.nsdpvarblocks; ++j)
       {
-         /* there are two potentially symmetric blocks */
          if ( areSDPblocksEqual(&sdpdata, blockperm[j], blockperm[j - 1]) )
+            ++nequivalentblocks;
+         else
          {
-            computesdpsymmetries = TRUE;
-            break;
+            /* a variable has a unique block */
+            if ( nequivalentblocks == 1 )
+            {
+               int cnt;
+               int varpos;
+
+               /* find variable corresponding to block j-1 */
+               c = 0;
+               cnt = 0;
+               while ( j - 1 >= cnt + sdpdata.nvars[c] )
+                  cnt += sdpdata.nvars[c++];
+
+               varpos = j - 1 - cnt;
+
+               /* if variable is not yet listed as fixed, store it */
+               if ( ! SCIPhashsetExists(fixedvars, sdpdata.vars[c][varpos]) )
+               {
+                  SCIPhashsetInsert(fixedvars, SCIPblkmem(scip), sdpdata.vars[c][varpos]);
+                  ++nfixedsdpvars;
+               }
+            }
+
+            nequivalentblocks = 1;
          }
       }
 
       SCIPfreeBufferArray(scip, &blockperm);
    }
+   computesymmetries = computesymmetries && nfixedsdpvars < nvars;
 
    if ( computesymmetries )
    {
       /* determine generators */
       SCIP_CALL( SDPSYMcomputeSymmetryGenerators(scip, maxgenerators, &matrixdata, &exprdata, &sdpdata,
-            nperms, nmaxperms, perms, log10groupsize, ! computesdpsymmetries) );
+            nperms, nmaxperms, perms, log10groupsize, fixedvars, nfixedsdpvars) );
       assert( *nperms <= *nmaxperms );
 
       /* SCIPisStopped() might call SCIPgetGap() which is only available after initpresolve */
@@ -2817,6 +2845,11 @@ SCIP_RETCODE computeSymmetryGroup(
       SCIPfreeBlockMemoryArray(scip, &vars, nvars);
    }
    *success = TRUE;
+
+   if ( sdpdata.nsdpconss > 0 )
+   {
+      SCIPhashsetFree(&fixedvars, SCIPblkmem(scip));
+   }
 
    /* free SDP data */
    SCIP_CALL( freeSDPSymmetryData(scip, &sdpdata) );

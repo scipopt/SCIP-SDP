@@ -55,7 +55,8 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    int*                  nmaxperms,          /**< pointer to store maximal number of permutations (needed for freeing storage) */
    int***                perms,              /**< pointer to store permutation generators as (nperms x npermvars) matrix */
    SCIP_Real*            log10groupsize,     /**< pointer to store log10 of size of group */
-   SCIP_Bool             fixsdpvars          /**< whether variables in SDP constraints shall be fixed */
+   SCIP_HASHSET*         fixedvars,          /**< hash set storing variable that need to be fixed */
+   int                   nfixedvars          /**< number of fixed variables */
    );
 
 #ifdef __cplusplus
