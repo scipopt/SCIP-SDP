@@ -262,11 +262,15 @@ SCIP_RETCODE createVariableNodes(
    SCIP*                 scip,               /**< SCIP instance */
    bliss::Graph*         G,                  /**< Graph to be constructed */
    SDPSYM_MATRIXDATA*    matrixdata,         /**< data for MIP matrix (also contains the relevant variables) */
+   SDPSYM_SDPDATA*       sdpdata,            /**< data of SDP constraints */
    int&                  nnodes,             /**< reference of number of nodes in graph */
    const int&            nedges,             /**< reference of number of edges in graph */
-   int&                  nusedcolors         /**< reference of number of used colors */
+   int&                  nusedcolors,        /**< reference of number of used colors */
+   SCIP_Bool             fixsdpvars          /**< whether variables in SDP conss shall be fixed */
    )
 {
+   int nsdpvars = 0;
+
    assert( scip != NULL );
    assert( G != NULL );
    assert( nnodes == 0 );
@@ -277,8 +281,30 @@ SCIP_RETCODE createVariableNodes(
    /* add nodes for variables */
    for (int v = 0; v < matrixdata->npermvars; ++v)
    {
-      const int color = matrixdata->permvarcolors[v];
+      int color = matrixdata->permvarcolors[v];
       assert( 0 <= color && color < matrixdata->nuniquevars );
+
+      /* check whether variable needs to be fixed */
+      if ( fixsdpvars && sdpdata != NULL )
+      {
+         int c;
+         int j;
+         SCIP_Bool found = FALSE;
+
+         for (c = 0; c < sdpdata->nsdpconss && ! found; ++c)
+         {
+            for (j = 0; j < sdpdata->nvars[c]; ++j)
+            {
+               if ( sdpdata->vars[c][j] == matrixdata->permvars[v] )
+               {
+                  found = TRUE;
+                  nsdpvars += 1;
+                  color = matrixdata->nuniquevars + nsdpvars;
+                  break;
+               }
+            }
+         }
+      }
 
 #ifndef NDEBUG
       int node = (int) G->add_vertex((unsigned) color);
@@ -290,8 +316,9 @@ SCIP_RETCODE createVariableNodes(
       ++nnodes;
    }
 
-   /* this is not exactly true, since we skip auxvars, but it doesn't matter if some colors are not used at all */
-   nusedcolors = matrixdata->nuniquevars;
+   /* this is not exactly true, since we skip auxvars or artificially increase the color index to
+    * fix SDP variables, but it doesn't matter if some colors are not used at all */
+   nusedcolors = matrixdata->nuniquevars + nsdpvars;
 
    return SCIP_OKAY;
 }
@@ -1133,7 +1160,8 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    int*                  nperms,             /**< pointer to store number of permutations */
    int*                  nmaxperms,          /**< pointer to store maximal number of permutations (needed for freeing storage) */
    int***                perms,              /**< pointer to store permutation generators as (nperms x npermvars) matrix */
-   SCIP_Real*            log10groupsize      /**< pointer to store size of group */
+   SCIP_Real*            log10groupsize,     /**< pointer to store size of group */
+   SCIP_Bool             fixsdpvars          /**< whether variables in SDP constraints shall be fixed */
    )
 {
    assert( scip != NULL );
@@ -1161,7 +1189,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    bliss::Graph G(0);
 
    /* create nodes corresponding to variables */
-   SCIP_CALL( createVariableNodes(scip, &G, matrixdata, nnodes, nedges, nusedcolors) );
+   SCIP_CALL( createVariableNodes(scip, &G, matrixdata, sdpdata, nnodes, nedges, nusedcolors, fixsdpvars) );
 
    assert( nnodes == matrixdata->npermvars );
    assert( nusedcolors == matrixdata->nuniquevars );
@@ -1184,9 +1212,12 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
       return SCIP_OKAY;
    }
 
-   /* add the nodes/edges for SDP constraints to the graph */
-   SCIP_CALL( findColorsSDPSymmetryData(scip, sdpdata, nusedcolors + 1) );
-   SCIP_CALL( fillGraphBySDPConss(scip, &G, sdpdata, nnodes, nedges, nusedcolors, success) );
+   /* add the nodes/edges for SDP constraints to the graph if SDP variable are not fixed */
+   if ( ! fixsdpvars )
+   {
+      SCIP_CALL( findColorsSDPSymmetryData(scip, sdpdata, nusedcolors + 1) );
+      SCIP_CALL( fillGraphBySDPConss(scip, &G, sdpdata, nnodes, nedges, nusedcolors, success) );
+   }
 
 #ifdef SCIP_OUTPUT
    G.write_dot("debug.dot");

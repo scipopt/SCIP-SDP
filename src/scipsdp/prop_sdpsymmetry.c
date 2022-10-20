@@ -567,6 +567,65 @@ SCIP_DECL_TABLEFREE(tableFreeOrbitalfixing)
  * local data structures
  */
 
+/** compares SDP variable blocks
+ *
+ *  Blocks are compared first by their minimum value and then by
+ *  their maximum value.
+ *
+ *  result:
+ *    < 0: ind1 comes before (is better than) ind2
+ *    = 0: both indices have the same value
+ *    > 0: ind2 comes after (is worse than) ind2
+ */
+static
+int compareSDPblocks(
+   SDPSYM_SDPDATA*       data,               /**< pointer to SDP data */
+   int                   ind1,               /**< index of first block */
+   int                   ind2                /**< index of second block */
+   )
+{
+   assert( data != NULL );
+   assert( 0 <= ind1 && ind1 < data->nsdpvarblocks );
+   assert( 0 <= ind2 && ind2 < data->nsdpvarblocks );
+
+   if ( ind1 == ind2 )
+      return 0;
+
+   if ( data->minvals[ind1] < data->minvals[ind2] )
+      return -1;
+   if ( data->minvals[ind1] > data->minvals[ind2] )
+      return -1;
+
+   if ( data->maxvals[ind1] < data->maxvals[ind2] )
+      return -1;
+   if ( data->maxvals[ind1] > data->maxvals[ind2] )
+      return -1;
+
+   return 0;
+}
+
+/** returns whether two SDP variable blocks are equal
+ *
+ *  Blocks are compared first by their minimum value and then by
+ *  their maximum value.
+ */
+static
+SCIP_Bool areSDPblocksEqual(
+   SDPSYM_SDPDATA*       data,               /**< pointer to SDP data */
+   int                   ind1,               /**< index of first block */
+   int                   ind2                /**< index of second block */
+   )
+{
+   assert( data != NULL );
+   assert( 0 <= ind1 && ind1 < data->nsdpvarblocks );
+   assert( 0 <= ind2 && ind2 < data->nsdpvarblocks );
+
+   if ( compareSDPblocks(data, ind1, ind2) == 0 )
+      return TRUE;
+
+   return FALSE;
+}
+
 /** gets the key of the given element */
 static
 SCIP_DECL_HASHGETKEY(SDPSYMhashGetKeyVartype)
@@ -730,7 +789,27 @@ SCIP_DECL_SORTINDCOMP(SDPSYMsortGraphCompVars)
    return 0;
 }
 
+/** sorts SDP constraints
+ *
+ *  Constraints are sorted first by the number of variable coefficients,
+ *  then by the number of constant coefficients, then by the minimum
+ *  and maximum variable coefficient, and then by the minimum and
+ *  maximum constant coefficient
+ *
+ *  result:
+ *    < 0: ind1 comes before (is better than) ind2
+ *    = 0: both indices have the same value
+ *    > 0: ind2 comes after (is worse than) ind2
+ */
+static
+SCIP_DECL_SORTINDCOMP(SDPSYMsortSDPcons)
+{
+   SDPSYM_SDPDATA* data;
 
+   data = (SDPSYM_SDPDATA*) dataptr;
+
+   return compareSDPblocks(data, ind1, ind2);
+}
 
 /*
  * Local methods
@@ -1963,6 +2042,8 @@ SCIP_RETCODE computeSymmetryGroup(
    SDPSYM_SORTRHSTYPE sortrhstype;
    SCIP_Real oldcoef = SCIP_INVALID;
    SCIP_Real val;
+   SCIP_Bool computesymmetries;
+   SCIP_Bool computesdpsymmetries;
    int* nconssforvar = NULL;
    int nuniquevararray = 0;
    int nhandleconss;
@@ -2680,11 +2761,37 @@ SCIP_RETCODE computeSymmetryGroup(
    SCIP_CALL( storeSDPSymmetryData(scip, &sdpdata) );
 
    /* do not compute symmetry if all variables are non-equivalent (unique) or if all matrix coefficients are different */
-   if ( matrixdata.nuniquevars < nvars && (matrixdata.nuniquemat == 0 || matrixdata.nuniquemat < matrixdata.nmatcoef) )
+   computesymmetries = matrixdata.nuniquevars < nvars;
+   computesymmetries = computesymmetries && (matrixdata.nuniquemat == 0 || matrixdata.nuniquemat < matrixdata.nmatcoef);
+
+   /* check whether all SDP blocks are different based on minimum/maximum values */
+   computesdpsymmetries = FALSE;
+   if ( computesymmetries && sdpdata.nsdpvarblocks > 1 )
+   {
+      int* blockperm;
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &blockperm, sdpdata.maxsdpvarblocks) );
+
+      SCIPsort(blockperm, SDPSYMsortSDPcons, (void*) &sdpdata, sdpdata.nsdpvarblocks);
+
+      for (j = 1; j < sdpdata.nsdpvarblocks; ++j)
+      {
+         /* there are two potentially symmetric blocks */
+         if ( areSDPblocksEqual(&sdpdata, blockperm[j], blockperm[j - 1]) )
+         {
+            computesdpsymmetries = TRUE;
+            break;
+         }
+      }
+
+      SCIPfreeBufferArray(scip, &blockperm);
+   }
+
+   if ( computesymmetries )
    {
       /* determine generators */
       SCIP_CALL( SDPSYMcomputeSymmetryGenerators(scip, maxgenerators, &matrixdata, &exprdata, &sdpdata,
-            nperms, nmaxperms, perms, log10groupsize) );
+            nperms, nmaxperms, perms, log10groupsize, ! computesdpsymmetries) );
       assert( *nperms <= *nmaxperms );
 
       /* SCIPisStopped() might call SCIPgetGap() which is only available after initpresolve */

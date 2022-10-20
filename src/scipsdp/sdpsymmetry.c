@@ -102,6 +102,8 @@ SCIP_RETCODE storeSDPSymmetryData(
    int maxsdpconstnnonz;
    int sdpconstnnonz;
    int sdpnnonz;
+   int maxsdpvarblocks;
+   int blockcnt;
    int nconss;
    int nvars;
    int c;
@@ -133,6 +135,9 @@ SCIP_RETCODE storeSDPSymmetryData(
 
    nvars = SCIPgetNVars(scip);
 
+   maxsdpvarblocks = nconss * nvars;
+   sdpdata->maxsdpvarblocks = maxsdpvarblocks;
+
    /* initialize SDP data */
    sdpdata->nsdpconss = nconss;
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->blocksizes), nconss) );
@@ -150,6 +155,8 @@ SCIP_RETCODE storeSDPSymmetryData(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->colors2), nconss) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcolors), nconss) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcolors2), nconss) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->minvals), maxsdpvarblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->maxvals), maxsdpvarblocks) );
 
    /* temporary memory for copying constraints */
    maxsdpnnonz = 0;
@@ -177,6 +184,7 @@ SCIP_RETCODE storeSDPSymmetryData(
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpconstval, maxsdpconstnnonz) );
 
    /* fill data for each constraint */
+   blockcnt = 0;
    for (c = 0; c < nconss; ++c)
    {
       int sdpnvars;
@@ -213,6 +221,9 @@ SCIP_RETCODE storeSDPSymmetryData(
       pos = 0;
       for (v = 0; v < sdpnvars; ++v)
       {
+         SCIP_Real minval = SCIP_REAL_MAX;
+         SCIP_Real maxval = - SCIP_REAL_MIN;
+
          assert( SCIPvarGetProbindex(sdpvars[v]) >= 0 ); /* adapt graph construction if vars can be aggregated */
          sdpdata->valsbegins[c][v] = pos;
          sdpdata->vars[c][v] = sdpvars[v];
@@ -221,7 +232,16 @@ SCIP_RETCODE storeSDPSymmetryData(
             sdpdata->vals[c][pos] = sdpval[v][i];
             sdpdata->cols[c][pos] = sdpcol[v][i];
             sdpdata->rows[c][pos++] = sdprow[v][i];
+
+            if ( SCIPisLT(scip, sdpval[v][i], minval) )
+               minval = sdpval[v][i];
+            if ( SCIPisGT(scip, sdpval[v][i], maxval) )
+               maxval = sdpval[v][i];
          }
+
+         assert( blockcnt < maxsdpvarblocks );
+         sdpdata->minvals[blockcnt] = minval;
+         sdpdata->maxvals[blockcnt++] = maxval;
       }
       sdpdata->valsbegins[c][sdpnvars] = pos;
 
@@ -240,6 +260,7 @@ SCIP_RETCODE storeSDPSymmetryData(
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcolors[c]), sdpconstnnonz) );
       SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(sdpdata->constcolors2[c]), sdpconstnnonz) );
    }
+   sdpdata->nsdpvarblocks = blockcnt;
 
    SCIPfreeBufferArray(scip, &sdpconstval);
    SCIPfreeBufferArray(scip, &sdpconstrow);
@@ -259,6 +280,7 @@ SCIP_RETCODE freeSDPSymmetryData(
    SDPSYM_SDPDATA*       sdpdata             /**< pointer to store SDP symmetry data */
    )
 {
+   int maxsdpvarblocks;
    int c;
 
    assert( scip != NULL );
@@ -267,6 +289,8 @@ SCIP_RETCODE freeSDPSymmetryData(
    /* if there are no SDP constraints, there is nothing to be done */
    if ( sdpdata->nsdpconss == 0 )
       return SCIP_OKAY;
+
+   maxsdpvarblocks = sdpdata->nsdpconss * SCIPgetNVars(scip);
 
    for (c = 0; c < sdpdata->nsdpconss; ++c)
    {
@@ -305,6 +329,8 @@ SCIP_RETCODE freeSDPSymmetryData(
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->colors2), sdpdata->nsdpconss);
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constcolors), sdpdata->nsdpconss);
    SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->constcolors2), sdpdata->nsdpconss);
+   SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->minvals), maxsdpvarblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &(sdpdata->maxvals), maxsdpvarblocks);
 
    return SCIP_OKAY;
 }

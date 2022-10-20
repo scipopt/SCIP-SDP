@@ -116,6 +116,10 @@ struct SDPSYM_Sdpdata
    int**                 constcolors;        /**< for each SDP cons, the color of constant coefficients */
    int**                 constcolors2;       /**< for each SDP cons, the second color of constant coefficients */
    int                   lastcolorused;      /**< last used color */
+   SCIP_Real*            minvals;            /**< for each variable block its minimum value in vals */
+   SCIP_Real*            maxvals;            /**< for each variable blick its maximum value in vals */
+   int                   nsdpvarblocks;      /**< number of variable blocks stored in minvals/maxvals */
+   int                   maxsdpvarblocks;    /**< maximum number of variable blocks (length of minvals/maxvals) */
 };
 
 
