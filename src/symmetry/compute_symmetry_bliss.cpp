@@ -335,7 +335,6 @@ SCIP_RETCODE fillGraphByLinearConss(
    )
 {
    assert( nnodes == (int) G->get_nof_vertices() );
-   assert( nusedcolors <= nnodes );
 
    SCIPdebugMsg(scip, "Filling graph with colored coefficient nodes for linear part.\n");
 
@@ -520,7 +519,6 @@ SCIP_RETCODE fillGraphByNonlinearConss(
    assert( G != NULL );
    assert( exprdata != NULL );
    assert( nnodes == (int) G->get_nof_vertices() );
-   assert( nnodes >= nusedcolors );
 
    success = TRUE; /*lint !e838*/
 
@@ -994,7 +992,6 @@ SCIP_RETCODE fillGraphBySDPConss(
    assert( G != NULL );
    assert( sdpdata != NULL );
    assert( nnodes == (int) G->get_nof_vertices() );
-   assert( nnodes >= nusedcolors );
 
    nsdpconss = sdpdata->nsdpconss;
    blocksizes = sdpdata->blocksizes;
@@ -1011,24 +1008,6 @@ SCIP_RETCODE fillGraphBySDPConss(
    /* we don't need to extend the graph in case there are no SDP constraints */
    if ( nsdpconss == 0 )
       return SCIP_OKAY;
-
-#ifndef NDEBUG
-   /* check that colors have not been used already */
-   for (c = 0; c < nsdpconss; ++c)
-   {
-      for (i = valsbegins[c][0]; i < valsbegins[c][nvars[c]]; ++i)
-      {
-         assert( colors[c][i] > nusedcolors );
-         assert( colors2[c][i] > nusedcolors );
-      }
-      for (i = 0; i < nconstvals[c]; ++i)
-      {
-         assert( constcolors[c][i] > nusedcolors );
-         assert( constcolors2[c][i] > nusedcolors );
-      }
-   }
-   assert( lastcolorused != INT_MAX );
-#endif
 
    colordimnodes = lastcolorused + 1;
    nusedcolors = colordimnodes;
@@ -1194,7 +1173,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    SCIP_CALL( createVariableNodes(scip, &G, matrixdata, sdpdata, nnodes, nedges, nusedcolors, fixedvars, nfixedvars) );
 
    assert( nnodes == matrixdata->npermvars );
-   assert( nusedcolors == matrixdata->nuniquevars );
+   assert( nusedcolors >= matrixdata->nuniquevars );
 
    /* fill graph with nodes for variables and linear constraints */
    SCIP_CALL( fillGraphByLinearConss(scip, &G, matrixdata, nnodes, nedges, nusedcolors, success) );
