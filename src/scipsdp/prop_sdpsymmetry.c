@@ -594,12 +594,12 @@ int compareSDPblocks(
    if ( data->minvals[ind1] < data->minvals[ind2] )
       return -1;
    if ( data->minvals[ind1] > data->minvals[ind2] )
-      return -1;
+      return 1;
 
    if ( data->maxvals[ind1] < data->maxvals[ind2] )
       return -1;
    if ( data->maxvals[ind1] > data->maxvals[ind2] )
-      return -1;
+      return 1;
 
    return 0;
 }
