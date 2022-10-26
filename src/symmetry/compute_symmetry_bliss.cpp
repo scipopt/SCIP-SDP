@@ -1153,7 +1153,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    assert( perms != NULL );
    assert( log10groupsize != NULL );
    assert( maxgenerators >= 0 );
-   assert( fixedvars != NULL || nfixedvars = 0 );
+   assert( fixedvars != NULL || nfixedvars == 0 );
 
    /* init */
    *nperms = 0;
