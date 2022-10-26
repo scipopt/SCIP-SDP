@@ -66,7 +66,8 @@ SCIP_RETCODE freeSDPSymmetryData(
 SCIP_RETCODE findColorsSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
    SDPSYM_SDPDATA*       sdpdata,            /**< pointer to store SDP symmetry data */
-   int                   mincolorval         /**< value of smallest color */
+   int                   mincolorval,        /**< value of smallest color */
+   SCIP_HASHSET*         fixedvars           /**< hash set storing variable that need to be fixed */
    );
 
 #ifdef __cplusplus

@@ -1194,7 +1194,6 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    }
 
    /* add the nodes/edges for SDP constraints to the graph if SDP variable are not fixed */
-   SCIP_CALL( findColorsSDPSymmetryData(scip, sdpdata, nusedcolors + 1) );
    SCIP_CALL( fillGraphBySDPConss(scip, &G, sdpdata, nnodes, nedges, nusedcolors, fixedvars, nfixedvars, success) );
 
 #ifdef SCIP_OUTPUT

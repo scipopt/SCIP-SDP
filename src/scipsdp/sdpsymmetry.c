@@ -346,7 +346,8 @@ int storeColorsSDPSymmetryData(
    int*                  considx,            /**< allocated array to hold index of cons associated with coefficient */
    int*                  valinconsidx,       /**< alloctaed array to hold index of coefficient in blockvals */
    int*                  blockperm,          /**< allocated array for permutation of blockvals */
-   SCIP_Bool             storevarcolors      /**< Should colors for variable coefficients be computed */
+   SCIP_Bool             storevarcolors,     /**< Should colors for variable coefficients be computed */
+   SCIP_HASHSET*         fixedvars           /**< hash set storing variable that need to be fixed */
    )
 {
    int** colors;
@@ -391,6 +392,10 @@ int storeColorsSDPSymmetryData(
       {
          for (v = 0; v < sdpdata->nvars[cidx]; ++v)
          {
+            /* skip fixed variables */
+            if ( fixedvars != NULL && SCIPhashsetExists(fixedvars, sdpdata->vars[cidx][v]) )
+               continue;
+
             for (i = sdpdata->valsbegins[cidx][v]; i < sdpdata->valsbegins[cidx][v + 1]; ++i)
             {
                blockvals[nblockvals] = sdpdata->vals[cidx][i];
@@ -446,7 +451,8 @@ int storeColorsSDPSymmetryData(
 SCIP_RETCODE findColorsSDPSymmetryData(
    SCIP*                 scip,               /**< SCIP data structure */
    SDPSYM_SDPDATA*       sdpdata,            /**< pointer to store SDP symmetry data */
-   int                   mincolorval         /**< value of smallest color */
+   int                   mincolorval,        /**< value of smallest color */
+   SCIP_HASHSET*         fixedvars           /**< hash set storing variable that need to be fixed */
    )
 {
    int* consperm;
@@ -499,9 +505,9 @@ SCIP_RETCODE findColorsSDPSymmetryData(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &blockperm, maxnblockvals) );
 
    curcolor = storeColorsSDPSymmetryData(scip, sdpdata, mincolorval, consperm,
-      blockvals, considx, valinconsidx, blockperm, TRUE);
+      blockvals, considx, valinconsidx, blockperm, TRUE, fixedvars);
    curcolor = storeColorsSDPSymmetryData(scip, sdpdata, curcolor + 1, consperm,
-      blockvals, considx, valinconsidx, blockperm, FALSE);
+      blockvals, considx, valinconsidx, blockperm, FALSE, fixedvars);
 
    sdpdata->lastcolorused = curcolor;
 
