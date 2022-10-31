@@ -1008,6 +1008,7 @@ SCIP_RETCODE fillGraphBySDPConss(
    /* we don't need to extend the graph in case there are no SDP constraints */
    if ( nsdpconss == 0 )
       return SCIP_OKAY;
+   assert( lastcolorused != INT_MAX );
 
    colordimnodes = lastcolorused + 1;
    nusedcolors = colordimnodes;
@@ -1194,6 +1195,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    }
 
    /* add the nodes/edges for SDP constraints to the graph if SDP variable are not fixed */
+   SCIP_CALL( findColorsSDPSymmetryData(scip, sdpdata, nusedcolors + 1, fixedvars) );
    SCIP_CALL( fillGraphBySDPConss(scip, &G, sdpdata, nnodes, nedges, nusedcolors, fixedvars, nfixedvars, success) );
 
 #ifdef SCIP_OUTPUT
