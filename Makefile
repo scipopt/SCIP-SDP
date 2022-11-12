@@ -200,8 +200,11 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpiclock.o \
 			scipsdpgithash.o
 
-SCIPSDPCCOBJ 	=	symmetry/compute_symmetry_bliss.o \
-			symmetry/compute_symmetry_none.o
+ifeq ($(SYM),bliss)
+SCIPSDPCCOBJ 	=	symmetry/compute_symmetry_bliss.o
+else
+SCIPSDPCCOBJ 	=	symmetry/compute_symmetry_none.o
+endif
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
 SCIPSDPCCSRC 	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCCOBJ:.o=.cpp))
