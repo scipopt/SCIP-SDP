@@ -2804,7 +2804,7 @@ SCIP_RETCODE computeSymmetryGroup(
                /* if variable is not yet listed as fixed, store it */
                if ( ! SCIPhashsetExists(fixedvars, sdpdata.vars[c][varpos]) )
                {
-                  SCIPhashsetInsert(fixedvars, SCIPblkmem(scip), sdpdata.vars[c][varpos]);
+                  SCIP_CALL( SCIPhashsetInsert(fixedvars, SCIPblkmem(scip), sdpdata.vars[c][varpos]) );
                   ++nfixedsdpvars;
                }
             }
