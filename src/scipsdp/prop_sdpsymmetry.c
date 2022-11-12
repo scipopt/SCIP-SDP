@@ -121,6 +121,8 @@
  * @todo Separate permuted cuts (first experiments not successful)
  * @todo Allow the computation of local symmetries
  * @todo Order rows of orbitopes (in particular packing/partitioning) w.r.t. cliques in conflict graph.
+ *
+ * @todo Also handle rank1 SDP constraints.
  */
 /* #define SCIP_OUTPUT */
 /* #define SCIP_OUTPUT_COMPONENT */
