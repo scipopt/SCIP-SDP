@@ -7294,7 +7294,7 @@ SCIP_DECL_PROPINITPRE(propInitpreSymmetry)
    propdata->conshdlr_nonlinear = SCIPfindConshdlr(scip, "nonlinear");
 
    /* get SDP conshdlr for future checks on whether there are SDP constraints */
-   propdata->conshdlr_nonlinear = SCIPfindConshdlr(scip, "SDP");
+   propdata->conshdlr_sdp = SCIPfindConshdlr(scip, "SDP");
 
    /* check whether we should run */
    if ( propdata->usesymmetry < 0 )
