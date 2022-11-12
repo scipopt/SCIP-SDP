@@ -1848,9 +1848,9 @@ int getNSymhandableConss(
    nhandleconss += SCIPconshdlrGetNActiveConss(conshdlr);
    conshdlr = SCIPfindConshdlr(scip, "bounddisjunction");
    nhandleconss += SCIPconshdlrGetNActiveConss(conshdlr);
-   if( conshdlr_nonlinear != NULL )
+   if ( conshdlr_nonlinear != NULL )
       nhandleconss += SCIPconshdlrGetNActiveConss(conshdlr_nonlinear);
-   if( conshdlr_sdp != NULL )
+   if ( conshdlr_sdp != NULL )
       nhandleconss += SCIPconshdlrGetNActiveConss(conshdlr_sdp);
 
    return nhandleconss;
