@@ -9,6 +9,11 @@ features:
 - revised and fixed checking routine for SDP rank 1 constraints
 - add example for tighten matrices
 - added check whether propagation of upper bounds can be applied in principle
+- allow to detect symmetries
+  new files: sdpsymmetry.{c|h}, struct_sdpsymmetry.h, prop_sdpsymmetry.c in src/scipsdp/;
+  also need a separate version of compute_sdpsymmetry.h,
+  compute_symmetry_bliss.cpp, compute_symmetry_none.cpp,
+  struct_sdpsymmetry.h, type_sdpsymmetry.h in src/symmetry.
 
 API changes:
 - new function SCIPsdpiSolverGetPrimalSolutionMatrix() to access primal matrix solutions
@@ -29,6 +34,18 @@ parameters:
 - new parameter <constraints/SDP/generatecmir> to separate CMIR from eigenvalue cuts (default: FALSE)
 - new parameter <reading/removesmallval> to remove small values when reading an instance in CBF or SDPA format (default: TRUE)
 - new parameter <constraints/SDP/removesmallval> to remove small values in SDP constraints (default: FALSE)
+- new parameters for symmetry handling:
+  propagating/sdpsymmetry/maxgenerators, propagating/sdpsymmetry/checksymmetries, propagating/sdpsymmetry/displaynorbitvars,
+  propagating/sdpsymmetry/doubleequations, propagating/sdpsymmetry/conssaddlp, propagating/sdpsymmetry/addsymresacks,
+  propagating/sdpsymmetry/detectorbitopes, propagating/sdpsymmetry/detectsubgroups, propagating/sdpsymmetry/addweaksbcs,
+  propagating/sdpsymmetry/addconsstiming, propagating/sdpsymmetry/ofsymcomptiming, propagating/sdpsymmetry/performpresolving,
+  propagating/sdpsymmetry/recomputerestart, propagating/sdpsymmetry/compresssymmetries, propagating/sdpsymmetry/compressthreshold,
+  propagating/sdpsymmetry/usecolumnsparsity, propagating/sdpsymmetry/maxnconsssubgroup, propagating/sdpsymmetry/usedynamicprop,
+  propagating/sdpsymmetry/addstrongsbcs, propagating/sdpsymmetry/ssttiebreakrule, propagating/sdpsymmetry/sstleaderrule,
+  propagating/sdpsymmetry/sstleadervartype, propagating/sdpsymmetry/addconflictcuts, propagating/sdpsymmetry/sstaddcuts,
+  propagating/sdpsymmetry/sstmixedcomponents, propagating/sdpsymmetry/symfixnonbinaryvars, propagating/sdpsymmetry/onlybinarysymmetry,
+  propagating/sdpsymmetry/preferlessrows.
+- The main parameter for handling symmetries is propagating/sdpsymmetry/usesymmetry.
 
 fixed bugs:
 - fixed bug in tighten matrices (never ran previously)

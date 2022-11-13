@@ -138,7 +138,9 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/openblasinc
 SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/openblasinc
 endif
 
-
+ifeq ($(SYM),bliss)
+FLAGS		+=	-I$(SCIPDIR)/src/bliss/src -I$(SCIPDIR)/src/bliss/include
+endif
 
 LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX).$(ZIMPL)-$(ZIMPLOPT).$(IPOPT)-$(IPOPTOPT).$(GAMS)
 
@@ -146,7 +148,8 @@ LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(CO
 #-----------------------------------------------------------------------------
 
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
-			$(OBJDIR)/sdpi
+			$(OBJDIR)/sdpi \
+			$(OBJDIR)/symmetry
 
 #-----------------------------------------------------------------------------
 # OMPSETTINGS (used to set number of threads for OMP)
@@ -184,7 +187,9 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/reader_sdpa.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
+			scipsdp/prop_sdpsymmetry.o \
 			scipsdp/scipsdpdefplugins.o \
+			scipsdp/sdpsymmetry.o \
 			scipsdp/table_relaxsdp.o \
 			scipsdp/table_slater.o \
 			sdpi/sdpi.o \
@@ -195,7 +200,11 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpiclock.o \
 			scipsdpgithash.o
 
-SCIPSDPCCOBJ 	=
+ifeq ($(SYM),bliss)
+SCIPSDPCCOBJ 	=	symmetry/compute_symmetry_bliss.o
+else
+SCIPSDPCOBJ 	+=	symmetry/compute_symmetry_none.o
+endif
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
 SCIPSDPCCSRC 	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCCOBJ:.o=.cpp))

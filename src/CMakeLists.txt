@@ -33,10 +33,12 @@ set(scipsdpsources
     scipsdp/heur_sdpinnerlp.c
     scipsdp/heur_sdpfracdiving.c
     scipsdp/heur_sdprand.c
-    scipsdp/reader_cbf.c
-    scipsdp/reader_sdpa.c
+    scipsdp/prop_sdpsymmetry.c
     scipsdp/prop_sdpobbt.c
     scipsdp/prop_companalcent.c
+    scipsdp/reader_cbf.c
+    scipsdp/reader_sdpa.c
+    scipsdp/sdpsymmetry.c
     scipsdp/table_relaxsdp.c
     scipsdp/table_slater.c
     scipsdp/scipsdpdefplugins.c
@@ -53,6 +55,10 @@ set(objscipsdpsources
 
 set(sdpisources
    ${sdpi}
+   )
+
+set(symsources
+   ${sym}
    )
 
 set(sdpiheaders
@@ -92,10 +98,12 @@ set(scipsdpheaders
     scipsdp/heur_sdpinnerlp.h
     scipsdp/heur_sdpfracdiving.h
     scipsdp/heur_sdprand.h
-    scipsdp/reader_cbf.h
-    scipsdp/reader_sdpa.h
     scipsdp/prop_sdpobbt.h
     scipsdp/prop_companalcent.h
+    scipsdp/prop_sdpsymmetry.h
+    scipsdp/reader_cbf.h
+    scipsdp/reader_sdpa.h
+    scipsdp/sdpsymmetry.h
     scipsdp/table_relaxsdp.h
     scipsdp/table_slater.h
     scipsdp/scipsdpdefplugins.h
@@ -103,7 +111,7 @@ set(scipsdpheaders
 
 # all source files should be compiled with a c++ compiler
 if(CXXONLY)
-    set_source_files_properties(scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources} PROPERTIES LANGUAGE CXX)
+    set_source_files_properties(scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources} ${sym} PROPERTIES LANGUAGE CXX)
 
     # for the clang compiler this suppresses the warnings about treating 'c' input as 'c++' when CXXONLY is enabled
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -111,18 +119,18 @@ if(CXXONLY)
     endif()
 endif()
 
-add_library(libscipsdp ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
+add_library(libscipsdp ${scipsdpsources} ${objscipsdpsources} ${sdpisources} ${sym})
 setLibProperties(libscipsdp "scipsdp")
 
 #put binary in bin directory
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 if(SHARED)
-    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
-    add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
-    target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
+    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${SYM_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
+    add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources} ${sym})
+    target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES} ${SYM_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
 else()
-    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
-    add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources})
+    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SYM_LIBRARIES} ${LAPACK_LIBRARY} ${BLAS_LIBRARY} m)
+    add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources} ${sym})
     target_link_libraries(scipsdp libscipsdp ${SCIP_LIBRARIES})
 endif()
 

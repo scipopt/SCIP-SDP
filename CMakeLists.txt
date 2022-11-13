@@ -28,6 +28,9 @@ include_directories(${SCIP_INCLUDE_DIRS})
 set(SDPS none CACHE STRING "options for SDP solver")          # create the variable
 set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp none)  # define list of values GUI will offer for the variable
 
+set(SYM bliss CACHE STRING "options for symmetry computation")  #create the variable
+set_property(CACHE SYM PROPERTY STRINGS bliss none )  #define list of values GUI will offer for the variable
+
 #set the correct rpath for OS X
 set(CMAKE_MACOSX_RPATH ON)
 
@@ -86,6 +89,31 @@ endif()
 find_library(BLAS_LIBRARY blas)
 if(BLAS_LIBRARY)
   message(STATUS "Found blas library: " ${BLAS_LIBRARY})
+endif()
+
+# search the selected symmetry computation program
+message(STATUS "Finding symmetry computation program \"${SYM}\"")
+if(SYM STREQUAL "bliss")
+    message(STATUS "Finding BLISS")
+    find_package(BLISS)
+    if(BLISS_FOUND)
+        message(STATUS "Finding BLISS - found")
+        include_directories(${BLISS_INCLUDE_DIRS})
+        set(sym symmetry/compute_symmetry_bliss.cpp)
+        set(SYM_LIBRARIES ${BLISS_LIBRARIES})
+        set(SYM_PIC_LIBRARIES ${BLISS_LIBRARIES})
+        if(BLISS_DEFINITIONS STREQUAL "")
+            add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${BLISS_DEFINITIONS}>")
+        endif()
+    else()
+        message(STATUS "Finding BLISS - not found")
+        set(sym symmetry/compute_symmetry_none.cpp)
+    endif()
+elseif(SYM STREQUAL "none")
+    message(STATUS "Support SYM: OFF")
+    set(sym symmetry/compute_symmetry_none.cpp)
+else()
+    message(FATAL_ERROR "option SYM has wrong value")
 endif()
 
 # search for the selected SDP solver library

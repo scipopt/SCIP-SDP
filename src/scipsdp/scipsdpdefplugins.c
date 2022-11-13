@@ -65,6 +65,7 @@
 #include "heur_sdpinnerlp.h"
 #include "heur_sdprand.h"
 #include "prop_sdpobbt.h"
+#include "prop_sdpsymmetry.h"
 #include "prop_companalcent.h"
 #include "scipsdpgithash.c"
 #include "table_relaxsdp.h"
@@ -188,6 +189,10 @@ SCIP_RETCODE SCIPSDPsetDefaultParams(
    param = SCIPgetParam(scip, "conflict/enable");
    paramSetDefaultBool(param, FALSE);
 
+   /* turn off symmetry handling of default SCIP because it is superseeded by the local one */
+   param = SCIPgetParam(scip, "misc/usesymmetry");
+   paramSetDefaultInt(param, 0);
+
    /* now set parameters to their default value */
    SCIP_CALL( SCIPresetParams(scip) );
 
@@ -238,6 +243,7 @@ SCIP_RETCODE SCIPSDPincludeDefaultPlugins(
    SCIP_CALL( SCIPincludeHeurSdpInnerlp(scip) );
    SCIP_CALL( SCIPincludeHeurSdpRand(scip) );
    SCIP_CALL( SCIPincludePropSdpObbt(scip) );
+   SCIP_CALL( SCIPincludePropSdpSymmetry(scip) );
    SCIP_CALL( SCIPincludePropCompAnalCent(scip) );
 
    /* change name of dialog */
