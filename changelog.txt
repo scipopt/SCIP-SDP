@@ -10,7 +10,7 @@ features:
 - add example for tighten matrices
 - added check whether propagation of upper bounds can be applied in principle
 - allow to detect symmetries
-  new files: sdpsymmetry.{c|h}, struct_sdpsymmetry.h, prop_symmetry.c in src/scipsdp/;
+  new files: sdpsymmetry.{c|h}, struct_sdpsymmetry.h, prop_sdpsymmetry.c in src/scipsdp/;
   also need a separate version of compute_sdpsymmetry.h,
   compute_symmetry_bliss.cpp, compute_symmetry_none.cpp,
   struct_sdpsymmetry.h, type_sdpsymmetry.h in src/symmetry.
