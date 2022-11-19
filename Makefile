@@ -395,9 +395,11 @@ ifneq ($(OBJDIR),)
 		@-rm -f $(LASTSETTINGS)
 		@-rm -f $(OBJDIR)/scipsdp/*.o
 		@-rm -f $(OBJDIR)/sdpi/*.o
+		@-rm -f $(OBJDIR)/symmetry/*.o
 		@-rm -f $(OBJDIR)/*.o
 		@-rmdir $(OBJDIR)/scipsdp
 	 	@-rmdir $(OBJDIR)/sdpi
+	 	@-rmdir $(OBJDIR)/symmetry
 		@-rmdir $(OBJDIR)
 endif
 		-rm -f $(SCIPSDPBINFILE)
