@@ -350,7 +350,7 @@ SCIP_RETCODE fillGraphByLinearConss(
       int node = (int) G->add_vertex((unsigned) (nusedcolors + color));
       assert( node == matrixdata->npermvars + c );
 #else
-      (void) G->add_vertex((unsigned) (matrixdata->nuniquevars + color));
+      (void) G->add_vertex((unsigned) (nusedcolors + color));
 #endif
 
       ++nnodes;
@@ -1179,7 +1179,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    /* fill graph with nodes for variables and linear constraints */
    SCIP_CALL( fillGraphByLinearConss(scip, &G, matrixdata, nnodes, nedges, nusedcolors, success) );
 
-   if ( !success )
+   if ( ! success )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_MINIMAL, 0, "Graph construction failed during linear part.\n");
       return SCIP_OKAY;
@@ -1188,7 +1188,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
    /* add the nodes for nonlinear constraints to the graph */
    SCIP_CALL( fillGraphByNonlinearConss(scip, &G, exprdata, nnodes, nedges, nusedcolors, success) );
 
-   if ( !success )
+   if ( ! success )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_MINIMAL, 0, "Graph construction failed during non-linear part.\n");
       return SCIP_OKAY;
