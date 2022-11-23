@@ -773,6 +773,7 @@ SCIP_RETCODE SDPAreadObjVals(
    int v;
    int nreadvals;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
 
    assert( scip != NULL );
    assert( file != NULL );
@@ -804,15 +805,24 @@ SCIP_RETCODE SDPAreadObjVals(
    for (v = 0; v < data->nvars; v++)
    {
       if ( readerdata->removesmallval && SCIPisZero(scip, *(objvals + v)) )
-         ++nzerocoef;
+      {
+         if ( *(objvals + v) != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
+      }
       else
          SCIP_CALL( SCIPchgVarObj(scip, data->createdvars[v], *(objvals + v)) );
    }
 
-   if ( nzerocoef > 0 )
+   if ( nsmallcoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Remove %d objective coefficients with absolute value less than epsilon = %g.\n",
-         nzerocoef, SCIPepsilon(scip));
+         nsmallcoef, SCIPepsilon(scip));
+   }
+   if ( nzerocoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Remove %d zero objective coefficients.\n", nzerocoef);
    }
 
    SCIPfreeBufferArray(scip, &objvals);
@@ -855,6 +865,7 @@ SCIP_RETCODE SDPAreadBlocks(
    int firstindforvar;
    int nextindaftervar;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int emptysdpblocks = 0;
    int emptylinconsblocks = 0;
    int nindcons = 0;
@@ -1021,7 +1032,12 @@ SCIP_RETCODE SDPAreadBlocks(
          if ( v >= 0 )
          {
             if ( readerdata->removesmallval && SCIPisZero(scip, val) )
-               ++nzerocoef;
+            {
+               if ( val != 0.0 )
+                  ++nsmallcoef;
+               else
+                  ++nzerocoef;
+            }
             else
             {
                /* for lint: */
@@ -1077,7 +1093,12 @@ SCIP_RETCODE SDPAreadBlocks(
             assert( v == -1 );
 
             if ( readerdata->removesmallval && SCIPisZero(scip, val) )
-               ++nzerocoef;
+            {
+               if ( val != 0.0 )
+                  ++nsmallcoef;
+               else
+                  ++nzerocoef;
+            }
             else
             {
                /* for lint: */
@@ -1164,7 +1185,10 @@ SCIP_RETCODE SDPAreadBlocks(
 
             if ( readerdata->removesmallval && SCIPisZero(scip, val) )
             {
-               ++nzerocoef;
+               if ( val != 0.0 )
+                  ++nsmallcoef;
+               else
+                  ++nzerocoef;
             }
             else
             {
@@ -1239,7 +1263,12 @@ SCIP_RETCODE SDPAreadBlocks(
                }
 
                if ( readerdata->removesmallval && SCIPisZero(scip, val) )
-                  ++nzerocoef;
+               {
+                  if ( val != 0.0 )
+                     ++nsmallcoef;
+                  else
+                     ++nzerocoef;
+               }
                else
                {
                   assert( ! SCIPisInfinity(scip, - SCIPgetLhsLinear(scip, data->createdconss[row])) );
@@ -1399,9 +1428,11 @@ SCIP_RETCODE SDPAreadBlocks(
          assert( nextindaftervar == data->sdpnblocknonz[b] );
       }
 
-      if ( nzerocoef > 0 )
+      if ( nsmallcoef > 0 )
          SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-            "Remove %d block coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+            "Remove %d block coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+      if ( nzerocoef > 0 )
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL, "Remove %d zero block coefficients.\n", nzerocoef);
 
       /* free buffer memory */
       for (b = 0; b < data->nsdpblocks; b++)

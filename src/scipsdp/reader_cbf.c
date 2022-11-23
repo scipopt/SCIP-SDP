@@ -1110,6 +1110,7 @@ SCIP_RETCODE CBFreadObjFcoord(
    SCIP_Real val;
    int nobjcoefs;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int i;
    int v;
    int row;
@@ -1191,7 +1192,11 @@ SCIP_RETCODE CBFreadObjFcoord(
 
       if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1211,10 +1216,15 @@ SCIP_RETCODE CBFreadObjFcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "OBJFCOORD: Remove %d nonzero coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1233,6 +1243,7 @@ SCIP_RETCODE CBFreadObjAcoord(
    SCIP_Real val;
    int nobjcoefs;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int i;
    int v;
 
@@ -1295,7 +1306,11 @@ SCIP_RETCODE CBFreadObjAcoord(
 
       if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1303,10 +1318,15 @@ SCIP_RETCODE CBFreadObjAcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "OBJACOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJACOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1324,6 +1344,7 @@ SCIP_RETCODE CBFreadFcoord(
 {  /*lint --e{818}*/
    SCIP_Real val;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int ncoefs;
    int c;
    int i;
@@ -1422,7 +1443,11 @@ SCIP_RETCODE CBFreadFcoord(
 
       if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1440,10 +1465,15 @@ SCIP_RETCODE CBFreadFcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "FCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "FCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1461,6 +1491,7 @@ SCIP_RETCODE CBFreadAcoord(
 {  /*lint --e{818}*/
    SCIP_Real val;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int ncoefs;
    int c;
    int i;
@@ -1540,7 +1571,11 @@ SCIP_RETCODE CBFreadAcoord(
 
       if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1548,10 +1583,15 @@ SCIP_RETCODE CBFreadAcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "ACOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "ACOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1569,6 +1609,7 @@ SCIP_RETCODE CBFreadBcoord(
 {  /*lint --e{818}*/
    SCIP_Real val;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int nsides;
    int c;
    int i;
@@ -1633,7 +1674,11 @@ SCIP_RETCODE CBFreadBcoord(
 
       if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1652,10 +1697,15 @@ SCIP_RETCODE CBFreadBcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "BCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "BCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1682,6 +1732,7 @@ SCIP_RETCODE CBFreadHcoord(
    int firstindforvar;
    int nextindaftervar;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int ncbfsdpblocks;
    int nauxnonz = 0;            /* number of nonzeros in each auxiliary sdp block for reformulating matrix variables using
                                  * scalar variables */
@@ -1807,7 +1858,11 @@ SCIP_RETCODE CBFreadHcoord(
 
       if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1943,10 +1998,15 @@ SCIP_RETCODE CBFreadHcoord(
 
    SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "HCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "HCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1974,6 +2034,7 @@ SCIP_RETCODE CBFreadDcoord(
 {
    SCIP_Real val;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int constnnonz;
    int b;
    int i;
@@ -2081,7 +2142,11 @@ SCIP_RETCODE CBFreadDcoord(
 
       if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -2101,10 +2166,15 @@ SCIP_RETCODE CBFreadDcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "DCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "DCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;

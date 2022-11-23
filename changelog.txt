@@ -14,6 +14,7 @@ features:
   also need a separate version of compute_sdpsymmetry.h,
   compute_symmetry_bliss.cpp, compute_symmetry_none.cpp,
   struct_sdpsymmetry.h, type_sdpsymmetry.h in src/symmetry.
+- when reading distinguish between coefficients that are exaclty 0 or nonzero but small
 
 API changes:
 - new function SCIPsdpiSolverGetPrimalSolutionMatrix() to access primal matrix solutions
