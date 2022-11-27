@@ -1,6 +1,7 @@
 SCIP-SDP version next
 
 features:
+- Changed to the Apache 2.0 license.
 - Add possibility to use ARPACK for eigenvalue computations with SDPs with one variable. For this just
   set ARPACK=true in the makefile. Note that using ARPACK is usually slower than using LAPACK.
 - new propagation routine based on 3 by 3 minors
