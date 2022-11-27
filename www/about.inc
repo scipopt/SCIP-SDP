@@ -20,8 +20,8 @@
    <li><a href="http://sdpa.sourceforge.net/">SDPA</a></li>
    <li><a href="https://www.mosek.com/">MOSEK</a></li>
 </ul>
-<p> The solution process of interior-point methods for SDPs is highly dependent on the Slater condition. One of the main
-    purposes of the code is handling cases where the Slater condition does not hold using a penalty approach. However, in
+<p> The solution process of interior-point methods for SDPs is highly dependent on the Slater condition. SCIP-SDP
+    also tries to handle cases in which the Slater condition does not hold using a penalty approach. However, in
     some cases the SDP-solvers may still fail because of numerical difficulties or even return wrong results, which cannot
     be compensated. For this purpose there is the possibility to check the Slater condition for the primal and dual problem
     before the solution of each SDP by setting a SCIP parameter, for details see the documentation.</p>

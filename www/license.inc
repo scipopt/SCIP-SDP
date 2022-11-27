@@ -1,17 +1,14 @@
 <p>
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version. </p>
+This program is licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.
+</p>
 
 <table style="width:80%">
 <tr><td>Copyright (C)</td><td> 2011-2013</td><td width="70%"> Discrete Optimization, TU Darmstadt   </td> </tr>
 <tr><td></td><td></td><td>                         EDOM, FAU Erlangen-N&uuml;rnberg   </td></tr>
-<tr><td></td><td>             2014-2021</td><td> Discrete Optimization, TU Darmstadt </td></tr>
+<tr><td></td><td>             2014-2022</td><td> Discrete Optimization, TU Darmstadt </td></tr>
 </table>
 <br><br>
-<p>It is based on SCIP - Solving Constraint Integer Programs. SCIP is distributed under the terms of the SCIP Academic Licence, see file COPYING in the SCIP distribution.  </p>
-
-<table style="width:80%">
-  <tr><td>Copyright (C)</td><td> 2002-2021</td><td width="70%"> Zuse Institute Berlin </td></tr>
-</table>
+<p>It is based on <a href="scipopt.org">SCIP - Solving Constraint Integer Programs</a>, Copyright (C) 2002-2022 Zuse Institute Berlin.</p>
 <br><br>
 <p>
    <b>Any publication using SCIP-SDP should include an acknowledgment and a reference to the following article:</b>
