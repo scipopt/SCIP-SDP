@@ -95,12 +95,20 @@ endif()
 message(STATUS "Finding symmetry computation program \"${SYM}\"")
 if(SYM STREQUAL "bliss")
     message(STATUS "Finding BLISS")
-    find_package(BLISS)
-    if(BLISS_FOUND)
+    # search for the bliss package delivered with SCIP
+    find_library(BLISS_LIBRARY
+      NAMES bliss
+      HINTS ${SCIP_DIR}
+      PATH_SUFFIXES lib)
+    if(BLISS_LIBRARY)
         message(STATUS "Finding BLISS - found")
-        include_directories(${BLISS_INCLUDE_DIRS})
+	find_path(BLISS_INCLUDE_DIRS
+	  NAMES bliss/abstractgraph.hh
+	  HINTS ${SCIP_DIR}
+	  PATH_SUFFIXES ../src/bliss/include)
+	include_directories(${BLISS_INCLUDE_DIRS})
         set(sym symmetry/compute_symmetry_bliss.cpp)
-        set(SYM_LIBRARIES ${BLISS_LIBRARIES})
+        set(SYM_LIBRARIES ${BLISS_LIBRARY})
         set(SYM_PIC_LIBRARIES ${BLISS_LIBRARIES})
         if(BLISS_DEFINITIONS STREQUAL "")
             add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${BLISS_DEFINITIONS}>")
