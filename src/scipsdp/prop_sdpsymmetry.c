@@ -139,7 +139,7 @@
  */
 /* #define SCIP_OUTPUT */
 /* #define SCIP_OUTPUT_COMPONENT */
-
+/* #define WRITESAGEOUTPUT */
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
 #include <scip/cons_linear.h>
@@ -3181,6 +3181,212 @@ SCIP_RETCODE determineSymmetry(
 
    assert( propdata->nperms > 0 );
    assert( propdata->npermvars > 0 );
+
+#ifdef WRITESAGEOUTPUT
+   if ( propdata->nperms > 0 )
+   {
+      char probname[SCIP_MAXSTRLEN];
+      char filename[SCIP_MAXSTRLEN];
+      char* name;
+      FILE* file;
+      SCIP_Bool* covered;
+      int* cycledec;
+      int i;
+
+      (void) SCIPstrncpy(probname, SCIPgetProbName(scip), SCIP_MAXSTRLEN);
+      SCIPsplitFilename(probname, NULL, &name, NULL, NULL);
+      (void) SCIPsnprintf(filename, SCIP_MAXSTRLEN, "%s_symmetries.sage", name);
+
+      file = fopen(filename, "w");
+      if ( file == NULL )
+      {
+         SCIPerrorMessage("cannot create file <%s> for writing\n", filename);
+         SCIPprintSysError(filename);
+         return SCIP_FILECREATEERROR;
+      }
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &covered, (int) propdata->npermvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &cycledec, (int) (2 * propdata->npermvars)) );
+
+      SCIPinfoMessage(scip, file, "G = PermutationGroup(['");
+      for (i = 0; i < propdata->nperms; ++i)
+      {
+         int size = 0;
+         int ncycles = 0;
+         int k = 0;
+
+         /* init cycle decomposition */
+         for (j = 0; j < propdata->npermvars; ++j)
+         {
+            covered[j] = FALSE;
+            cycledec[j] = -2;
+         }
+         for (j = propdata->npermvars; j < 2 * propdata->npermvars; ++j)
+            cycledec[j] = -2;
+
+         /* generate cycle decomposition */
+         for (j = 0; j < propdata->npermvars; ++j)
+         {
+            if ( ! covered[j] )
+            {
+               /* avoid cycles of size 1 */
+               if ( j != propdata->perms[i][j] )
+               {
+                  p = j;
+                  do
+                  {
+                     assert( p < propdata->npermvars );
+                     assert( ! covered[p] );
+                     cycledec[k++] = p;
+                     covered[p] = TRUE;
+                     p = propdata->perms[i][p];
+                  }
+                  while ( p != j );
+                  cycledec[k++] = -1;
+                  assert( k <= 2 * propdata->npermvars );
+               }
+               else
+                  covered[j] = TRUE;
+            }
+         }
+
+         if ( i > 0 )
+            SCIPinfoMessage(scip, file, "', '");
+
+         k = 0;
+         while ( cycledec[k] != -2 )
+         {
+            if ( cycledec[k] == -1 )
+            {
+               size = 0;
+               SCIPinfoMessage(scip, file, ")");
+               ++ncycles;
+            }
+            else
+            {
+               assert( 0 <= cycledec[k] );
+               if ( size == 0 )
+               {
+                  SCIPinfoMessage(scip, file, "(");
+                  SCIPinfoMessage(scip, file, "%d", cycledec[k] + 1);  /* gap starts counting at 1! */
+               }
+               else
+                  SCIPinfoMessage(scip, file, ", %d", cycledec[k] + 1);  /* gap starts counting at 1! */
+               ++size;
+            }
+            ++k;
+         }
+      }
+      SCIPinfoMessage(scip, file, "'])\n");
+      SCIPinfoMessage(scip, file, "print G.structure_description()\n");
+      fclose(file);
+      SCIPinfoMessage(scip, NULL, "\nWrote generators in SAGE format to file <%s>.\n\n", filename);
+
+      SCIPfreeBufferArray(scip, &cycledec);
+      SCIPfreeBufferArray(scip, &covered);
+   }
+#endif
+
+#ifdef WRITEGAPOUTPUT
+   if ( propdata->nperms > 0 )
+   {
+      char probname[SCIP_MAXSTRLEN];
+      char filename[SCIP_MAXSTRLEN];
+      char* name;
+      FILE* file;
+      SCIP_Bool* covered;
+      int* cycledec;
+      int i;
+
+      (void) SCIPstrncpy(probname, SCIPgetProbName(scip), SCIP_MAXSTRLEN);
+      SCIPsplitFilename(probname, NULL, &name, NULL, NULL);
+      (void) SCIPsnprintf(filename, SCIP_MAXSTRLEN, "%s_symmetries.g", name);
+
+      file = fopen(filename, "w");
+      if ( file == NULL )
+      {
+         SCIPerrorMessage("cannot create file <%s> for writing\n", filename);
+         SCIPprintSysError(filename);
+         return SCIP_FILECREATEERROR;
+      }
+
+      SCIP_CALL( SCIPallocBufferArray(scip, &covered, (int) propdata->npermvars) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &cycledec, (int) (2 * propdata->npermvars)) );
+
+      SCIPinfoMessage(scip, file, "s := Group( ");
+      for (i = 0; i < propdata->nperms; ++i)
+      {
+         int size = 0;
+         int ncycles = 0;
+         int k = 0;
+
+         /* init cycle decomposition */
+         for (j = 0; j < propdata->npermvars; ++j)
+         {
+            covered[j] = FALSE;
+            cycledec[j] = -2;
+         }
+
+         /* generate cycle decomposition */
+         for (j = 0; j < propdata->npermvars; ++j)
+         {
+            if ( ! covered[j] )
+            {
+               /* avoid cycles of size 1 */
+               if ( j != propdata->perms[i][j] )
+               {
+                  p = j;
+                  do
+                  {
+                     assert( p < propdata->npermvars );
+                     assert( ! covered[p] );
+                     cycledec[k++] = (int) p;
+                     covered[p] = TRUE;
+                     p = propdata->perms[i][p];
+                  }
+                  while ( p != j );
+                  cycledec[k++] = -1;
+               }
+               else
+                  covered[j] = TRUE;
+            }
+         }
+
+         if ( i > 0 )
+            SCIPinfoMessage(scip, file, ", ");
+
+         k = 0;
+         while ( cycledec[k] != -2 )
+         {
+            if ( cycledec[k] == -1 )
+            {
+               size = 0;
+               SCIPinfoMessage(scip, file, ")");
+               ++ncycles;
+            }
+            else
+            {
+               assert( 0 <= cycledec[k] );
+               if ( size == 0 )
+               {
+                  SCIPinfoMessage(scip, file, "(");
+                  SCIPinfoMessage(scip, file, "%d", cycledec[k] + 1);  /* gap starts counting at 1! */
+               }
+               else
+                  SCIPinfoMessage(scip, file, ", %d", cycledec[k] + 1);  /* gap starts counting at 1! */
+               ++size;
+            }
+            ++k;
+         }
+      }
+      SCIPinfoMessage(scip, file, ");\n\n");
+      fclose(file);
+      SCIPinfoMessage(scip, NULL, "\nWrote generators in GAP format to file <%s>.\n\n", filename);
+
+      SCIPfreeBufferArray(scip, &cycledec);
+      SCIPfreeBufferArray(scip, &covered);
+   }
+#endif
 
    /* compute components */
    assert( propdata->components == NULL );
