@@ -44,6 +44,7 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
+#ifdef ARPACK
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
 #define BMS_CALL(x)   do                                                                                      \
@@ -55,6 +56,8 @@
                           }                                                                                   \
                       }                                                                                       \
                       while( FALSE )
+
+#endif
 
 /*
  * ARPACK Calls
@@ -84,9 +87,11 @@ void F77_FUNC(dseupd, DSEUPD)(int* RVEC, char* HOWMNY, int* SELECT, SCIP_Real* D
 /**@name Functions */
 /**@{ */
 
+#ifdef ARPACK
 #define MAXITER 2147483647
+#endif
 
-/** computes an eigenvector for the smallest eigenvalue of a symmetric matrix using ARPACK */
+/** computes an eigenvector for the smallest eigenvalue of a symmetric matrix using ARPACK */  /*lint -e{715}*/
 SCIP_EXPORT
 SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */
@@ -227,7 +232,7 @@ SCIP_RETCODE SCIParpackComputeSmallestEigenvector(
 }
 
 
-/** computes an eigenvector for the smallest eigenvalue of a symmetric matrix using ARPACK; specialized sparse version for mu A - B */
+/** computes an eigenvector for the smallest eigenvalue of a symmetric matrix using ARPACK; specialized sparse version for mu A - B */  /*lint -e{715}*/
 SCIP_EXPORT
 SCIP_RETCODE SCIParpackComputeSmallestEigenvectorOneVar(
    BMS_BUFMEM*           bufmem,             /**< buffer memory */

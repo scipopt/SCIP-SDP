@@ -9805,7 +9805,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
 {
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata = NULL;
-   SCIP_CONSHDLRDATA* conshdlrdata = NULL;
+   SCIP_CONSHDLRDATA* conshdlrdata;
    int i;
    int j;
 
@@ -10043,7 +10043,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
 {
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata = NULL;
-   SCIP_CONSHDLRDATA* conshdlrdata = NULL;
+   SCIP_CONSHDLRDATA* conshdlrdata;
    int i;
    int j;
 

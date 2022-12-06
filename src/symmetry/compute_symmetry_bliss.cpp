@@ -269,7 +269,7 @@ void blisshook(
 /** Creates the nodes in the graph that correspond to variables. Each variable type gets a unique color
  *
  *  @pre graph should be empty when this is called
- */
+ */  /*lint -e{715}*/
 static
 SCIP_RETCODE createVariableNodes(
    SCIP*                 scip,               /**< SCIP instance */
@@ -1005,6 +1005,7 @@ SCIP_RETCODE fillGraphBySDPConss(
    assert( G != NULL );
    assert( sdpdata != NULL );
    assert( nnodes == (int) G->get_nof_vertices() );
+   assert( fixedvars != NULL || nfixedvars == 0 );
 
    nsdpconss = sdpdata->nsdpconss;
    blocksizes = sdpdata->blocksizes;
@@ -1247,7 +1248,7 @@ SCIP_RETCODE SDPSYMcomputeSymmetryGenerators(
 
    /* lambda function to have access to stats and terminate the search if maxgenerators are reached */
    auto term = [&]() {
-      return (stats.get_nof_generators() >= (long unsigned int) maxgenerators);
+      return (stats.get_nof_generators() >= (long unsigned int) maxgenerators); /*lint !e571*/
    };
 
    /* start search */

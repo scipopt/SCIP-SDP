@@ -1263,7 +1263,7 @@ SCIP_RETCODE putLpDataInInterface(
    return SCIP_OKAY;
 }
 
-/** computes dual cut: aggregate dual constraints using the primal information */
+/** computes dual cut: aggregate dual constraints using the primal information */  /*lint -e{715}*/
 static
 SCIP_RETCODE computeConflictCut(
    SCIP*                 scip,               /**< SCIP pointer */
@@ -1277,7 +1277,7 @@ SCIP_RETCODE computeConflictCut(
    SCIP_Real*            conflictcutlhs,     /**< lhs of cut */
    SCIP_Bool*            success             /**< pointer to return whether computation was successful */
    )
-{
+{  /*lint --e{715}*/
    SCIP_Real** primalmatrices;
    SCIP_ROW** rows;
    SCIP_VAR** vars;
