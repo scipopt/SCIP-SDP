@@ -5,7 +5,7 @@
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
-        </button> <a href="http://scip.zib.de/#scipoptsuite" class="navbar-brand">SCIP Optimization Suite</a>
+        </button> <a href="https://scipopt.org" class="navbar-brand">SCIP Optimization Suite</a>
      </div>
      <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
         <ul class="nav navbar-nav navbar-right">

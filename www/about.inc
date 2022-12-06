@@ -1,5 +1,5 @@
 <p>
-   SCIP-SDP is a plugin for <a href="http://scip.zib.de">SCIP</a> to solve mixed integer semidefinite programs (MISDPs) of the form
+   SCIP-SDP is a plugin for <a href="https://scipopt.org">SCIP</a> to solve mixed integer semidefinite programs (MISDPs) of the form
    \[
    \begin{aligned}
 	 \inf \quad \thinspace & b^\top y \\
@@ -12,19 +12,24 @@
    first case (the default), the semidefinite programming (SDP)
    relaxations are solve using interior-point SDP-solvers. In the
    second case, cutting planes based on eigenvector are generated.
-   SCIP-SDP is based on <a href="scipopt.org">SCIP</a>.
+   SCIP-SDP is based on the branch-and-cut framework <a href="https://scipopt.org">SCIP</a>.
+   In addition to providing a constraint handler for SDP-constraints
+   and a relaxator to solve continuous SDP-relaxations using
+   interior-point solvers, SCIP-SDP adds several heuristics and
+   propagators to SCIP.
 </p>
 
 <p>
-   In addition to providing a constraint handler for SDP-constraints
-   and a relaxator to solve continuous SDP-relaxations using
-   interior-point solvers, SCIPSDP adds several heuristics and
-   propagators to SCIP. The MISDPs can be read in using either an <a
+   The MISDPs can be read in using either an <a
    href="http://www.opt.tu-darmstadt.de/scipsdp/downloads/data_format.txt">extended
    SDPA-format</a> or the <a
-   href="http://cblib.zib.de/doc/format2.pdf">CBF-format</a>. To use
-   the nonlinear branch-and-bound approach one of the following
-   SDP-solvers needs to be installed:
+   href="http://cblib.zib.de/doc/format2.pdf">CBF-format</a>.
+   There is also an interface for Matlab/Octave on <a href="https://github.com/scipopt/MatlabSCIPInterface">GitHub</a>.
+</p>
+
+<p>
+   To use the nonlinear branch-and-bound approach, one of the
+   following SDP-solvers needs to be installed:
 </p>
 <ul>
    <li><a href="http://www.mcs.anl.gov/hs/software/DSDP/">DSDP</a></li>
@@ -34,8 +39,8 @@
 
 <p>
    Mixed-integer semidefinite programs are sometimes numerically
-   challenging to solve. One reason is that the Slater Condition for
-   the SDP-relaxations may not hold in some of the nodes. SCIP-SDP
-   implements several methods to recover from a failure to accurately
+   challenging to solve. One reason is that the Slater condition may not hold
+   for the SDP-relaxations of some of the nodes. SCIP-SDP
+   implements several methods that try to recover from a failure to accurately
    solve the relaxation.
 </p>

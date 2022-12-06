@@ -1,6 +1,6 @@
 <table class="desc">
    <tr>
-      <td class="w-120 val-t" width="30%">Decemberr 2022</td>
+      <td class="w-120 val-t" width="30%">December 2022</td>
       <td>SCIP-SDP 4.1.0 is released for SCIP 8.0.2 and DSDP 5.8 or SDPA 7.3.8 or MOSEK 9.x or 10.x
       </td>
    </tr>
@@ -12,6 +12,11 @@
    <tr>
       <td class="w-120 val-t" width="30%">September 2021</td>
       <td>SCIP-SDP 4.0.0 is released for SCIP 8.0.0 and DSDP 5.8 or SDPA 7.3.8 or MOSEK 9.x
+      </td>
+   </tr>
+   <tr>
+      <td class="w-120 val-t" width="30%">March 2021</td>
+      <td>Updated interface to Matlab/Octave at <a href="https://github.com/scipopt/MatlabSCIPInterface">GitHub</a> based on the OPTI Toolbox</a>.
       </td>
    </tr>
    <tr>
