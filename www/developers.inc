@@ -2,17 +2,16 @@
 <table class="desc">
    <tr>
       <td>
-      <a href="https://www.mathematik.tu-darmstadt.de/optimierung/arbeitsgruppe_optimierung/personen_1/personendetails/index.en.jsp">Frederic Matter</a>
-      </td>
-   </tr>
-   <tr>
-      <td>
       <a href="http://www.mathematik.tu-darmstadt.de/~pfetsch/">Marc Pfetsch</a>
       </td>
    </tr>
 </table>
 <h3>Former main developers</h3>
 <table class="desc">
+   <tr>
+      <td>Frederic Mattery&nbsp;&nbsp;&nbsp;</td>
+      <td>(developer from version 3.2.0 to 4.0.0)</td>
+   </tr>
    <tr>
       <td>Tristan Gally&nbsp;&nbsp;&nbsp;</td>
       <td>(main development from version 2.0.0 to 3.1.1)</td>
