@@ -2478,6 +2478,7 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
 
    return SCIP_OKAY;
 }
+/**@} */
 
 
 /*
@@ -3257,7 +3258,7 @@ SCIP_RETCODE SCIPsdpiSolve(
 
    return SCIP_OKAY;
 }
-
+/**@} */
 
 
 

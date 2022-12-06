@@ -264,6 +264,7 @@ SCIP_RETCODE SCIPsdpiChgLPLhRhSides(
    const SCIP_Real*      lhs,                /**< new values for left-hand sides */
    const SCIP_Real*      rhs                 /**< new values for right-hand sides */
    );
+/**@} */
 
 
 /*

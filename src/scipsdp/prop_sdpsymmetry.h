@@ -26,7 +26,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   prop_symmetry.h
+/**@file   prop_sdpsymmetry.h
  * @ingroup PROPAGATORS
  * @brief  propagator for symmetry handling
  * @author Marc Pfetsch

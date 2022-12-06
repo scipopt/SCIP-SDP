@@ -26,7 +26,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   prop_symmetry.c
+/**@file   prop_sdpsymmetry.c
  * @ingroup DEFPLUGINS_PROP
  * @brief  propagator for handling symmetries
  * @author Marc Pfetsch
