@@ -28,6 +28,9 @@
 <h3>Contributors</h3>
 <table class="desc">
    <tr>
+      <td>Christopher Hojny</td>
+   </tr>
+   <tr>
       <td>Henrik Alsing Friberg</td>
    </tr>
    <tr>
