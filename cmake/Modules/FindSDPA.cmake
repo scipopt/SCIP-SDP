@@ -1,0 +1,45 @@
+find_path(SDPA_INCLUDE_DIR
+    NAMES sdpa_call.h
+    HINTS ${SDPA_DIR} $ENV{SDPA_DIR}
+    PATH_SUFFIXES include)
+
+find_library(SDPA_LIBRARY
+    NAMES sdpa
+    HINTS ${SDPA_DIR} $ENV{SDPA_DIR}
+    PATH_SUFFIXES lib)
+
+find_path(MUMPS_INCLUDE_DIR
+    NAMES cmumps_c.h
+    HINTS ${MUMPS_DIR} $ENV{MUMPS_DIR}
+    PATH_SUFFIXES include)
+
+find_library(MUMPS_LIBRARY
+    NAMES dmumps
+    HINTS ${MUMPS_DIR} $ENV{MUMPS_DIR}
+    PATH_SUFFIXES lib)
+
+find_library(MUMPS_COMMON_LIBRARY
+    NAMES mumps_common
+    HINTS ${MUMPS_DIR} $ENV{MUMPS_DIR}
+    PATH_SUFFIXES lib)
+
+find_library(PORD_LIBRARY
+    NAMES pord
+    HINTS ${MUMPS_DIR} $ENV{MUMPS_DIR}
+    PATH_SUFFIXES lib)
+
+find_library(MPISEQ_LIBRARY
+    NAMES mpiseq
+    HINTS ${MUMPS_DIR} $ENV{MUMPS_DIR}
+    PATH_SUFFIXES libseq)
+
+find_library(OPENBLAS_LIBRARY
+    NAMES openblas
+    HINTS ${OPENBLAS_DIR} $ENV{OPENBLAS_DIR}
+    PATH_SUFFIXES lib)
+
+set(SDPA_LIBRARIES ${SDPA_LIBRARY} ${MUMPS_LIBRARY} ${MUMPS_COMMON_LIBRARY} ${PORD_LIBRARY} ${MPISEQ_LIBRARY} ${OPENBLAS_LIBRARY} -pthread -lgfortran -lgomp)
+set(SDPA_INCLUDE_DIRS ${SDPA_INCLUDE_DIR} ${MUMPS_INCLUDE_DIR})
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(SDPA DEFAULT_MSG SDPA_INCLUDE_DIRS SDPA_LIBRARIES)

@@ -1,0 +1,75 @@
+# File written using this version of the Conic Benchmark Format:
+# | Version 2.
+VER
+2
+# The sense of the objective is:
+# | Minimize.
+OBJSENSE
+MIN
+# One PSD variable of this size:
+# | Three times three.
+PSDVAR
+1
+3
+# Three scalar variables in this one conic domain:
+# | Three are free.
+VAR
+3 1
+F 3
+# Five scalar constraints with affine expressions in two conic domains:
+# | Two are fixed to zero.
+# | Three are in conic quadratic domain.
+CON
+5 2
+L= 2
+Q 3
+# Five coordinates in F^{obj}_j coefficients:
+# | F^{obj}[0][0,0] = 2.0
+# | F^{obj}[0][1,0] = 1.0
+# | and more...
+OBJFCOORD
+5
+0 0 0 2.0
+0 1 0 1.0
+0 1 1 2.0
+0 2 1 1.0
+0 2 2 2.0
+# One coordinate in a^{obj}_j coefficients:
+# | a^{obj}[1] = 1.0
+OBJACOORD
+1
+1 1.0
+# Nine coordinates in F_ij coefficients:
+# | F[0,0][0,0] = 1.0
+# | F[0,0][1,1] = 1.0
+# | and more...
+FCOORD
+9
+0 0 0 0 1.0
+0 0 1 1 1.0
+0 0 2 2 1.0
+1 0 0 0 1.0
+1 0 1 0 1.0
+1 0 2 0 1.0
+1 0 1 1 1.0
+1 0 2 1 1.0
+1 0 2 2 1.0
+# Six coordinates in a_ij coefficients:
+# | a[0,1] = 1.0
+# | a[1,0] = 1.0
+# | and more...
+ACOORD
+6
+0 1 1.0
+1 0 1.0
+1 2 1.0
+2 1 1.0
+3 0 1.0
+4 2 1.0
+# Two coordinates in b_i coefficients:
+# | b[0] = -1.0
+# | b[1] = -0.5
+BCOORD
+2
+0 -1.0
+1 -0.5

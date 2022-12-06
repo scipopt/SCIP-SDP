@@ -1,0 +1,518 @@
+SCIP-SDP version 4.1.0
+======================
+
+features:
+- Changed to the Apache 2.0 license.
+- Add possibility to use ARPACK for eigenvalue computations with SDPs with one variable. For this just
+  set ARPACK=true in the makefile. Note that using ARPACK is usually slower than using LAPACK.
+- new propagation routine based on 3 by 3 minors
+  (applied with parameter "constraints/SDP/prop3minors")
+- can now create CMIR inequalities from eigenvector cuts
+- revised and fixed checking routine for SDP rank 1 constraints
+- add example for tighten matrices
+- added check whether propagation of upper bounds can be applied in principle to save time
+- allow to detect symmetries
+  new files: sdpsymmetry.{c|h}, struct_sdpsymmetry.h, prop_sdpsymmetry.c in src/scipsdp/;
+  also need a separate version of compute_sdpsymmetry.h,
+  compute_symmetry_bliss.cpp, compute_symmetry_none.cpp,
+  struct_sdpsymmetry.h, type_sdpsymmetry.h in src/symmetry.
+- when reading distinguish between coefficients that are exactly 0 or nonzero but small
+
+API changes:
+- new function SCIPsdpiSolverGetPrimalSolutionMatrix() to access primal matrix solutions
+- new function SCIPsdpiGetPrimalSolutionMatrix() to access primal matrix solutions
+- new function SCIPsdpiSolverGetPrimalLPSides() to access primal solutions for LP sides
+- new function SCIPsdpiGetPrimalLPSides() to access primal solutions for LP sides
+- function SCIPsdpiSolverGetPrimalBoundVars() uses a success pointer instead of arraylength
+- function SCIPsdpiGetPrimalBoundVars() uses a success pointer instead of arraylength
+- new function SCIPsdpiGetSDPdata() to retrieve SDP data from SDPI
+- new function SCIPsdpiHavePrimalSol() to determine whether a primal solution is available
+- function SCIPsolveOneVarSDP() can now return a certificate of the status (certificatevector/certificatevalue)
+
+parameters:
+- new parameter <constraints/SDP/presollinconssparam> to decide how linear constraints are handled during presolving
+- new parameter <constraints/SDP/prop3minors> to propagate 3 by 3 minors (default: TRUE)
+- new parameter <constraints/SDP/nonconst3minors> to propagate 3 by 3 minors even if the diagonals are not constant (default: FALSE)
+- new parameter <constraints/SDP/additionalstats> to show the number of propagations (default: FALSE)
+- new parameter <constraints/SDP/generatecmir> to separate CMIR from eigenvalue cuts (default: TRUE)
+- new parameter <reading/removesmallval> to remove small values when reading an instance in CBF or SDPA format (default: TRUE)
+- new parameter <constraints/SDP/removesmallval> to remove small values in SDP constraints (default: FALSE)
+- new parameters for symmetry handling:
+  propagating/sdpsymmetry/maxgenerators, propagating/sdpsymmetry/checksymmetries, propagating/sdpsymmetry/displaynorbitvars,
+  propagating/sdpsymmetry/doubleequations, propagating/sdpsymmetry/conssaddlp, propagating/sdpsymmetry/addsymresacks,
+  propagating/sdpsymmetry/detectorbitopes, propagating/sdpsymmetry/detectsubgroups, propagating/sdpsymmetry/addweaksbcs,
+  propagating/sdpsymmetry/addconsstiming, propagating/sdpsymmetry/ofsymcomptiming, propagating/sdpsymmetry/performpresolving,
+  propagating/sdpsymmetry/recomputerestart, propagating/sdpsymmetry/compresssymmetries, propagating/sdpsymmetry/compressthreshold,
+  propagating/sdpsymmetry/usecolumnsparsity, propagating/sdpsymmetry/maxnconsssubgroup, propagating/sdpsymmetry/usedynamicprop,
+  propagating/sdpsymmetry/addstrongsbcs, propagating/sdpsymmetry/ssttiebreakrule, propagating/sdpsymmetry/sstleaderrule,
+  propagating/sdpsymmetry/sstleadervartype, propagating/sdpsymmetry/addconflictcuts, propagating/sdpsymmetry/sstaddcuts,
+  propagating/sdpsymmetry/sstmixedcomponents, propagating/sdpsymmetry/symfixnonbinaryvars, propagating/sdpsymmetry/onlybinarysymmetry,
+  propagating/sdpsymmetry/preferlessrows.
+- The main parameter for handling symmetries is propagating/sdpsymmetry/usesymmetry.
+
+fixed bugs:
+- fixed bug in tighten matrices (never ran previously)
+- fixed output of statistics, i.e., avoid division by 0 in certain cases
+
+(c)make:
+- remove some unused files from cmake configuration
+- shared libraries are built by default in cmake
+- fixed make clean
+
+
+SCIP-SDP version 4.0.0
+======================
+
+features:
+- Separate cuts for all negative eigenvalues when solving with LP.
+- new function SCIPlapackComputeEigenvectorsNegative() to compute only eigenvectors for negative eigenvalues
+- allow to add SOC relaxation based on 2 by 2 minors.
+- revised handling of LP-solving: use one function for separation and enforcement
+- heur_sdpfracdiving and heur_sdprand now can also run for problems in which LPs are solved.
+- new heuristic heur_sdpinnerlp that tries to find a diagonally dominant solution using an LP
+- The display rows now switches from SDP to LP output depending on misc/solvesdps.
+- add possibility to sparsify an eigenvector cut
+- add possibility to add multiple sparse eigenvector cuts using the truncated power method (TPower)
+- Add option to solve an SDP when solving LPs if there is an integer solution in enforcing. If the SDP is not feasible
+  and not all integer variables are already fixed, add rounding step for all integer variables and solve SDP again.
+- add possibility to tighten matrices if all matrices are positive semidefinite (turned off by default)
+- add possibility to tighten bounds in presolving and propagation if all matrices are positive semidefinite (turned off by default)
+- add propagation routine for upper bounds based on 2-by-2 minors
+- The relaxator strengthened the rows of the LP corresponding to variable bounds before adding them to the current SDP.
+  This has been extended by a full coefficient tightening procedure.
+- use lexicographic sorting to sort matrix entries in SDPI
+- Empty SDP constraints are now presolved and possibly removed.
+- Streamlined the code at many places, in particular, in sdpi.c, sdpisolver_mosek.c, sdpisolver_sdpa.c, sdpisolver_dsdp.c.
+  Here the data handling has been almost completely revised. Moreover, the data structures have been restructured to reduce
+  reallocation. This reduces the memory footprint produced by empty blocks in memory.
+- prop_sdpredcost has been revised, avoiding numerical troubles at several places.
+- Revised the functions diagZeroImpl(), addTwoMinorLinConstraints().
+- The SDPA reader has been rewritten in C.
+- The SDPA reader supports a new optional section '*RANK1' that allows to specify rank-1-constraints. See 'sdpa-format.txt' for a description.
+- added a check for infinity in the CBF and SDPA reader
+- added more documentation to sdpi.c
+- revised handling of problems in which all variables are fixed or the SDPI detects infeasibility
+- SDPI now copies lower and upper bounds before possible strengthening.
+- copy locking information to sub-SCIPSDPs (this avoids recomputing eigenvalues)
+- reuse the mosek environment in each thread if possible
+- sdpisolver_mosek now uses the SCIP message handler for output.
+- use same time measurement within SDPI and SDPISOLVER as in SCIP
+- new file scipsdpdef.h which contains the SCIPSDP version
+- possibly update number of variables and consider added SDP constraints
+- The number of threads used is now used by the SDPA interface.
+- All SDP solvers now use the same default tolerances (feasibility and gap), and for Mosek the feasibility tolerance (<sdpsolverfeastol>)
+  is tightened by 0.1.
+- Remove table_sdpsolversuccess; its output has been added to table_relaxsdp.
+- Heuristics <sdprand> now uses propagation to increase its success rate.
+- Solve SDPs with one variable by using a semi-smooth Newton approach.
+- Explicitly solve LPs with one variable.
+- At several places, now block or buffer memory is used instead of malloc.
+- The SDPI for Mosek allows to scale the problem (relaxing/SDP/scaleobj).
+- SCIP-SDP redefines the default values of several parameters in SCIPSDPincludeDefaultPlugins(). Resetting parameters therefore
+  returns to the default values for SCIP-SDP.
+- Fixed several debug messages.
+- Tuned compConstMatAfterFixings().
+- All matrices in cons_sdp.c are enforced to be lower triangular.
+- Keep SCIP variable order for SDPI.
+- If cons_sdp.c finds a primal solution in enforcing directly add it without using heur_trysol.
+- The documentation now uses MathJax to render math formulas.
+- The LAPACK interface works with 32- and 64-bit library versions, since one cannot detect this at runtime.
+  This also avoids problem with MATLAB replacing LAPACK by a 64-bit MKL.
+- The output of the statistics has been extended and corrected at several places. In particular, more information is
+  output for SDP solves.
+- SCIP-SDP can now run concurrently. For this just call "concurrentopt" in the interactive shell.
+- sdpisolver_dsdp now uses the objective values of the penalty formulation for a feasibility check.
+- try to repair solution status in sdpisolver_mosek.c if Mosek stalled
+- Heuristic sdprand fixes variables that are close to being integral to integral values. This avoids many
+  numerical issues.
+- new fractional rounding heuristic with intermediate propagation
+- new presolving routine that adds linear inequalities based on variable bounds for 2 by 2 minors
+  (applied with parameter "constraints/SDP/twominorvarbounds")
+
+API changes:
+- new functions SCIPconsSdpGetNVars() and SCIPconsSdpGetVars() in cons_sdp.c
+- the function SCIPconsSdpCheckSdpCons() is now a static local function and no longer a global function
+- SCIPcreateConsSdp() and SCIPcreateConsSdpRank1() have a new parameter removeduplicates to remove duplicates in matrices.
+- Remove the functions SCIPsdpiSolverGetDefaultSdpiSolverFeastol() and SCIPsdpiSolverGetDefaultSdpiSolverGaptol(). The
+  tolerances are now set by relax_sdp.c.
+- new function SCIPsdpiGetMessagehdlr() in SDPI
+- new functions SCIPsdpSolcheckerCheckAndGetViolDual() and SCIPsdpSolcheckerCheckAndGetViolPrimal() for checking solutions
+- new functions SCIPsolveOneVarSDP() and SCIPsolveOneVarSDPDense() to solve SDPs with one variable by using a semi-smooth Newton approach
+
+parameters:
+- new parameter <constraints/SDP/separateonecut> to separate only one cut for the smallest eigenvalue (default: FALSE)
+- new parameter <constraints/SDP/cutstopool> to add cuts to the pool (default: TRUE)
+- new parameter <constraints/SDP/sparsifycut> to sparsify eigenvector cuts (default: FALSE)
+- new parameter <constraints/SDP/sparsifyfactor> to determine target size for sparsifying eigenvector cuts (default: 0.1)
+- new parameter <constraints/SDP/enforcesdp> to solve an SDP when solving LPs and there is an integral solution in enforcing (default: FALSE)
+- new parameter <constraints/SDP/onlyfixedintssdp> to only solve SDP in enforcing if all integer variables are fixed (default: FALSE)
+- new parameter <constraints/SDP/addsocrelax> to add SOC relaxation (default: FALSE)
+- new parameter <constraints/SDP/usedimacsfeastol> for using a feasibility tolerance based on the DIMACS error for computing negative eigenvalues (default: FALSE)
+- new parameter <constraints/SDP/generaterows> to determine if rows or constraints should be generated (default: TRUE)
+- new parameter <constraints/SDP/propupperbounds> to turn on propagation of upper bounds (default: TRUE)
+- new parameter <constraints/SDP/propubpresol> to turn on propagation of upper bounds in presolving (default: TRUE)
+- new parameter <constraints/SDP/tightenboundscont> to only propagate upper bounds of continuous variables (default: FALSE)
+- new parameter <constraints/SDP/tightenmatrices> to tighten (scale) matrices (default: FALSE)
+- new parameter <constraints/SDP/tightenbounds> to tighten bounds based on eigenvalues (default: TRUE when solving SDPs, FALSE when solving LPs)
+- new parameter <constraints/SDP/proptightenbounds> to turn on propagation of bound tightening (default: TRUE when solving SDPs, FALSE when solving LPs)
+- new parameter <constraints/SDP/proptbprobing> to turn on propagation of bound tightening in probing (default: FALSE)
+- new parameter <heuristics/sdpfracdiving/runforlp>, <heuristics/sdprand/runforlp> and <heuristics/sdpfracround/runforlp> to use heuristics starting from LP solution (default: FALSE)
+- new parameter <misc/solvesdps> to choose between SDP (1) and LP (0) solving (default: 1)
+- rename parameter <relaxing/SDP/tightenvb> to <relaxing/SDP/tightenrows>.
+- Set default value for <relaxing/SDP/sdpsolverthreads> to 1, since this usually improves running time
+  (set to -1 for an automatic choice, e.g., for larger SDP blocks).
+- removed parameter <heuristics/sdprand/generalints>
+- removed parameter <heuristics/sdprand/nrounds>
+- new parameter <relaxing/SDP/usepresolving> to turn presolving of SDP-solver on (default: FALSE)
+- new parameter <relaxing/SDP/scaleobj> to turn scaling of objective in SDP-solver on (default: FALSE)
+- new parameter <constraints/SDP/twominorvarbounds> to add linear inequalities based on variable bounds for 2 by 2 minors during presolving (default: TRUE when solving SDPs, FALSE when solving LPs)
+- new parameter <constraints/SDP/multiplesparsecuts> to add multiple sparse eigenvector cuts (default: FALSE)
+- new parameter <constraints/SDP/maxnsparsecuts> to determine maximal number of sparse eigenvector cuts to add (default: 0)
+- new parameter <constraints/SDP/recomputesparseev> to recompute sparse eigenvalues returned from TPower exactly (default: FALSE)
+- new parameter <constraints/SDP/recomputeinitial> to recompute the initial vector for TPower every time (default: FALSE)
+- new parameter <constraints/SDP/exacttrans> to exactly transform the matrix before calling TPower (default: FALSE)
+- Set default value for <constraints/SDP/diaggezerocuts> to FALSE when solving SDPs, and to TRUE when solving LPs.
+- Disable conflict analysis by default, i.e., set default value for <conflict/enable> to FALSE since this has no effect when solving SDPs and a negative influence when solving LPs.
+
+fixed bugs:
+- fixed the output of the line number when reading CBF files
+- fixed one memory bug and one missing check in diagZeroImpl()
+- fixed bug in multiaggrVar() with negative coefficients and locking
+- fixed bug in multiaggrVar() and revised implementation
+- fixed bug in fixAndAggrVars() if the multiaggregation reduces to 0 variables
+- fixed bug in reading problems with indicator constraints
+- fixed bug in presolving which sometimes avoided the addition of linear constraints
+- fixed minor bug to allow copying of original problem
+- fixed rpath for using Mosek
+- fixed several minor issues in CBF reader
+- disable oneopt heuristic when solving SDPs to avoid an infinite loop
+- the SDPI is now more tolerant to unusual settings (no LP/SDP constraint, no constant part etc.)
+- set objective value in relaxation even for infeasible or unbounded problems (this led to problems in prop_sdpredcost)
+- At several places in cons_sdp.c treat the case of no SDP constraints or matrices.
+- fixed several wrong return codes of status codes in SDPI
+- treat unknown solution status in sdpisolver_dsdp.c
+- fixed bug in relax_sdp with new variables that might be added
+- avoid infinite loop with upgrading quadratic problems
+- linear constraints added during presolving are not initial and are neither enforced nor checked
+- fixed one bug when accessing solution statistics from Mosek for problems that have run into the timelimit in Mosek
+
+(make)files:
+- The makefile now produces various links to libscipsdp... and scipsdp...
+- Fix cmake to work with Mosek 9.
+- We do not need the following files anymore, since the SDPA reader has been rewritten: BlockMemoryAllocator.h, objreader_sdpa.cpp,
+  objreader_sdpa.h, objreader_sdpaind.cpp, objreader_sdpaind.h, ScipStreamBuffer.cpp, ScipStreamBuffer.h
+- Fixed linking of ubsan and clean/test targets in Makefile.
+- SCIP-SDP can now be compiled with TPIs (for concurrent optimization).
+- Avoid multiple symbols when linking LAPACK with CPLEX.
+- weakened tolerances in cmprs.awk and check.awk
+
+
+SCIP-SDP version 3.2.0
+======================
+
+interface:
+- changed name of shell to "SCIP-SDP"
+- increase output precision of CBF-files to 15 digits
+- introduced function SCIPSDPincludeDefaultPlugins() that includes everything needed for SCIP-SDP
+- SCIPconsSdpCheckSdpCons(): removed parameters checkintegrality, checklprows
+- SCIPconsSdpComputeUbSparseSdpMatrixLength(): remove parameter scip
+
+fixed bugs:
+- fixed bug with statistics output when no SDPs were solved
+- fixed minor bug in CBF-reader when reading DCOORD
+- fixed bug with wrong matrix sizes in warmstarting code
+- disabled the sdpobbt propagator if the SDP-relaxator is not available
+- fixed memory leak in prop_sdpredcost with restarts
+- only add presolving linear constraints once
+
+features:
+- add error messages to SDPA-format reader
+- fix parsing of integer variables in SDPA-format
+- add support for reading CBF-files in primal and mixed primal-dual form
+- unify nomenclature, e.g., variable names, in CBF reader
+- add more error messages to CBF reader
+- add linenumbers to error messages in CBF reader
+- the variable locks are now updated in presolving
+- presolving techniques directly update bounds instead of adding constraints if possible
+- unlocking variables is now faster (do not need to recompute eigenvalues in this case)
+- adapted several code parts to newer SCIP versions and using new features
+- add support for rank-1 constraints for psd variables and SDP-constraints by extending the SDP constraint handler, which now includes the following:
+  - add one new parameter quadconsrank1 to ConshdlrData of cons_sdp
+  - add three new variables rankone, maxevsubmat, addedquadcons to ConsData of cons_sdp
+  - introduce function isMatrixRankOne() to check whether a matrix has rank 1
+  - adapt locking mechanism to rank-1 constraints
+  - introduce function enforceRankeOne() to enforce the rank-1 constraint for a given solution
+  - for each constraint, if it should be rank one, all quadratic constraints given by the 2x2 principal minors are added in ConsInitSol,
+    since a psd matrix has rank 1 if and only if all its 2x2 principal minors are zero.
+  - add printing and parsing of rank-1 information in .cip-format as "rank1? 0/1"
+  - SCIPconsSdpGetData(): add parameter rankone, maxevsubmat, addedquadcons
+  - SCIPcreateConsSdp(): add parameter rankone
+  - introduce function SCIPconsSdpShouldBeRankOne()
+  - introduce function SCIPconsSdpGetMaxEVSubmat()
+  - introduce function SCIPconsSdpAddedQuadCons()
+  - introduce keywords PSDVARRANK1 and PSDCONRANK1 in reader_cbf.c for specifying psd variables and SDP-constraints with a rank-1 constraint
+  - the new features are accessible via the virtual constraint handler SDPrank1 (SCIPcreateConsSdpRank1)
+  - a new heuristic tries to construct rank1 solutions (parameter rank1approxheur; disabled by default)
+- unify handling of LAPACK calls: there now is only one file "lapack_interface" instead of two (lpapack_sdpa, lapack_dsdp).
+- two new presolving routines that add linear constraints, which are then propagated to possibly improve variable bounds
+  (applied with parameters "constraints/SDP/twominorlinconss" and "constraints/SDP/twominorprodconss")
+- add support for upgrading quadratic constraints to SDP rank1 constraints:
+  - parameter upgradquadconss: turns upgrading on
+  - in addition: parameter upgradekeepquad only adds SDP constraint as a relaxation
+  - the upgrading is only performed if the number of variables and constraints is at most maxnvarsquadupgd
+
+makefile:
+- add project makefile in make/make.scipsdpproj
+- reorganize main makefile to use make.scipsdpproj
+- fix some minor issues in makefile concerning building with shared libraries
+- use (pc)lint files from SCIP
+
+
+
+SCIP-SDP version 3.1.2
+======================
+
+fixed bugs:
+- fixed bug that could lead to segmentation faults after restarts when using the analytic center warmstarts
+- sdpfracdiving only runs if the last SDP solve was outside of probing (before it could run directly after, e.g., sdp-obbt, which
+  could lead to solutions with wrong objective values given to SCIP, since the objective values could still relate to those of the
+  previous probing run)
+- added additional tolerance factor (currently 1000) to sdp-obbt and only accept bound changes with improvement at least
+  tolerance factor * gaptol (before smaller changes were also accepted, which, especially on integer variables, could lead
+  to incorrect cutoffs or bound changes if these small differences were only caused by inaccuracy of the SDP solver)
+- check for time limit during probing SDP within obbt-propagator to not return wrong cutoffs
+- check for unboundedness in sdp-obbt problems
+- explicitly handle unboundedness of the penalty problem
+- fixed potential segmentation fault when reading cbf-files without any (SDP-)constraints or constant part
+- fixed bug in cbf reader where equality constraints with right hand side zero were ignored
+- return with reader error in optimized mode in CBF reader
+- fixed bug with empty DCOORD section in CBF file reader
+- make sure that matrix is in lower triangular form in CBF file reader
+
+performance improvements:
+- delay sdp-obbt if cutoffbound resulted from objective propagation only or the trivial heuristic, instead rerun after cutoffbound changed
+  for the current node
+
+interface:
+- updated MOSEK interface to MOSEK 9
+
+features:
+- when reading CBF files, we now also allow that the conic parts appear multiple times, which are then aggregated
+- allow to read CBF file version 2 (but do not support additional cones)
+- CBF files: allow conic parts of constraints in different order
+- CBF file: add more syntatic correctness checks
+
+
+SCIP-SDP version 3.1.1
+======================
+
+fixed bugs:
+- fixed potential segmentation fault if relaxator or redcost propagator were freed before initsol
+- fixed potential segmentation fault caused by total number of nonzeros not being computed by SDP-constraint-parser for CIP format
+- do not run sdp-obbt if relaxation solution is not valid
+- changed relaxexit-callback to relaxexitsol for consistency and to avoid missing releaseVariables in UG
+
+interface:
+- add dat-s-ind reader to read instances in extended sdpa format with negative sign of variable index for indicator variables
+
+parameters:
+- added additional parameter "relaxing/SDP/peninfeasadjust" to increase numerical stability by only allowing cutoffs through the penalty
+  formulation if the objective value of the feasilibity problem is at least this factor larger than the gap- and feasibility tolerance
+  (default value is 10)
+- changed restarts, cutagelimits and separating/maxrounds back to their SCIP defaults
+
+Makefile:
+- added experimental cmake support
+
+
+SCIP-SDP version 3.1.0
+======================
+
+features:
+- added possibility to warmstart SDPA and DSDP (deactivated by default) in several different ways, for details see parameter list in
+  documentation and release report
+- SCIP-SDP statistics are now included in SCIP statistics through new statistics table plugin type (old statistics output can still be
+  activated via parameter relaxing/SDP/displaystatistics)
+- compute and output constraint violations also for SDP constraints
+
+performance improvements:
+- accept solutions if MOSEK stalled but solutions are (almost) feasible (which is rechecked in the sdp interface later for the dual
+  solution) and the duality gap is below the tolerance
+
+parameters:
+- changed default duality gap tolerance for MOSEK to 1e-5
+
+core:
+- adjustments for changes in SCIP relaxation solution enforcement
+
+
+SCIP-SDP version 3.0.1
+======================
+
+fixed bugs:
+- only declare problem infeasible in sdpredcost if lower bound exceeds upper bound by at least feastol (instead of epsilon)
+- only change bounds in sdpredcost if they changed by more than feastol instead of epsilon (could lead to asserts for
+  integer variables which are later rounded according to feastol)
+- also compute objective values by hand for SDPA (like for MOSEK and DSDP), since returned objective sometimes does not match
+  returned solution perfectly, which leads to errors inside SCIP
+
+performance improvements:
+- only create (and use) startsettings constraint handler for SDPA
+
+core:
+- disable dual propagators for reoptimization
+
+makefile:
+- added "make libscipsdp" to compile as library (needed, e.g., for parallelization via UG)
+
+
+SCIP-SDP version 3.0.0
+======================
+
+fixed bugs:
+- the SDPA interface incorrectly reused the settings of the last node instead of the parent node
+- fixed fast/penalty/unsolved display columns to divide by number of interface calls instead of
+  number of solver calls (which includes multiple calls for penalty formulation etc.)
+- in SDPA interface if parent node used default settings, now continue with stable settings
+  afterwards instead of directly moving to penalty formulation
+- fixed memory leaks for fixed and (multi-)aggregated variables and in sdp-obbt
+- input values are now checked against epsilon instead of feastol for detecting nonzeros
+- only fix variables locally if lb-ub < epsilon instead of feastol
+- feasibility is no longer checked against sdpsolverfeastol but instead against feastol everywhere
+  (sdpsolverfeastol is now only used internally for the SDP-solver)
+- immediately resolve SDP-relaxations if the required tolerance was not met by the solver
+- fixed a problem which could lead to errors when the sdpredcost-propagator asked for information
+  after the SDP-solver hit the SCIP-timelimit
+
+features:
+- readded "diagzeroimpl" cuts in presolving which enforce nonzero diagonal entries if a nonzero
+  entry exists in the constant matrix for the corresponding row or column (under some prerequisites)
+
+interface:
+- added interface to MOSEK
+- added reader for CBF format
+
+parameters:
+- The "diagzeroimpl" and diagonal >= 0 cuts of the SDP constraint handler can now be disabled through
+  the parameters "constraints/SDP/diagzeroimplcuts" and "constraints/SDP/diaggezerocuts".
+- "sdpsolverepsilon" has been renamed to "sdpsolvergaptol" to make the usage clearer
+- The number of threads for MOSEK can be set via "relaxing/SDP/sdpsolverthreads"
+- The maximum number of increases of the penaltyparameter and maximum number of decreases of the feasibility
+  tolerance before declaring a problem unsolvable and continueing with the bound of the parent node can now
+  be set via "relaxing/SDP/npenaltyincr"
+
+core:
+- adjusted SCIP-SDP to new enforelax callback in SCIP; this now allows to combine SCIP-SDP with other nonlinear
+  constraints/constraint handlers
+
+makefile:
+- set links to mumps libraries instead of library folder
+- All internal and external libraries are placed in lib/static and lib/shared, the include files are in lib/include.
+- Current check scripts are now copied directly from the chosen SCIP directory.
+
+SCIP-SDP version 2.1.0
+======================
+
+fixed bugs:
+- current iterate is now correctly reset when changing parameters in SDPA
+- parameters for SDPA are now set before inserting the problem so that they are also used for computing the initial point
+- changed default lambda star parameter in SDPA to reduce aborts in infeasible subproblems
+- changed default penalty parameter in DSDP to prevent cases where optimal solutions within the feasibility tolerance
+  where cut off by DSDP
+- fixed bug in reader that resulted in wrong computation of LP-row-indices when using multiple LP-blocks and could lead
+  to segmentation faults
+- infeasibility-status for presolving was not correctly reset after changing bounds
+- check again for all variables fixed after local presolving, problems without variables may not be given to SDPA
+- fixed some wrong asserts that used epsilon instead of feasibility tolerance
+- one array in the SDPA interface was not properly resized after loading a second, bigger problem into the same SCIP shell
+- number of SDP iterations now includes all solved SDPs, including those which were later resolved with different settings
+  or the penalty formulation
+
+features:
+- added possibility to also check primal slater condition and output statistics in the end
+- added diving heuristic for SDPs (disabled by default) [please note: This requires SCIP version 4.0 or higher and is 
+  disabled for SCIP version 3.2.1 or lower]
+- added randomized rounding heuristic for SDPs [please note: This requires SCIP version 4.0 or higher and is 
+  disabled for SCIP version 3.2.1 or lower]
+- added optimization-based bound tightening for SDPs (disabled by default) [please note: This requires SCIP version 4.0 
+  or higher and is disabled for SCIP version 3.2.1 or lower]
+
+performance improvements:
+- in case of numerical problems in SDPA, child nodes are no longer tried to solve with fast settings in SDPA, but instead with
+  whatever settings worked for the parent node (this can be controlled via parameter)
+
+interface:
+- added possibility to read and write in .cip format
+- when using DSDP, the time limit is now checked after each iteration
+
+parameters:
+- penalty parameter to be used for numerically hard relaxations can now be changed by a parameter
+- lambda star parameter for initial point in SDPA can now be changed by a parameter
+- frequency of parameter resets in SDPA can be set by a parameter
+- number of threads for SDPA/Openblas can now be changed via parameter if OpenMP is installed
+- slatercheck is now an int parameter that also determines whether Slater results should be printed to console or
+  only displayed as statistics in the end
+- added parameter to control output of statistics after quitting SCIP-SDP
+
+core:
+- if an SDP relaxation cannot be solved, it is first checked for feasibility using an adjusted penalty formulation
+  and only if the problem cannot be shown to be infeasible this way, a different penalty formulation is used to 
+  solve the problem with the original objective function
+- in the penalty formulation the primal bound added by the penalty parameter is now also checked to decide between
+  increasing the penalty parameter or decreasing the feasibility tolerance, also the best lower bound computed by the
+  penalty formulation is now used in SCIP even if the corresponding solution is not feasible in the original
+  formulation
+
+misc:
+- percentage of unsolved SDP relaxations are now displayed in the shell; percentage of instances solved using the fastest
+  settings (for SDPA, for DSDP this is the number of problems solved with the original formulation) and solved using the
+  penalty formulation can also be displayed but are disabled by default
+- statistics about number of SDP iterations, percentage of solved SDPs and (if enabled via parameter) percentage of 
+  problems satisfying the Slater condition are now displayed after quitting SCIP-SDP
+
+
+SCIP-SDP version 2.0.0
+======================
+
+fixed bugs:
+- if DSDP does not converge but produces primal and dual feasible solutions, these are no longer accepted as optimal
+- reader no longer crashes because of comment-lines between SDP/LP-block-lines
+- value 0 in the last LP-block-line no longer causes an infinite loop
+- non-numbers in the SDP/LP-block-lines and lines with more or less than five entries no longer cause infinite loops
+  or get cut off or combined with others rows, but cause exits with meaningful error messages
+- removed the diagDominant-cuts that are only correct for general MISDPs under some prerequisites
+
+data structures:
+- now uses arrays for the nonzeros instead of the SDP-cone class
+
+features:
+- dual/reduced cost fixing for SDPs
+- added branching rules, as some of the SCIP branching rules only work on LP-solutions
+
+performance improvements:
+
+interface:
+- added a more modular SDP-Interface and removed direct DSDP-references from the SCIPSDP-core-code
+- added beta version of interface to SDPA
+
+parameters:
+- can now specify epsilon and feasibility tolerance for the SDP-solver specifically
+- can specify whether an objective limit should be set for the SDP-solver
+- can choose to display output of SDP-solver
+- can choose to check slater condition in the dual problem ahead of solving the SDPs
+- for a full list check the parameters tab in the documentation
+
+core:
+- transferred all code except for reader and SDPA-interface from C++ to C
+- now uses the SCIP shell
+- added SCIP 3.2.0 support
+- bounds from SCIP are no longer transformed into LP-rows but are given to the SDP Solver (specifically DSDP, for SDPA 
+  they still need to be transformed) as bounds
+
+Makefile:
+- creates extra directory sdpi for SDP-Interface
+- SDP-solver is now specified via make option SDPS=...
+- links are now set via console when calling make instead of the make.local file
+
+misc:
+- total and average SDP-iterations are displayed in the shell

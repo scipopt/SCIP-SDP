@@ -1,0 +1,3 @@
+misc/solvesdps = 1
+branching/sdpmostinf/priority = 3e+06
+relaxing/SDP/sdpsolverthreads = 1

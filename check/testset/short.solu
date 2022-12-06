@@ -1,0 +1,18 @@
+=opt= example_small -8.0
+=opt= example_small_cbf -8.0
+=opt= example_small_ind -18.0
+=inf= example_inf
+=opt= example_TT 2.11803
+=opt= example_CLS 7.1485
+=opt= example_MkP -95
+=opt= example_cbf_primal 0.75
+=opt= example_cbf_mix 4.0
+=opt= example_cbf_dual 4.0
+=opt= example_multaggr -1.0
+=opt= example_multaggr2 4.0
+=opt= example_multaggr3 4.0
+=opt= example_rank1_primal 0.6537946
+=opt= example_rank1_dual 0.6537946
+=opt= example_diagzeroimpl -1.0
+=opt= example_indicator +6.56155281280000e+05
+=opt= example_tightenmatrices -9.0
