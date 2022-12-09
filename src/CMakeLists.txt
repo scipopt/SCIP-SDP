@@ -125,7 +125,7 @@ setLibProperties(libscipsdp "scipsdp")
 #put binary in bin directory
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 if(SHARED)
-    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${SYM_LIBRARIES} ${LAPACK_LIBRARIES} m)
+    target_link_libraries(libscipsdp PRIVATE ${ZIMPL_PIC_LIBRARIES} ${SDPS_PIC_LIBRARIES} ${SCIP_LIBRARIES} ${SYM_LIBRARIES} ${LAPACK_LIBRARIES} m)
     add_executable(scipsdp scipsdp/main.c ${scipsdpsources} ${objscipsdpsources} ${sdpisources} ${sym})
     target_link_libraries(scipsdp ${ZLIB_LIBRARIES} ${Readline_LIBRARY} ${GMP_LIBRARIES} ${ZIMPL_LIBRARIES} ${SDPS_LIBRARIES} ${SCIP_LIBRARIES} ${SYM_LIBRARIES} ${LAPACK_LIBRARIES} m)
 else()
