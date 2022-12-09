@@ -79,16 +79,12 @@ add_custom_target(scip_update_githash
                   COMMAND ${CMAKE_COMMAND} -DDST=${PROJECT_SOURCE_DIR}/scipsdpgithash.c
                                            -P ${CMAKE_BINARY_DIR}/scip_update_githash.cmake)
 
-
 # find lapack and blas
-find_library(LAPACK_LIBRARY lapack)
-if(LAPACK_LIBRARY)
-  message(STATUS "Found lapack library: " ${LAPACK_LIBRARY})
-endif()
-
-find_library(BLAS_LIBRARY blas)
-if(BLAS_LIBRARY)
-  message(STATUS "Found blas library: " ${BLAS_LIBRARY})
+find_package(LAPACK REQUIRED)
+if(LAPACK_FOUND)
+  message(STATUS "Found lapack library: " ${LAPACK_LIBRARIES})
+else()
+  message(FATAL_ERROR "Lapack not found")
 endif()
 
 # search the selected symmetry computation program
