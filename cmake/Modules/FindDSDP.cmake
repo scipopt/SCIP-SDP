@@ -8,7 +8,7 @@ find_library(DSDP_LIBRARY
     HINTS ${DSDP_DIR} $ENV{DSDP_DIR}
     PATH_SUFFIXES lib)
 
-set(DSDP_LIBRARIES ${DSDP_LIBRARY} -llapack -lblas)
+set(DSDP_LIBRARIES ${DSDP_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(DSDP DEFAULT_MSG DSDP_INCLUDE_DIRS DSDP_LIBRARIES)
