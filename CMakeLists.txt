@@ -86,6 +86,12 @@ if(LAPACK_FOUND)
 else()
   message(FATAL_ERROR "Lapack not found")
 endif()
+find_package(BLAS REQUIRED)
+if(BLAS_FOUND)
+  message(STATUS "Found blas library: " ${BLAS_LIBRARIES})
+else()
+  message(FATAL_ERROR "Blas not found")
+endif()
 
 # search the selected symmetry computation program
 message(STATUS "Finding symmetry computation program \"${SYM}\"")
