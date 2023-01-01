@@ -3,30 +3,26 @@
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
 /* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
-/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
+/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
 /*               2014-2022 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
-/* This program is free software; you can redistribute it and/or             */
-/* modify it under the terms of the GNU Lesser General Public License        */
-/* as published by the Free Software Foundation; either version 3            */
-/* of the License, or (at your option) any later version.                    */
+/* Licensed under the Apache License, Version 2.0 (the "License");           */
+/* you may not use this file except in compliance with the License.          */
+/* You may obtain a copy of the License at                                   */
 /*                                                                           */
-/* This program is distributed in the hope that it will be useful,           */
-/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
-/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
-/* GNU Lesser General Public License for more details.                       */
+/*     http://www.apache.org/licenses/LICENSE-2.0                            */
 /*                                                                           */
-/* You should have received a copy of the GNU Lesser General Public License  */
-/* along with this program; if not, write to the Free Software               */
-/* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
+/* Unless required by applicable law or agreed to in writing, software       */
+/* distributed under the License is distributed on an "AS IS" BASIS,         */
+/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  */
+/* See the License for the specific language governing permissions and       */
+/* limitations under the License.                                            */
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
 /* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
-/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
-/* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -112,6 +108,7 @@
 #define DEFAULT_PROPUBPRESOL       TRUE /**< Should upper bounds be propagated in presolving? */
 #define DEFAULT_PROP3MINORS        TRUE /**< Should 3x3 minors be propagated? */
 #define DEFAULT_NONCONST3MINORS   FALSE /**< Should 3x3 minors be propagated if the diagonal is not constant? */
+#define DEFAULT_PROP3MPROBING     FALSE /**< Should 3x3 minors be propagated in probing? */
 #define DEFAULT_PROPTIGHTENBOUNDS  TRUE /**< Should tighten bounds be propagated? */
 #define DEFAULT_PROPTBPROBING     FALSE /**< Should tighten bounds be propagated in probing? */
 #define DEFAULT_TIGHTENBOUNDSCONT FALSE /**< Should only bounds be tightend for continuous variables? */
@@ -139,9 +136,11 @@
 #define DEFAULT_ADDSOCRELAX       FALSE /**< Should a relaxation of SOC constraints be added */
 #define DEFAULT_USEDIMACSFEASTOL  FALSE /**< Should a feasibility tolerance based on the DIMACS be used for computing negative eigenvalues? */
 #define DEFAULT_GENERATEROWS       TRUE /**< Should rows be generated (constraints otherwise)? */
-#define DEFAULT_GENERATECMIR      FALSE /**< Should CMIR cuts be generated? */
+#define DEFAULT_GENERATECMIR       TRUE /**< Should CMIR cuts be generated? */
 #define DEFAULT_PRESOLLINCONSSPARAM   0 /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
 #define DEFAULT_ADDITIONALSTATS   FALSE /**< Should additional statistics be output at the end? */
+#define DEFAULT_ENABLEPROPTIMING  FALSE /**< Should timing be activated for propagation routines? */
+#define DEFAULT_REMOVESMALLVAL    FALSE /**< Should small values in the constraints be removed? */
 
 #ifdef OMP
 #define DEFAULT_NTHREADS              1 /**< number of threads used for OpenBLAS */
@@ -159,6 +158,8 @@
 #define ALLOWLOCAL                FALSE /**< allow to generate local cuts - see cuts. */
 #define MINFRAC                   0.05  /**< minimal fractionality of floor(rhs) - see cuts.c */
 #define MAXFRAC                   0.999 /**< maximal fractionality of floor(rhs) - see cuts.c */
+
+#define COEFZERO                  1e-12 /**< tolerance below which coefficients are eliminated from cuts */
 
 /** constraint data for sdp constraints */
 struct SCIP_ConsData
@@ -185,6 +186,7 @@ struct SCIP_ConsData
    SCIP_Real*            matrixval;          /**< value at given position of unique covering variable */
    SCIP_Real*            matrixconst;        /**< value of constant matrix */
    int                   nsingle;            /**< number of matrix entries that depend on a single variable only */
+   SCIP_Bool             propubpossible;     /**< whether the propagation of upper bounds is possible */
    SCIP_Bool             diagconstantone;    /**< true if all diagonal entries are fixed to be 1 (used for speeding-up propagate3minors() */
    SCIP_Real             tracebound;         /**< possible bound on the trace */
    SCIP_Bool             allmatricespsd;     /**< true if all variables are positive semidefinite (excluding the constant matrix) */
@@ -203,6 +205,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
    SCIP_Bool             prop3minors;        /**< Should 3x3 minors be propagated? */
    SCIP_Bool             nonconst3minors;    /**< Should 3x3 minors be propagated if the diagonal is not constant? */
+   SCIP_Bool             prop3mprobing;      /**< Should 3x3 minors be propagated in probing? */
    SCIP_Bool             tightenboundscont;  /**< Should only bounds be tightend for continuous variables? */
    SCIP_Bool             proptightenbounds;  /**< Should tighten bounds be propagated? */
    SCIP_Bool             proptbprobing;      /**< Should tighten bounds be propagated in probing? */
@@ -250,6 +253,18 @@ struct SCIP_ConshdlrData
    SCIP_Bool             exacttrans;         /**< Should the matrix be transformed with the exact maximal eigenvalue before calling TPower (instead of using estimate)? */
    int                   presollinconssparam; /**< Parameters for linear constraints added during presolving: (0) propagate, if solving LPs also separate (1) initial and propagate, if solving LPs also separate, enforce and check */
    SCIP_Bool             additionalstats;    /**< Should additional statistics be output at the end? */
+   SCIP_Bool             enableproptiming;   /**< Should timing be activated for propagation routines? */
+   SCIP_Bool             removesmallval;     /**< Should small values in the constraints be removed? */
+
+   int                   ncallspropub;       /**< Number of calls of propagateUpperBounds in propagation */
+   int                   ncallsproptb;       /**< Number of calls of tightenBounds in propagation */
+   int                   ncallsprop3minor;   /**< Number of calls of propagate3Minors in propagation */
+   SCIP_CLOCK*           propubtime;         /**< Time for propagateUpperBounds in propagation */
+   SCIP_CLOCK*           proptbtime;         /**< Time for tightenBounds in propagation */
+   SCIP_CLOCK*           prop3minortime;     /**< Time for propagate3Minors in propagation */
+   SCIP_Real             maxtimepropub;      /**< Maximal time spent for one round of propagateUpperBounds in propagation */
+   SCIP_Real             maxtimeproptb;      /**< Maximal time spent for one round of tightenBounds in propagation */
+   SCIP_Real             maxtimeprop3minor;  /**< Maximal time spent for one round of propagate3Minors in propagation */
    int                   npropub;            /**< Number of propagations through upper bounds */
    int                   nproptb;            /**< Number of tightened bounds in propagation */
    int                   nprop3minor;        /**< Number of propagations through 3x3 minors */
@@ -266,6 +281,7 @@ struct SCIP_ConshdlrData
    int                   nproppreintrnd3m;   /**< Number of rounded bounds of integer variables in propagation through 3x3 minors in presolving */
    int                   npropprobub;        /**< Number of propagations through upper bounds in probing */
    int                   npropprobtb;        /**< Number of tightened bounds in propagation in probing */
+   int                   npropprob3minor;    /**< Number of propagations through 3x3 minor in probing */
 };
 
 /** generates matrix in colum-first format (needed by LAPACK) from matrix given in full row-first format (SCIP-SDP
@@ -476,6 +492,65 @@ SCIP_RETCODE computeFullSdpMatrix(
    return SCIP_OKAY;
 }
 
+/** check whether propagation of upper bounds can be applied */
+static
+SCIP_RETCODE checkPropagateUpperbounds(
+   SCIP_CONS*            cons                /**< constraints to check */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( cons != NULL );
+   consdata = SCIPconsGetData(cons);
+   consdata->propubpossible = FALSE;
+
+   if ( consdata->nsingle > 0 )
+   {
+      int blocksize;
+      int s;
+      int t;
+
+      blocksize = consdata->blocksize;
+      assert( consdata->matrixval != NULL );
+      assert( consdata->matrixvar != NULL );
+
+      /* check all off-diagonal positions */
+      for (s = 1; s < blocksize; ++s)
+      {
+         int diags;
+
+         diags = s * (s + 1)/2 + s;
+         if ( consdata->matrixval[diags] == SCIP_INVALID ) /*lint !e777*/
+            continue;
+
+         for (t = 0; t < s; ++t)
+         {
+            SCIP_VAR* varst;
+            int diagt;
+            int pos;
+
+            pos = s * (s + 1)/2 + t;
+            varst = consdata->matrixvar[pos];
+            if ( varst == NULL || ! SCIPvarIsActive(varst) )
+               continue;
+
+            diagt = t * (t + 1)/2 + t;
+            if ( consdata->matrixval[diagt] == SCIP_INVALID ) /*lint !e777*/
+               continue;
+
+            /* at this place propagation of upper bounds would be possible */
+            consdata->propubpossible = TRUE;
+            break;
+         }
+
+         if ( consdata->propubpossible )
+            break;
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
 /** build matrixvar data
  *
  *  We have:
@@ -578,6 +653,9 @@ SCIP_RETCODE constructMatrixvar(
    if ( SCIPgetSubscipDepth(scip) == 0 )
       SCIPdebugMsg(scip, "Total number of matrix entries that only depend on a single variable: %d.\n", consdata->nsingle);
 
+   /* determine whether propagation of upper bounds is possible */
+   SCIP_CALL( checkPropagateUpperbounds(cons) );
+
    return SCIP_OKAY;
 }
 
@@ -646,7 +724,6 @@ SCIP_RETCODE SCIPconsSdpCheckSdpCons(
 static
 SCIP_RETCODE isMatrixRankOne(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
    SCIP_CONS*            cons,               /**< the SDP constraint to check the rank for */
    SCIP_SOL*             sol,                /**< solution to check for rank one */
    SCIP_Bool             printreason,        /**< should the reason for the violation be printed? */
@@ -806,6 +883,245 @@ SCIP_RETCODE setMaxRhsEntry(
    return SCIP_OKAY;
 }
 
+/** produce cut from (possibly modified) eigenvector */
+static
+SCIP_RETCODE produceCutFromEigenvector(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
+   SCIP_CONS*            cons,               /**< constraint */
+   SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_Bool             enforce,            /**< whether we are in enforcing */
+   SCIP_SOL*             sol,                /**< primal solution that should be separated */
+   int                   blocksize,          /**< size of block */
+   SCIP_Real*            fullconstmatrix,    /**< precomputed full constant matrix */
+   SCIP_Real*            eigenvector,        /**< original eigenvector */
+   SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
+   SCIP_VAR**            vars,               /**< temporary workspace (length nvars) */
+   SCIP_Real*            vals,               /**< temporary workspace (length nvars) */
+   int*                  ngen,               /**< pointer to store the number of generated cuts/constraints */
+   SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */
+   SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
+   )
+{
+   char cutname[SCIP_MAXSTRLEN];
+   SCIP_Real lhs = 0.0;
+   int cnt = 0;
+   int j;
+
+   assert( conshdlr != NULL );
+   assert( conshdlrdata != NULL );
+   assert( cons != NULL );
+   assert( consdata != NULL );
+   assert( fullconstmatrix != NULL );
+   assert( eigenvector != NULL );
+   assert( vector != NULL );
+   assert( vars != NULL );
+   assert( vals != NULL );
+   assert( ngen != NULL );
+   assert( success != NULL );
+   assert( result != NULL );
+
+   *success = TRUE;
+
+   /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
+   SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, vector) );
+
+   for (j = 0; j < blocksize; ++j)
+      lhs += eigenvector[j] * vector[j];
+
+   /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
+   for (j = 0; j < consdata->nvars; ++j)
+   {
+      SCIP_Bool isfixed;
+      SCIP_Real coef;
+      SCIP_Real lb;
+      SCIP_Real ub;
+
+      /* compute coefficient by multiplying eigenvector with jth matrix */
+      SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coef) );
+
+      lb = SCIPvarGetLbGlobal(consdata->vars[j]);
+      ub = SCIPvarGetUbGlobal(consdata->vars[j]);
+
+      if ( ! ( SCIPisInfinity(scip, -lb) || SCIPisInfinity(scip, ub) ) && SCIPisEQ(scip, ub, lb) )
+         isfixed = TRUE;
+      else
+         isfixed = FALSE;
+
+      /* safely round coefficients to 0 */
+      if ( ! enforce && (isfixed || SCIPisZero(scip, coef)) )
+      {
+         if ( REALABS(coef) > COEFZERO )
+         {
+            if ( coef > 0.0 )
+            {
+               if ( SCIPisInfinity(scip, ub) )
+               {
+                  *success = FALSE;
+                  break;
+               }
+               else
+                  lhs -= coef * ub;
+            }
+            else
+            {
+               if ( SCIPisInfinity(scip, -lb) )
+               {
+                  *success = FALSE;
+                  break;
+               }
+               else
+                  lhs -= coef *lb;
+            }
+         }
+      }
+      else
+      {
+         vars[cnt] = consdata->vars[j];
+         vals[cnt++] = coef;
+      }
+   }
+
+   if ( *success && cnt > 0 )
+   {
+      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
+      if ( conshdlrdata->sdpconshdlrdata->generaterows )
+      {
+         SCIP_Bool infeasible;
+         SCIP_ROW* row;
+
+         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
+         SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
+
+         /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
+         if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
+         {
+#ifdef SCIP_MORE_DEBUG
+            SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+            SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+            if ( infeasible )
+               *result = SCIP_CUTOFF;
+            else
+               *result = SCIP_SEPARATED;
+            SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+            if ( conshdlrdata->sdpconshdlrdata->cutstopool )
+            {
+               SCIP_CALL( SCIPaddPoolCut(scip, row) );
+            }
+            ++(*ngen);
+         }
+
+         SCIP_CALL( SCIPreleaseRow(scip, &row) );
+      }
+      else
+      {
+         SCIP_CONS* newcons;
+
+         SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
+               TRUE, TRUE, enforce, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
+         SCIP_CALL( SCIPaddCons(scip, newcons) );
+         SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
+         *result = SCIP_CONSADDED;
+         ++(*ngen);
+      }
+
+      if ( conshdlrdata->sdpconshdlrdata->generatecmir )
+      {
+         SCIP_AGGRROW* aggrrow;
+         SCIP_Real* cutcoefs;
+         SCIP_Real cutrhs;
+         SCIP_Real cutefficacy;
+         SCIP_Bool cutislocal;
+         int* cutinds;
+         int cutnnz = 0;
+         int cutrank;
+
+         SCIP_CALL( SCIPallocBufferArray(scip, &cutcoefs, consdata->nvars) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &cutinds, consdata->nvars) );
+
+         SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
+
+         /* switch row */
+         for (j = 0; j < cnt; ++j)
+         {
+            vals[j] *= -1.0;
+            cutinds[j] = SCIPvarGetProbindex(vars[j]);
+         }
+
+         /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
+         SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, cutinds, vals, cnt, -lhs, 1.0, 0, FALSE) );
+
+         /* try to generate CMIR inequality */
+         cutefficacy = - SCIPinfinity(scip);
+         SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, NULL, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
+               MINFRAC, MAXFRAC, aggrrow, cutcoefs, &cutrhs, cutinds, &cutnnz, &cutefficacy, &cutrank, &cutislocal, success) );
+
+         if ( *success && SCIPisEfficacious(scip, cutefficacy) )
+         {
+            SCIP_Bool infeasible;
+            SCIP_ROW* row;
+            SCIP_VAR** scipvars;
+
+            /* set name and create empty row */
+            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_CMIR_%d", ++(conshdlrdata->ncmir));
+            SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, -SCIPinfinity(scip), cutrhs, cutislocal, FALSE, TRUE) );
+
+            /* get SCIP vars, because inds refers to these indices */
+            scipvars = SCIPgetVars(scip);
+
+            /* cache the row extension and only flush them if the cut gets added */
+            SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
+
+            /* collect all non-zero coefficients */
+            for (j = 0; j < cutnnz; ++j)
+            {
+               SCIP_CALL( SCIPaddVarToRow(scip, row, scipvars[cutinds[j]], cutcoefs[j]) );
+            }
+
+            /* flush all changes before adding the cut */
+            SCIP_CALL( SCIPflushRowExtensions(scip, row) );
+
+            if ( SCIProwGetNNonz(row) == 0 )
+            {
+               assert( SCIPisFeasNegative(scip, cutrhs) );
+               *result = SCIP_CUTOFF;
+            }
+            else
+            {
+#ifdef SCIP_MORE_DEBUG
+               SCIP_CALL( SCIPprintRow(scip, row, NULL) );
+#endif
+               SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
+               if ( infeasible )
+                  *result = SCIP_CUTOFF;
+               else
+                  *result = SCIP_SEPARATED;
+               SCIP_CALL( SCIPresetConsAge(scip, cons) );
+
+               if ( conshdlrdata->sdpconshdlrdata->cutstopool )
+               {
+                  SCIP_CALL( SCIPaddPoolCut(scip, row) );
+               }
+               ++(*ngen);
+            }
+
+            /* release the row */
+            SCIP_CALL( SCIPreleaseRow(scip, &row) );
+         }
+
+         SCIPfreeBufferArray(scip, &cutinds);
+         SCIPfreeBufferArray(scip, &cutcoefs);
+
+         SCIPaggrRowFree(scip, &aggrrow);
+      }
+   }
+
+   return SCIP_OKAY;
+}
+
 /** compute largest sparse eigenvalue for a given sparsity level and corresponding eigenvector of a given matrix
  *
  *  The truncated power method works like the ordinary power method to compute the largest eigenvalue of a matrix, but
@@ -919,8 +1235,10 @@ static
 SCIP_RETCODE sparsifyCut(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONSHDLR*        conshdlr,           /**< the constraint handler itself */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
    SCIP_CONS*            cons,               /**< constraint */
    SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_Bool             enforce,            /**< whether we are in enforcing */
    SCIP_SOL*             sol,                /**< primal solution that should be separated */
    int                   blocksize,          /**< size of block */
    SCIP_Real*            fullconstmatrix,    /**< precomputed full constant matrix */
@@ -928,17 +1246,13 @@ SCIP_RETCODE sparsifyCut(
    SCIP_Real*            vector,             /**< temporary workspace (length blocksize) */
    SCIP_VAR**            vars,               /**< temporary workspace */
    SCIP_Real*            vals,               /**< temporary workspace */
+   int*                  ngen,               /**< pointer to store the number of generated cuts */
    SCIP_Bool*            success,            /**< pointer to store whether we have produced a cut/constraint */
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
-   char cutname[SCIP_MAXSTRLEN];
-   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_Real* ev;
    SCIP_Real norm = 0.0;
-   SCIP_Real lhs = 0.0;
-   SCIP_Real coef;
-   int cnt = 0;
    int size;
    int* idx;
    int j;
@@ -953,9 +1267,6 @@ SCIP_RETCODE sparsifyCut(
    assert( *result != SCIP_CUTOFF );
 
    *success = FALSE;
-
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   assert( conshdlrdata != NULL );
 
    /* produce random indices */
    SCIP_CALL( SCIPallocBufferArray(scip, &idx, blocksize) );
@@ -1002,69 +1313,9 @@ SCIP_RETCODE sparsifyCut(
    for (j = 0; j < size; ++j)
       ev[idx[j]] /= norm;
 
-   /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
-   SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, ev, vector) );
-
-   for (j = 0; j < blocksize; ++j)
-      lhs += ev[j] * vector[j];
-
-   /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
-   for (j = 0; j < consdata->nvars; ++j)
-   {
-      SCIP_CALL( multiplyConstraintMatrix(cons, j, ev, &coef) );
-
-      if ( SCIPisFeasZero(scip, coef) )
-         continue;
-
-      vars[cnt] = consdata->vars[j];
-      vals[cnt++] = coef;
-   }
-
-   (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-   if ( conshdlrdata->sdpconshdlrdata->generaterows )
-   {
-      SCIP_Bool infeasible;
-      SCIP_ROW* row;
-
-      SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-      SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
-
-      /* since the sparsified cut need not separate the current solution, we take only efficacious cuts */
-      if ( SCIPisCutEfficacious(scip, sol, row) )
-      {
-#ifdef SCIP_MORE_DEBUG
-         SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-         SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-         SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-         if ( conshdlrdata->sdpconshdlrdata->cutstopool )
-         {
-            SCIP_CALL( SCIPaddPoolCut(scip, row) );
-         }
-
-         assert( *result != SCIP_CONSADDED );
-         if ( infeasible )
-            *result = SCIP_CUTOFF;
-         else
-            *result = SCIP_SEPARATED;
-         *success = TRUE;
-      }
-      SCIP_CALL( SCIPreleaseRow(scip, &row) );
-   }
-   else
-   {
-      SCIP_CONS* newcons;
-
-      SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
-            TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
-      SCIP_CALL( SCIPaddCons(scip, newcons) );
-      SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
-
-      assert( *result != SCIP_SEPARATED );
-      *result = SCIP_CONSADDED;
-      *success = TRUE;
-   }
+   /* produce cut/constraint */
+   SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
+         blocksize, fullconstmatrix, ev, vector, vars, vals, ngen, success, result) );
 
    SCIPfreeBufferArray(scip, &ev);
    SCIPfreeBufferArray(scip, &idx);
@@ -1081,8 +1332,10 @@ static
 SCIP_RETCODE addMultipleSparseCuts(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONSHDLR*        conshdlr,           /**< the constraint handler itself */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< constraint handler data */
    SCIP_CONS*            cons,               /**< constraint */
    SCIP_CONSDATA*        consdata,           /**< constraint data */
+   SCIP_Bool             enforce,            /**< whether we are in enforcing */
    SCIP_SOL*             sol,                /**< primal solution that should be separated */
    int                   blocksize,          /**< size of block */
    SCIP_Real*            fullmatrix,         /**< precomputed full matrix \f$ \sum_j A_j y_j - A_0 \f$ */
@@ -1098,8 +1351,6 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
-   char cutname[SCIP_MAXSTRLEN];
-   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_Real* fullmatrixcopy;
    SCIP_Real* modmatrix;
    SCIP_Real* submatrix;
@@ -1110,8 +1361,6 @@ SCIP_RETCODE addMultipleSparseCuts(
    SCIP_Real eigenvalue;
    SCIP_Real maxeig;
    SCIP_Real scalar;
-   SCIP_Real lhs = 0.0;
-   SCIP_Real coef;
    int* support;
    int cnt = 0;
    int size;
@@ -1123,7 +1372,6 @@ SCIP_RETCODE addMultipleSparseCuts(
    assert( fullmatrix != NULL );
    assert( fullconstmatrix != NULL );
    assert( eigenvector != NULL );
-   assert( maxncuts > 0 );
    assert( vector != NULL );
    assert( ncuts != NULL );
    assert( result != NULL );
@@ -1262,88 +1510,9 @@ SCIP_RETCODE addMultipleSparseCuts(
          eigenvalue = scalar;
       }
 
-      /* check if cut obtained from new eigenvector is efficacious and add cut/constraint */
-      /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
-      SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, liftedev, vector) );
-
-      lhs = 0.0;
-      for (j = 0; j < blocksize; ++j)
-         lhs += liftedev[j] * vector[j];
-
-      /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
-      cnt = 0;
-      for (j = 0; j < consdata->nvars; ++j)
-      {
-         SCIP_CALL( multiplyConstraintMatrix(cons, j, liftedev, &coef) );
-
-         if ( SCIPisFeasZero(scip, coef) )
-            continue;
-
-         vars[cnt] = consdata->vars[j];
-         vals[cnt++] = coef;
-      }
-
-      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-      if ( conshdlrdata->sdpconshdlrdata->generaterows )
-      {
-         SCIP_Bool infeasible;
-         SCIP_ROW* row;
-
-#if ( SCIP_VERSION >= 700 || (SCIP_VERSION >= 602 && SCIP_SUBVERSION > 0) )
-         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#else
-         SCIP_CALL( SCIPcreateEmptyRowCons(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-#endif
-
-         SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
-
-         /* since the sparsified cut need not separate the current solution, we take only efficacious cuts */
-         if ( SCIPisCutEfficacious(scip, sol, row) )
-         {
-#ifdef SCIP_MORE_DEBUG
-            SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-            SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-            SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-            if ( conshdlrdata->sdpconshdlrdata->cutstopool )
-            {
-               SCIP_CALL( SCIPaddPoolCut(scip, row) );
-            }
-
-            assert( *result != SCIP_CONSADDED );
-            if ( infeasible )
-            {
-               *result = SCIP_CUTOFF;
-               SCIPdebugMsg(scip, "Detected infeasibility.\n");
-               SCIP_CALL( SCIPreleaseRow(scip, &row) );
-               break;
-            }
-            else
-            {
-               *result = SCIP_SEPARATED;
-               ++(*ncuts);
-               SCIPdebugMsg(scip, "Successfully added sparse eigenvector cut.\n");
-            }
-         }
-         else
-            SCIPdebugMsg(scip, "Cut is not efficacious!\n");
-         SCIP_CALL( SCIPreleaseRow(scip, &row) );
-      }
-      else
-      {
-         SCIP_CONS* newcons;
-
-         SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
-               TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
-         SCIP_CALL( SCIPaddCons(scip, newcons) );
-         SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
-
-         assert( *result != SCIP_SEPARATED );
-         *result = SCIP_CONSADDED;
-         ++(*ncuts);
-         SCIPdebugMsg(scip, "Successfully added sparse eigenvector cut.\n");
-      }
+      /* produce cut/constraint */
+      SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
+            blocksize, fullconstmatrix, liftedev, vector, vars, vals, ncuts, success, result) );
 
       /* compute A(y) = A(y) - \lambda_{min} w w^T */
       for (i = 0; i < blocksize; i++)
@@ -1351,7 +1520,6 @@ SCIP_RETCODE addMultipleSparseCuts(
          for (j = 0; j < blocksize; j++)
             fullmatrix[i * blocksize + j] -= eigenvalue * liftedev[i] * liftedev[j];
       }
-
 
       if ( conshdlrdata->sdpconshdlrdata->recomputeinitial )
       {
@@ -1442,7 +1610,6 @@ SCIP_RETCODE separateSol(
    SCIP_RESULT*          result              /**< pointer to store the result of the separation call */
    )
 {
-   char cutname[SCIP_MAXSTRLEN];
    SCIP_CONSDATA* consdata;
    SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_RETCODE retcode;
@@ -1455,7 +1622,6 @@ SCIP_RETCODE separateSol(
    SCIP_Real* fullconstmatrix = NULL;
    SCIP_Real* eigenvalues;
    SCIP_Real tol;
-   int* inds;
    int neigenvalues;
    int blocksize;
    int nvars;
@@ -1476,9 +1642,8 @@ SCIP_RETCODE separateSol(
    nvars = consdata->nvars;
    blocksize = consdata->blocksize;
 
-   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars ) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars ) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &inds, nvars ) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vals, nvars) );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrix, blocksize * blocksize ) );
    SCIP_CALL( SCIPallocBufferArray(scip, &fullmatrixcopy, blocksize * blocksize ) );
@@ -1535,7 +1700,6 @@ SCIP_RETCODE separateSol(
       SCIPfreeBufferArray(scip, &fullmatrixcopy);
       SCIPfreeBufferArray(scip, &fullmatrix);
 
-      SCIPfreeBufferArray(scip, &inds);
       SCIPfreeBufferArray(scip, &vals);
       SCIPfreeBufferArray(scip, &vars);
 
@@ -1565,9 +1729,7 @@ SCIP_RETCODE separateSol(
    for (i = 0; i < neigenvalues && *result != SCIP_CUTOFF; ++i)
    {
       SCIP_Real* eigenvector;
-      SCIP_Real lhs = 0.0;
       SCIP_Bool success;
-      int cnt = 0;
       int ncuts;
 
       /* get pointer to current eigenvector */
@@ -1576,7 +1738,7 @@ SCIP_RETCODE separateSol(
       /* if we want to sparsify the cut */
       if ( ! enforce && conshdlrdata->sdpconshdlrdata->sparsifycut )
       {
-         SCIP_CALL( sparsifyCut(scip, conshdlr, cons, consdata, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &success, result) );
+         SCIP_CALL( sparsifyCut(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol, blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &ngen, &success, result) );
 
          if ( success )
          {
@@ -1587,7 +1749,7 @@ SCIP_RETCODE separateSol(
       else if ( conshdlrdata->sdpconshdlrdata->multiplesparsecuts )
       {
          SCIPdebugMsg(scip, "Smallest eigenvalue: %.15g\n", eigenvalues[i]);
-         SCIP_CALL( addMultipleSparseCuts(scip, conshdlr, cons, consdata, sol, blocksize, fullmatrix, fullconstmatrix,
+         SCIP_CALL( addMultipleSparseCuts(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol, blocksize, fullmatrix, fullconstmatrix,
                eigenvector, tol, conshdlrdata->sdpconshdlrdata->maxnsparsecuts, vector, vars, vals, &ncuts, &success, result) );
 
          if ( success )
@@ -1607,155 +1769,9 @@ SCIP_RETCODE separateSol(
          }
       }
 
-      /* multiply eigenvector with constant matrix to get lhs (after multiplying again with eigenvector from the left) */
-      SCIP_CALL( SCIPlapackMatrixVectorMult(blocksize, blocksize, fullconstmatrix, eigenvector, vector) );
-
-      for (j = 0; j < blocksize; ++j)
-         lhs += eigenvector[j] * vector[j];
-
-      /* compute \f$ v^T A_j v \f$ for eigenvector v and each matrix \f$ A_j \f$ to get the coefficients of the LP cut */
-      for (j = 0; j < consdata->nvars; ++j)
-      {
-         SCIP_Real coef;
-
-         SCIP_CALL( multiplyConstraintMatrix(cons, j, eigenvector, &coef) );
-
-         if ( ! SCIPisFeasZero(scip, coef) )
-         {
-            vars[cnt] = consdata->vars[j];
-            vals[cnt] = coef;
-            inds[cnt++] = SCIPvarGetProbindex(consdata->vars[j]);
-         }
-      }
-
-      (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_%d", ++(conshdlrdata->neigveccuts));
-      if ( conshdlrdata->sdpconshdlrdata->generaterows )
-      {
-         SCIP_Bool infeasible;
-         SCIP_ROW* row;
-
-         SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, lhs, SCIPinfinity(scip), FALSE, FALSE, TRUE) );
-         SCIP_CALL( SCIPaddVarsToRow(scip, row, cnt, vars, vals) );
-
-         /* if we are enforcing, we take any of the cuts, otherwise only efficacious cuts */
-         if ( enforce || SCIPisCutEfficacious(scip, sol, row) )
-         {
-#ifdef SCIP_MORE_DEBUG
-            SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-            SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-            if ( infeasible )
-               *result = SCIP_CUTOFF;
-            else
-               *result = SCIP_SEPARATED;
-            SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-            if ( conshdlrdata->sdpconshdlrdata->cutstopool )
-            {
-               SCIP_CALL( SCIPaddPoolCut(scip, row) );
-            }
-            ++ngen;
-         }
-
-         SCIP_CALL( SCIPreleaseRow(scip, &row) );
-      }
-      else
-      {
-         SCIP_CONS* newcons;
-
-         SCIP_CALL( SCIPcreateConsLinear(scip, &newcons, cutname, cnt, vars, vals, lhs, SCIPinfinity(scip),
-               TRUE, TRUE, enforce, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) );
-         SCIP_CALL( SCIPaddCons(scip, newcons) );
-         SCIP_CALL( SCIPreleaseCons(scip, &newcons) );
-         *result = SCIP_CONSADDED;
-         ++ngen;
-      }
-
-      if ( conshdlrdata->sdpconshdlrdata->generatecmir )
-      {
-         SCIP_AGGRROW* aggrrow;
-         SCIP_Real* cutcoefs;
-         SCIP_Real cutrhs;
-         SCIP_Real cutefficacy;
-         SCIP_Bool cutislocal;
-         int* cutinds;
-         int cutnnz;
-         int cutrank;
-
-         SCIP_CALL( SCIPallocBufferArray(scip, &cutcoefs, consdata->nvars) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &cutinds, consdata->nvars) );
-
-         SCIP_CALL( SCIPaggrRowCreate(scip, &aggrrow) );
-
-         /* switch row */
-         for (j = 0; j < cnt; ++j)
-            vals[j] *= -1.0;
-
-         /* add produced row as custom row: multiply with -1.0 to convert >= into <= row */
-         SCIP_CALL( SCIPaggrRowAddCustomCons(scip, aggrrow, inds, vals, cnt, -lhs, 1.0, 0, FALSE) );
-
-         /* try to generate CMIR inequality */
-         SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, NULL, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL,
-               MINFRAC, MAXFRAC, aggrrow, cutcoefs, &cutrhs, cutinds, &cutnnz, &cutefficacy, &cutrank, &cutislocal, &success) );
-
-         if ( success && SCIPisEfficacious(scip, cutefficacy) )
-         {
-            SCIP_Bool infeasible;
-            SCIP_ROW* row;
-            SCIP_VAR** scipvars;
-
-            /* set name and create empty row */
-            (void) SCIPsnprintf(cutname, SCIP_MAXSTRLEN, "sepa_eig_sdp_CMIR_%d", ++(conshdlrdata->ncmir));
-            SCIP_CALL( SCIPcreateEmptyRowConshdlr(scip, &row, conshdlr, cutname, -SCIPinfinity(scip), cutrhs, cutislocal, FALSE, TRUE) );
-
-            /* get SCIP vars, because inds refers to these indices */
-            scipvars = SCIPgetVars(scip);
-
-            /* cache the row extension and only flush them if the cut gets added */
-            SCIP_CALL( SCIPcacheRowExtensions(scip, row) );
-
-            /* collect all non-zero coefficients */
-            for (j = 0; j < cutnnz; ++j)
-            {
-               SCIP_CALL( SCIPaddVarToRow(scip, row, scipvars[cutinds[j]], cutcoefs[j]) );
-            }
-
-            /* flush all changes before adding the cut */
-            SCIP_CALL( SCIPflushRowExtensions(scip, row) );
-
-            if ( SCIProwGetNNonz(row) == 0 )
-            {
-               assert( SCIPisFeasNegative(scip, cutrhs) );
-               *result = SCIP_CUTOFF;
-            }
-            else
-            {
-#ifdef SCIP_MORE_DEBUG
-               SCIP_CALL( SCIPprintRow(scip, row, NULL) );
-#endif
-               SCIP_CALL( SCIPaddRow(scip, row, FALSE, &infeasible) );
-               if ( infeasible )
-                  *result = SCIP_CUTOFF;
-               else
-                  *result = SCIP_SEPARATED;
-               SCIP_CALL( SCIPresetConsAge(scip, cons) );
-
-               if ( conshdlrdata->sdpconshdlrdata->cutstopool )
-               {
-                  SCIP_CALL( SCIPaddPoolCut(scip, row) );
-               }
-               ++ngen;
-            }
-
-            /* release the row */
-            SCIP_CALL( SCIPreleaseRow(scip, &row) );
-         }
-
-         SCIPfreeBufferArray(scip, &cutinds);
-         SCIPfreeBufferArray(scip, &cutcoefs);
-
-         SCIPaggrRowFree(scip, &aggrrow);
-      }
+      /* produce cut/constraint */
+      SCIP_CALL( produceCutFromEigenvector(scip, conshdlr, conshdlrdata, cons, consdata, enforce, sol,
+            blocksize, fullconstmatrix, eigenvector, vector, vars, vals, &ngen, &success, result) );
    }
    SCIPdebugMsg(scip, "<%s>: Separated cuts = %d.\n", SCIPconsGetName(cons), ngen);
 
@@ -1766,7 +1782,6 @@ SCIP_RETCODE separateSol(
    SCIPfreeBufferArray(scip, &fullmatrixcopy);
    SCIPfreeBufferArray(scip, &fullmatrix);
 
-   SCIPfreeBufferArray(scip, &inds);
    SCIPfreeBufferArray(scip, &vals);
    SCIPfreeBufferArray(scip, &vars);
 
@@ -2426,7 +2441,6 @@ SCIP_RETCODE diagZeroImpl(
             colidx = consdata->col[v][j];
             assert( 0 <= rowidx && rowidx < blocksize );
             assert( 0 <= colidx && colidx < blocksize );
-            assert( ! SCIPisZero(scip, consdata->val[v][j]) );
 
             pos = rowidx * (rowidx + 1)/2 + colidx;
             nonzeroentries[pos] = TRUE;
@@ -3699,7 +3713,6 @@ SCIP_RETCODE checkRank1QuadConss(
    SCIP_CONSDATA* consdata;
    SCIP_Real* matrix;
    SCIP_Real submatrix[3];
-   SCIP_Real minor;
    SCIP_Real tol;
    int blocksize;
    int i;
@@ -3707,7 +3720,6 @@ SCIP_RETCODE checkRank1QuadConss(
 
    assert( scip != NULL );
    assert( cons != NULL );
-   assert( sol != NULL );
    assert( isrankone != NULL );
 
    consdata = SCIPconsGetData(cons);
@@ -3737,6 +3749,8 @@ SCIP_RETCODE checkRank1QuadConss(
    {
       for (j = 0; j < i && *isrankone; ++j)
       {
+         SCIP_Real minor;
+
          submatrix[0] = matrix[SCIPconsSdpCompLowerTriangPos(i,i)];
          submatrix[1] = matrix[SCIPconsSdpCompLowerTriangPos(i,j)];
          submatrix[2] = matrix[SCIPconsSdpCompLowerTriangPos(j,j)];
@@ -3752,11 +3766,10 @@ SCIP_RETCODE checkRank1QuadConss(
                SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
             }
          }
+         if ( sol != NULL )
+            SCIPupdateSolConsViolation(scip, sol, REALABS(minor), REALABS(minor) / (1.0 + consdata->maxrhsentry));
       }
    }
-
-   if ( sol != NULL )
-      SCIPupdateSolConsViolation(scip, sol, REALABS(minor), REALABS(minor) / (1.0 + consdata->maxrhsentry));
 
    SCIPfreeBufferArray(scip, &matrix);
 
@@ -4732,13 +4745,15 @@ SCIP_RETCODE propagateUpperBounds(
       }
 
       /* if there is at least one entry that only depends on a single variable */
-      if ( consdata->nsingle > 0 )
+      if ( consdata->propubpossible )
       {
          int s;
          int t;
 
+         assert( consdata->nsingle > 0 );
+
          /* check all off-diagonal positions */
-         for (s = 0; s < blocksize; ++s)
+         for (s = 1; s < blocksize; ++s)
          {
             SCIP_VAR* vars;
             SCIP_Real ubs = 0.0;
@@ -5109,7 +5124,7 @@ SCIP_RETCODE propagate3Minors(
                   posrs = r * (r + 1)/2 + s;
 
                   /* skip positions covered by at least two variables */
-                  if ( consdata->matrixval[posrs] == SCIP_INVALID )
+                  if ( consdata->matrixval[posrs] == SCIP_INVALID ) /*lint !e777*/
                      continue;
 
                   var = consdata->matrixvar[posrs];
@@ -5238,7 +5253,7 @@ SCIP_RETCODE propagate3Minors(
                diagr = r * (r + 1)/2 + r;
 
                /* skip positions covered by at least two variables */
-               if ( consdata->matrixval[diagr] == SCIP_INVALID )
+               if ( consdata->matrixval[diagr] == SCIP_INVALID ) /*lint !e777*/
                   continue;
 
                var = consdata->matrixvar[diagr];
@@ -5267,7 +5282,7 @@ SCIP_RETCODE propagate3Minors(
                   diags = s * (s + 1)/2 + s;
 
                   /* skip positions covered by at least two variables */
-                  if ( consdata->matrixval[diags] == SCIP_INVALID )
+                  if ( consdata->matrixval[diags] == SCIP_INVALID ) /*lint !e777*/
                      continue;
 
                   var = consdata->matrixvar[diags];
@@ -5290,7 +5305,7 @@ SCIP_RETCODE propagate3Minors(
                   posrs = r * (r + 1)/2 + s;
 
                   /* skip positions covered by at least two variables */
-                  if ( consdata->matrixval[posrs] == SCIP_INVALID )
+                  if ( consdata->matrixval[posrs] == SCIP_INVALID ) /*lint !e777*/
                      continue;
 
                   var = consdata->matrixvar[posrs];
@@ -5325,7 +5340,7 @@ SCIP_RETCODE propagate3Minors(
                      diagt = t * (t + 1)/2 + t;
 
                      /* skip positions covered by at least two variables */
-                     if ( consdata->matrixval[diagt] == SCIP_INVALID )
+                     if ( consdata->matrixval[diagt] == SCIP_INVALID ) /*lint !e777*/
                         continue;
 
                      var = consdata->matrixvar[diagt];
@@ -6351,11 +6366,18 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
 
+   /* reset numbers; called for both the rank1 and ordinary constraint handler */
    conshdlrdata->neigveccuts = 0; /* this is used to give the eigenvector-cuts distinguishable names */
    conshdlrdata->ncmir = 0;
    conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
    conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
-   conshdlrdata->npropub = 0;    /* reset numbers; called for both the rank1 and ordinary constraint handler */
+   conshdlrdata->ncallspropub = 0;
+   conshdlrdata->ncallsproptb = 0;
+   conshdlrdata->ncallsprop3minor = 0;
+   conshdlrdata->maxtimepropub = 0.0;
+   conshdlrdata->maxtimeproptb = 0.0;
+   conshdlrdata->maxtimeprop3minor = 0.0;
+   conshdlrdata->npropub = 0;
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
    conshdlrdata->npropcutoffub = 0;
@@ -6371,6 +6393,18 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata->nproppreintrnd3m = 0;
    conshdlrdata->npropprobub = 0;
    conshdlrdata->npropprobtb = 0;
+   conshdlrdata->npropprob3minor = 0;
+
+   /* create clocks */
+   if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+   {
+      if ( conshdlrdata->sdpconshdlrdata->propubtime == NULL )
+         SCIP_CALL( SCIPcreateClock(scip, &conshdlrdata->propubtime) );
+      if ( conshdlrdata->sdpconshdlrdata->proptbtime == NULL )
+         SCIP_CALL( SCIPcreateClock(scip, &conshdlrdata->proptbtime) );
+      if ( conshdlrdata->sdpconshdlrdata->prop3minortime == NULL )
+         SCIP_CALL( SCIPcreateClock(scip, &conshdlrdata->prop3minortime) );
+   }
 
    return SCIP_OKAY;
 }
@@ -6517,6 +6551,18 @@ SCIP_DECL_CONSEXIT(consExitSdp)
    {
       if ( conshdlrdata->sdpconshdlrdata->additionalstats )
       {
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of propagateUpperBounds in propagation: %d\n", conshdlrdata->ncallspropub);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of tightenBounds in propagation: %d\n", conshdlrdata->ncallsproptb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of calls of propagate3Minors in propagation: %d\n", conshdlrdata->ncallsprop3minor);
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+         {
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for propagateUpperBounds in propagation: %f\n", SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->propubtime) );
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for tightenBounds in propagation: %f\n", SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->proptbtime) );
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Overall time spent for propagate3Minors in propagation: %f\n", SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->prop3minortime) );
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of propagateUpperBounds in propagation: %f\n", conshdlrdata->maxtimepropub);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of tightenBounds in propagation: %f\n", conshdlrdata->maxtimeproptb);
+            SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Maximal time spent for one round of propagate3Minors in propagation: %f\n", conshdlrdata->maxtimeprop3minor);
+         }
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through upper bounds: %d\n", conshdlrdata->npropub);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation:   %d\n", conshdlrdata->nproptb);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagations through 3x3 minors:   %d\n", conshdlrdata->nprop3minor);
@@ -6533,9 +6579,16 @@ SCIP_DECL_CONSEXIT(consExitSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of rounded bounds of integer variables in propagation through 3x3 minors in presolving:   %d\n", conshdlrdata->nproppreintrnd3m);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number propagations through upper bounds in probing:  %d\n", conshdlrdata->npropprobub);
          SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of tightened bounds in propagation in probing: %d\n", conshdlrdata->npropprobtb);
+         SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, 0, "Number of propagation through 3x3 minors in probing: %d\n", conshdlrdata->npropprob3minor);
       }
 
       /* reset counters */
+      conshdlrdata->ncallspropub = 0;
+      conshdlrdata->ncallsproptb = 0;
+      conshdlrdata->ncallsprop3minor = 0;
+      conshdlrdata->maxtimepropub = 0.0;
+      conshdlrdata->maxtimeproptb = 0.0;
+      conshdlrdata->maxtimeprop3minor = 0.0;
       conshdlrdata->npropub = 0;
       conshdlrdata->nproptb = 0;
       conshdlrdata->nprop3minor = 0;
@@ -6552,12 +6605,23 @@ SCIP_DECL_CONSEXIT(consExitSdp)
       conshdlrdata->nproppreintrnd3m = 0;
       conshdlrdata->npropprobub = 0;
       conshdlrdata->npropprobtb = 0;
-
+      conshdlrdata->npropprob3minor = 0;
    }
 
    /* reset parameter triedlinearconss */
    conshdlrdata->sdpconshdlrdata->triedlinearconss = FALSE;
    conshdlrdata->sdpconshdlrdata->triedvarbounds = FALSE;
+
+   /* free clocks */
+   if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+   {
+      if ( conshdlrdata->sdpconshdlrdata->propubtime != NULL )
+         SCIP_CALL( SCIPfreeClock(scip, &conshdlrdata->sdpconshdlrdata->propubtime) );
+      if ( conshdlrdata->sdpconshdlrdata->proptbtime != NULL )
+         SCIP_CALL( SCIPfreeClock(scip, &conshdlrdata->sdpconshdlrdata->proptbtime) );
+      if ( conshdlrdata->sdpconshdlrdata->prop3minortime != NULL )
+         SCIP_CALL( SCIPfreeClock(scip, &conshdlrdata->sdpconshdlrdata->prop3minortime) );
+   }
 
    return SCIP_OKAY;
 }
@@ -6658,6 +6722,8 @@ SCIP_DECL_CONSPROP(consPropSdp)
    SCIP_Bool infeasible;
    int nprop = 0;
    int nintrnd = 0;
+   SCIP_Real oldtime = 0.0;
+   SCIP_Real newtime = 0.0;
 
    assert( conshdlr != NULL );
    assert( result != NULL );
@@ -6674,7 +6740,23 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
       SCIPdebugMsg(scip, "Propagate upper bounds of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
 
+      if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+      {
+         oldtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->propubtime);
+         SCIP_CALL( SCIPstartClock(scip, conshdlrdata->sdpconshdlrdata->propubtime) );
+      }
+
       SCIP_CALL( propagateUpperBounds(scip, conss, nconss, &infeasible, &nprop, &nintrnd) );
+
+      if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+      {
+         SCIP_CALL( SCIPstopClock(scip, conshdlrdata->sdpconshdlrdata->propubtime) );
+         newtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->propubtime);
+         if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimepropub) )
+            conshdlrdata->sdpconshdlrdata->maxtimepropub = newtime - oldtime;
+      }
+
+      ++conshdlrdata->sdpconshdlrdata->ncallspropub;
 
       if ( infeasible )
       {
@@ -6706,6 +6788,7 @@ SCIP_DECL_CONSPROP(consPropSdp)
       /* possibly avoid propagation in probing */
       if ( conshdlrdata->sdpconshdlrdata->proptbprobing || ! SCIPinProbing(scip) )
       {
+
          if ( *result == SCIP_DIDNOTRUN )
             *result = SCIP_DIDNOTFIND;
 
@@ -6713,7 +6796,27 @@ SCIP_DECL_CONSPROP(consPropSdp)
 
          nprop = 0;
          nintrnd = 0;
+         oldtime = 0.0;
+         newtime = 0.0;
+
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+         {
+            oldtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->proptbtime);
+            SCIP_CALL( SCIPstartClock(scip, conshdlrdata->sdpconshdlrdata->proptbtime) );
+         }
+
          SCIP_CALL( tightenBounds(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->tightenboundscont, &nprop, &nintrnd, &infeasible) );
+
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+         {
+            SCIP_CALL( SCIPstopClock(scip, conshdlrdata->sdpconshdlrdata->proptbtime) );
+            newtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->proptbtime);
+            if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimeproptb) )
+               conshdlrdata->sdpconshdlrdata->maxtimeproptb = newtime - oldtime;
+         }
+
+         ++conshdlrdata->sdpconshdlrdata->ncallsproptb;
+
 
          if ( infeasible )
          {
@@ -6741,31 +6844,56 @@ SCIP_DECL_CONSPROP(consPropSdp)
    }
 
    /* if we want to propagate 3x3 minors and we are not in probing */
-   if ( conshdlrdata->sdpconshdlrdata->prop3minors && ! SCIPinProbing(scip) )
+   if ( conshdlrdata->sdpconshdlrdata->prop3minors )
    {
-      if ( *result == SCIP_DIDNOTRUN )
-         *result = SCIP_DIDNOTFIND;
-
-      SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> ...\n", SCIPconshdlrGetName(conshdlr));
-
-      nprop = 0;
-      SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop) );
-
-      if ( infeasible )
+      if ( conshdlrdata->sdpconshdlrdata->prop3mprobing || ! SCIPinProbing(scip) )
       {
-         ++conshdlrdata->sdpconshdlrdata->npropcutoff3m;
-         SCIPdebugMsg(scip, "Propagation of 3x3 minors detected cutoff.\n");
-         *result = SCIP_CUTOFF;
-      }
-      else
-      {
-         if ( nprop > 0 )
+         if ( *result == SCIP_DIDNOTRUN )
+            *result = SCIP_DIDNOTFIND;
+
+         SCIPdebugMsg(scip, "Propagate 3x3 minors of conshdlr <%s> %s...\n", SCIPconshdlrGetName(conshdlr), SCIPinProbing(scip) ? "(in probing) " : "");
+
+         nprop = 0;
+         oldtime = 0.0;
+         newtime = 0.0;
+
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
          {
-            assert( ! SCIPinProbing(scip) );
-            conshdlrdata->sdpconshdlrdata->nprop3minor += nprop;
+            oldtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->prop3minortime);
+            SCIP_CALL( SCIPstartClock(scip, conshdlrdata->sdpconshdlrdata->prop3minortime) );
+         }
 
-            SCIPdebugMsg(scip, "Propagation of 3x3 minors tightened %d bounds.\n", nprop);
-            *result = SCIP_REDUCEDDOM;
+         SCIP_CALL( propagate3Minors(scip, conss, nconss, conshdlrdata->sdpconshdlrdata->nonconst3minors, &infeasible, &nprop) );
+
+         if ( conshdlrdata->sdpconshdlrdata->enableproptiming )
+         {
+            SCIP_CALL( SCIPstopClock(scip, conshdlrdata->sdpconshdlrdata->prop3minortime) );
+            newtime = SCIPgetClockTime(scip, conshdlrdata->sdpconshdlrdata->prop3minortime);
+            if ( SCIPisGT(scip, newtime - oldtime, conshdlrdata->sdpconshdlrdata->maxtimeprop3minor) )
+               conshdlrdata->sdpconshdlrdata->maxtimeprop3minor = newtime - oldtime;
+         }
+
+         ++conshdlrdata->sdpconshdlrdata->ncallsprop3minor;
+
+         if ( infeasible )
+         {
+            ++conshdlrdata->sdpconshdlrdata->npropcutoff3m;
+            SCIPdebugMsg(scip, "Propagation of 3x3 minors detected cutoff.\n");
+            *result = SCIP_CUTOFF;
+         }
+         else
+         {
+            if ( nprop > 0 )
+            {
+               assert( ! SCIPinProbing(scip) || conshdlrdata->sdpconshdlrdata->prop3mprobing );
+               if ( ! SCIPinProbing(scip) )
+                  conshdlrdata->sdpconshdlrdata->nprop3minor += nprop;
+               else
+                  conshdlrdata->sdpconshdlrdata->npropprob3minor += nprop;
+
+               SCIPdebugMsg(scip, "Propagation of 3x3 minors tightened %d bounds.\n", nprop);
+               *result = SCIP_REDUCEDDOM;
+            }
          }
       }
    }
@@ -6816,8 +6944,8 @@ SCIP_DECL_CONSRESPROP(consRespropSdp)
 
       assert( consdata->matrixvar[diags] != NULL );
       assert( consdata->matrixvar[diagt] != NULL );
-      assert( consdata->matrixval[diags] != SCIP_INVALID );
-      assert( consdata->matrixval[diagt] != SCIP_INVALID );
+      assert( consdata->matrixval[diags] != SCIP_INVALID ); /*lint !e777*/
+      assert( consdata->matrixval[diagt] != SCIP_INVALID ); /*lint !e777*/
 
       if ( consdata->matrixval[diags] > 0.0 )
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], bdchgidx) );
@@ -7173,6 +7301,7 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    targetdata->matrixval = NULL;
    targetdata->matrixconst = NULL;
    targetdata->nsingle = 0;
+   targetdata->propubpossible = TRUE;
    targetdata->tracebound = -2.0;
    targetdata->allmatricespsd = sourcedata->allmatricespsd;
    targetdata->initallmatricespsd = sourcedata->initallmatricespsd;
@@ -7359,7 +7488,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       if ( conshdlrdata->sdpconshdlrdata->quadconsrank1 && ! consdata->addedquadcons )
       {
          /* check quadratic constraints manually */
-         checkRank1QuadConss(scip, conshdlrdata, conss[i], sol, printreason, &rank1result);
+         SCIP_CALL( checkRank1QuadConss(scip, conshdlrdata, conss[i], sol, printreason, &rank1result) );
 
 #ifdef PRINTMATRICES
          SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
@@ -7368,7 +7497,7 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
       else if ( ! conshdlrdata->sdpconshdlrdata->quadconsrank1 )
       {
          /* We need to check for rank-1. */
-         SCIP_CALL( isMatrixRankOne(scip, conshdlrdata, conss[i], sol, printreason, &rank1result) );
+         SCIP_CALL( isMatrixRankOne(scip, conss[i], sol, printreason, &rank1result) );
 #ifdef PRINTMATRICES
          SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
 #endif
@@ -8406,6 +8535,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->propubpossible = TRUE;
    consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
@@ -8684,6 +8814,15 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->sdpconshdlrdata = conshdlrdata;  /* set this to itself to simplify access of parameters */
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
+   conshdlrdata->ncallspropub = 0;
+   conshdlrdata->ncallsproptb = 0;
+   conshdlrdata->ncallsprop3minor = 0;
+   conshdlrdata->propubtime = NULL;
+   conshdlrdata->proptbtime = NULL;
+   conshdlrdata->prop3minortime = NULL;
+   conshdlrdata->maxtimepropub = 0.0;
+   conshdlrdata->maxtimeproptb = 0.0;
+   conshdlrdata->maxtimeprop3minor = 0.0;
    conshdlrdata->npropub = 0;
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
@@ -8750,6 +8889,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/nonconst3minors",
          "Should 3x3 minors be propagated if the diagonal is not constant?",
          &(conshdlrdata->nonconst3minors), TRUE, DEFAULT_NONCONST3MINORS, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/prop3mprobing",
+         "Should 3x3 minors be propagated in probing?",
+         &(conshdlrdata->prop3mprobing), TRUE, DEFAULT_PROP3MPROBING, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/proptightenbounds",
          "Should tighten bounds be propagated?",
@@ -8883,6 +9026,14 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should additional statistics be output at the end?",
          &(conshdlrdata->additionalstats), TRUE, DEFAULT_ADDITIONALSTATS, NULL, NULL) );
 
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/enableproptiming",
+         "Should timing be activated for propagation routines?",
+         &(conshdlrdata->enableproptiming), TRUE, DEFAULT_ENABLEPROPTIMING, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/removesmallval",
+         "Should small values in the constraints be removed?",
+         &(conshdlrdata->removesmallval), TRUE, DEFAULT_REMOVESMALLVAL, NULL, NULL) );
+
    return SCIP_OKAY;
 }
 
@@ -8906,6 +9057,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->propubpresol = FALSE;
    conshdlrdata->prop3minors = FALSE;
    conshdlrdata->nonconst3minors = FALSE;
+   conshdlrdata->prop3mprobing = FALSE;
    conshdlrdata->proptightenbounds = FALSE;
    conshdlrdata->proptbprobing = FALSE;
    conshdlrdata->tightenboundscont = FALSE;
@@ -8943,6 +9095,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->exacttrans = FALSE;
    conshdlrdata->presollinconssparam = 0;
    conshdlrdata->additionalstats = FALSE;
+   conshdlrdata->enableproptiming = FALSE;
 
    /* parameters are retrieved through the SDP constraint handler */
    sdpconshdlr = SCIPfindConshdlr(scip, CONSHDLR_NAME);
@@ -8963,6 +9116,15 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->randnumgen = NULL;
    conshdlrdata->relaxsdp = NULL;
    conshdlrdata->dimacsfeastol = SCIP_INVALID;
+   conshdlrdata->ncallspropub = 0;
+   conshdlrdata->ncallsproptb = 0;
+   conshdlrdata->ncallsprop3minor = 0;
+   conshdlrdata->propubtime = NULL;
+   conshdlrdata->proptbtime = NULL;
+   conshdlrdata->prop3minortime = NULL;
+   conshdlrdata->maxtimepropub = 0.0;
+   conshdlrdata->maxtimeproptb = 0.0;
+   conshdlrdata->maxtimeprop3minor = 0.0;
    conshdlrdata->npropub = 0;
    conshdlrdata->nproptb = 0;
    conshdlrdata->nprop3minor = 0;
@@ -9643,6 +9805,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
 {
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata = NULL;
+   SCIP_CONSHDLRDATA* conshdlrdata;
    int i;
    int j;
 
@@ -9663,6 +9826,8 @@ SCIP_RETCODE SCIPcreateConsSdp(
       SCIPerrorMessage("SDP constraint handler not found\n");
       return SCIP_PLUGINNOTFOUND;
    }
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    /* create constraint data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
@@ -9693,6 +9858,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->propubpossible = TRUE;
    consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
@@ -9729,11 +9895,14 @@ SCIP_RETCODE SCIPcreateConsSdp(
                   ++cnt;
                }
 
-               consdata->row[i][c] = row[i][cnt];
-               consdata->col[i][c] = col[i][cnt];
-               consdata->val[i][c] = val[i][cnt];
+               if ( ! conshdlrdata->sdpconshdlrdata->removesmallval || ! SCIPisZero(scip, val[i][cnt]) )
+               {
+                  consdata->row[i][c] = row[i][cnt];
+                  consdata->col[i][c] = col[i][cnt];
+                  consdata->val[i][c] = val[i][cnt];
+                  ++c;
+               }
                ++cnt;
-               ++c;
             }
 
             /* possibly correct size; a reallocation should happen rarely */
@@ -9788,11 +9957,14 @@ SCIP_RETCODE SCIPcreateConsSdp(
             assert( 0 <= constcol[cnt] && constcol[cnt] < blocksize );
             assert( constrow[cnt] >= constcol[cnt] );
 
-            consdata->constrow[c] = constrow[cnt];
-            consdata->constcol[c] = constcol[cnt];
-            consdata->constval[c] = constval[cnt];
+            if ( ! conshdlrdata->sdpconshdlrdata->removesmallval || ! SCIPisZero(scip, constval[cnt]) )
+            {
+               consdata->constrow[c] = constrow[cnt];
+               consdata->constcol[c] = constcol[cnt];
+               consdata->constval[c] = constval[cnt];
+               ++c;
+            }
             ++cnt;
-            ++c;
          }
 
          /* possibly correct size; a reallocation should happen rarely */
@@ -9871,6 +10043,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
 {
    SCIP_CONSHDLR* conshdlr;
    SCIP_CONSDATA* consdata = NULL;
+   SCIP_CONSHDLRDATA* conshdlrdata;
    int i;
    int j;
 
@@ -9891,6 +10064,8 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
       SCIPerrorMessage("Rank 1 SDP constraint handler not found\n");
       return SCIP_PLUGINNOTFOUND;
    }
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    /* create constraint data */
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
@@ -9921,6 +10096,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->matrixval = NULL;
    consdata->matrixconst = NULL;
    consdata->nsingle = 0;
+   consdata->propubpossible = TRUE;
    consdata->diagconstantone = FALSE;
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
@@ -9957,11 +10133,14 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
                   ++cnt;
                }
 
-               consdata->row[i][c] = row[i][cnt];
-               consdata->col[i][c] = col[i][cnt];
-               consdata->val[i][c] = val[i][cnt];
+               if ( ! conshdlrdata->sdpconshdlrdata->removesmallval || ! SCIPisZero(scip, val[i][cnt]) )
+               {
+                  consdata->row[i][c] = row[i][cnt];
+                  consdata->col[i][c] = col[i][cnt];
+                  consdata->val[i][c] = val[i][cnt];
+                  ++c;
+               }
                ++cnt;
-               ++c;
             }
 
             /* possibly correct size; a reallocation should happen rarely */
@@ -10016,11 +10195,14 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
             assert( 0 <= constcol[cnt] && constcol[cnt] < blocksize );
             assert( constrow[cnt] >= constcol[cnt] );
 
-            consdata->constrow[c] = constrow[cnt];
-            consdata->constcol[c] = constcol[cnt];
-            consdata->constval[c] = constval[cnt];
+            if ( ! conshdlrdata->sdpconshdlrdata->removesmallval || ! SCIPisZero(scip, constval[cnt]) )
+            {
+               consdata->constrow[c] = constrow[cnt];
+               consdata->constcol[c] = constcol[cnt];
+               consdata->constval[c] = constval[cnt];
+               ++c;
+            }
             ++cnt;
-            ++c;
          }
 
          /* possibly correct size; a reallocation should happen rarely */

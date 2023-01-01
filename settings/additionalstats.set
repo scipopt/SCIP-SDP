@@ -1,1 +1,2 @@
 constraints/SDP/additionalstats = TRUE
+constraints/SDP/enableproptiming = TRUE

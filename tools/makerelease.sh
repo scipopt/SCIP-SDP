@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="4.0.1"
+VERSION="4.1.0"
 NAME="scipsdp-$VERSION"
 rm -f $NAME
 
@@ -24,15 +24,19 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/license.txt \
     $NAME/changelog.txt \
     $NAME/sdpa_format.txt \
-    $NAME/src/scipsdp/*.c $NAME/src/scipsdp/*.cpp $NAME/src/scipsdp/*.h \
+    $NAME/src/scipsdp/*.c $NAME/src/scipsdp/*.h \
     $NAME/src/sdpi/*.c $NAME/src/sdpi/*.cpp $NAME/src/sdpi/*.h \
+    $NAME/src/symmetry/*.cpp $NAME/src/symmetry/*.h \
     $NAME/src/scipsdpgithash.c \
     $NAME/check/testset/short.test \
     $NAME/check/testset/short.solu \
-    $NAME/check/configuration_tmpfile_setup_scip.sh \
+    $NAME/check/configuration_tmpfile_setup_scipsdp.sh \
     $NAME/check/check.awk \
     $NAME/check/cmpres.awk \
     $NAME/settings/lp_approx.set \
+    $NAME/settings/concurrent2.set \
+    $NAME/settings/concurrent4.set \
+    $NAME/settings/scip-?.set \
     $NAME/CMakeLists.txt \
     $NAME/src/CMakeLists.txt \
     $NAME/cmake/Modules/*
@@ -44,7 +48,7 @@ grep "^PROJECT\_NUMBER" doc/scipsdp.dxy
 echo -n "xternal.c:   "
 grep "\@version" doc/xternal.c
 echo -n "Makefile:    "
-grep "^SCIPSDPVERSION" Makefile
+grep "^SCIPSDPVERSION" make/make.scipsdpproj
 echo ""
 
 # remove link again

@@ -5,13 +5,14 @@
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
-        </button> <a href="http://scip.zib.de/#scipoptsuite" class="navbar-brand">SCIP Optimization Suite</a>
+        </button> <a href="https://scipopt.org" class="navbar-brand">SCIP Optimization Suite</a>
      </div>
      <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
         <ul class="nav navbar-nav navbar-right">
             <li class="dropdown"> <a href="http://www.opt.tu-darmstadt.de/scipsdp/doc/html" class="dropdown-toggle" data-toggle="dropdown">Documentation <b class="caret"></b></a>
                <ul class="dropdown-menu">
                     <!--choose right folder for both versions-->
+                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-4.1.0/html">SCIP-SDP 4.1.0</a></li>
                     <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-4.0.0/html">SCIP-SDP 4.0.0</a></li>
                     <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-3.2.0/html">SCIP-SDP 3.2.0</a></li>
                     <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-3.1.2/html">SCIP-SDP 3.1.2</a></li>

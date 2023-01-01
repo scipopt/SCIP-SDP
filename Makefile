@@ -3,30 +3,26 @@
 #/* This file is part of SCIPSDP - a solving framework for mixed-integer      */
 #/* semidefinite programs based on SCIP.                                      */
 #/*                                                                           */
-#/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
+#/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 #/*                         EDOM, FAU Erlangen-Nürnberg                       */
-#/*               2014-2021 Discrete Optimization, TU Darmstadt               */
+#/*               2014-2022 Discrete Optimization, TU Darmstadt               */
 #/*                                                                           */
 #/*                                                                           */
-#/* This program is free software; you can redistribute it and/or             */
-#/* modify it under the terms of the GNU Lesser General Public License        */
-#/* as published by the Free Software Foundation; either version 3            */
-#/* of the License, or (at your option) any later version.                    */
+#/* Licensed under the Apache License, Version 2.0 (the "License");           */
+#/* you may not use this file except in compliance with the License.          */
+#/* You may obtain a copy of the License at                                   */
 #/*                                                                           */
-#/* This program is distributed in the hope that it will be useful,           */
-#/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
-#/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
-#/* GNU Lesser General Public License for more details.                       */
+#/*     http://www.apache.org/licenses/LICENSE-2.0                            */
 #/*                                                                           */
-#/* You should have received a copy of the GNU Lesser General Public License  */
-#/* along with this program; if not, write to the Free Software               */
-#/* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
+#/* Unless required by applicable law or agreed to in writing, software       */
+#/* distributed under the License is distributed on an "AS IS" BASIS,         */
+#/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  */
+#/* See the License for the specific language governing permissions and       */
+#/* limitations under the License.                                            */
 #/*                                                                           */
 #/*                                                                           */
 #/* Based on SCIP - Solving Constraint Integer Programs                       */
-#/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
-#/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
-#/* see file COPYING in the SCIP distribution.                                */
+#/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
 #/*                                                                           */
 #/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -95,6 +91,10 @@ OMP 		= 	false
 endif
 endif
 
+ifeq ($(DEBUGSOL),true)
+FLAGS		+=	-DWITH_DEBUG_SOLUTION
+endif
+
 #-----------------------------------------------------------------------------
 # MOSEK solver
 SDPIOPTIONS	+=	msk
@@ -134,7 +134,9 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/openblasinc
 SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/openblasinc
 endif
 
-
+ifeq ($(SYM),bliss)
+FLAGS		+=	-I$(SCIPDIR)/src/bliss/src -I$(SCIPDIR)/src/bliss/include
+endif
 
 LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX).$(ZIMPL)-$(ZIMPLOPT).$(IPOPT)-$(IPOPTOPT).$(GAMS)
 
@@ -142,7 +144,8 @@ LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(CO
 #-----------------------------------------------------------------------------
 
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
-			$(OBJDIR)/sdpi
+			$(OBJDIR)/sdpi \
+			$(OBJDIR)/symmetry
 
 #-----------------------------------------------------------------------------
 # OMPSETTINGS (used to set number of threads for OMP)
@@ -180,7 +183,9 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/reader_sdpa.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
+			scipsdp/prop_sdpsymmetry.o \
 			scipsdp/scipsdpdefplugins.o \
+			scipsdp/sdpsymmetry.o \
 			scipsdp/table_relaxsdp.o \
 			scipsdp/table_slater.o \
 			sdpi/sdpi.o \
@@ -191,7 +196,11 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpiclock.o \
 			scipsdpgithash.o
 
-SCIPSDPCCOBJ 	=
+ifeq ($(SYM),bliss)
+SCIPSDPCCOBJ 	=	symmetry/compute_symmetry_bliss.o
+else
+SCIPSDPCOBJ 	+=	symmetry/compute_symmetry_none.o
+endif
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
 SCIPSDPCCSRC 	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCCOBJ:.o=.cpp))
@@ -382,9 +391,11 @@ ifneq ($(OBJDIR),)
 		@-rm -f $(LASTSETTINGS)
 		@-rm -f $(OBJDIR)/scipsdp/*.o
 		@-rm -f $(OBJDIR)/sdpi/*.o
+		@-rm -f $(OBJDIR)/symmetry/*.o
 		@-rm -f $(OBJDIR)/*.o
 		@-rmdir $(OBJDIR)/scipsdp
 	 	@-rmdir $(OBJDIR)/sdpi
+	 	@-rmdir $(OBJDIR)/symmetry
 		@-rmdir $(OBJDIR)
 endif
 		-rm -f $(SCIPSDPBINFILE)

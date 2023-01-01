@@ -3,30 +3,26 @@
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
 /* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
-/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
+/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
 /*               2014-2022 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
-/* This program is free software; you can redistribute it and/or             */
-/* modify it under the terms of the GNU Lesser General Public License        */
-/* as published by the Free Software Foundation; either version 3            */
-/* of the License, or (at your option) any later version.                    */
+/* Licensed under the Apache License, Version 2.0 (the "License");           */
+/* you may not use this file except in compliance with the License.          */
+/* You may obtain a copy of the License at                                   */
 /*                                                                           */
-/* This program is distributed in the hope that it will be useful,           */
-/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
-/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
-/* GNU Lesser General Public License for more details.                       */
+/*     http://www.apache.org/licenses/LICENSE-2.0                            */
 /*                                                                           */
-/* You should have received a copy of the GNU Lesser General Public License  */
-/* along with this program; if not, write to the Free Software               */
-/* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
+/* Unless required by applicable law or agreed to in writing, software       */
+/* distributed under the License is distributed on an "AS IS" BASIS,         */
+/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  */
+/* See the License for the specific language governing permissions and       */
+/* limitations under the License.                                            */
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
 /* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
-/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
-/* see file COPYING in the SCIP distribution.                                */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -96,6 +92,13 @@
 #define MACRO_STR_EXPAND(tok) #tok
 #define MACRO_STR(tok) MACRO_STR_EXPAND(tok)
 #define CBF_NAME_FORMAT "%" MACRO_STR(CBF_MAX_NAME) "s"
+
+/** CBF reading data */
+struct SCIP_ReaderData
+{
+   SCIP_Bool             removesmallval;     /**< Should small values in the constraints be removed? */
+};
+
 
 struct CBF_Data
 {
@@ -1094,6 +1097,7 @@ SCIP_RETCODE CBFreadPsdConRank1(
 static
 SCIP_RETCODE CBFreadObjFcoord(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    CBF_DATA*             data,               /**< data pointer to save the results in */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount           /**< current linecount */
@@ -1102,6 +1106,7 @@ SCIP_RETCODE CBFreadObjFcoord(
    SCIP_Real val;
    int nobjcoefs;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int i;
    int v;
    int row;
@@ -1181,9 +1186,13 @@ SCIP_RETCODE CBFreadObjFcoord(
          return SCIP_READERROR;
       }
 
-      if ( SCIPisZero(scip, val) )
+      if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1203,10 +1212,15 @@ SCIP_RETCODE CBFreadObjFcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "OBJFCOORD: Remove %d nonzero coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1216,6 +1230,7 @@ SCIP_RETCODE CBFreadObjFcoord(
 static
 SCIP_RETCODE CBFreadObjAcoord(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    CBF_DATA*             data,               /**< data pointer to save the results in */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount           /**< current linecount */
@@ -1224,6 +1239,7 @@ SCIP_RETCODE CBFreadObjAcoord(
    SCIP_Real val;
    int nobjcoefs;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int i;
    int v;
 
@@ -1284,9 +1300,13 @@ SCIP_RETCODE CBFreadObjAcoord(
          return SCIP_READERROR;
       }
 
-      if ( SCIPisZero(scip, val) )
+      if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1294,10 +1314,15 @@ SCIP_RETCODE CBFreadObjAcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "OBJACOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJACOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1307,6 +1332,7 @@ SCIP_RETCODE CBFreadObjAcoord(
 static
 SCIP_RETCODE CBFreadFcoord(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    CBF_DATA*             data,               /**< data pointer to save the results in */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount           /**< current linecount */
@@ -1314,6 +1340,7 @@ SCIP_RETCODE CBFreadFcoord(
 {  /*lint --e{818}*/
    SCIP_Real val;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int ncoefs;
    int c;
    int i;
@@ -1410,9 +1437,13 @@ SCIP_RETCODE CBFreadFcoord(
          return SCIP_READERROR;
       }
 
-      if ( SCIPisZero(scip, val) )
+      if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1430,10 +1461,15 @@ SCIP_RETCODE CBFreadFcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "FCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "FCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1443,6 +1479,7 @@ SCIP_RETCODE CBFreadFcoord(
 static
 SCIP_RETCODE CBFreadAcoord(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    CBF_DATA*             data,               /**< data pointer to save the results in */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount           /**< current linecount */
@@ -1450,6 +1487,7 @@ SCIP_RETCODE CBFreadAcoord(
 {  /*lint --e{818}*/
    SCIP_Real val;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int ncoefs;
    int c;
    int i;
@@ -1527,9 +1565,13 @@ SCIP_RETCODE CBFreadAcoord(
          return SCIP_READERROR;
       }
 
-      if ( SCIPisZero(scip, val) )
+      if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1537,10 +1579,15 @@ SCIP_RETCODE CBFreadAcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "ACOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "ACOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1550,6 +1597,7 @@ SCIP_RETCODE CBFreadAcoord(
 static
 SCIP_RETCODE CBFreadBcoord(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    CBF_DATA*             data,               /**< data pointer to save the results in */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount           /**< current linecount */
@@ -1557,6 +1605,7 @@ SCIP_RETCODE CBFreadBcoord(
 {  /*lint --e{818}*/
    SCIP_Real val;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int nsides;
    int c;
    int i;
@@ -1619,9 +1668,13 @@ SCIP_RETCODE CBFreadBcoord(
          return SCIP_READERROR; /*lint !e527*/
       }
 
-      if ( SCIPisZero(scip, val) )
+      if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1640,10 +1693,15 @@ SCIP_RETCODE CBFreadBcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "BCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "BCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1653,6 +1711,7 @@ SCIP_RETCODE CBFreadBcoord(
 static
 SCIP_RETCODE CBFreadHcoord(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    CBF_DATA*             data,               /**< data pointer to save the results in */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount           /**< current linecount */
@@ -1669,6 +1728,7 @@ SCIP_RETCODE CBFreadHcoord(
    int firstindforvar;
    int nextindaftervar;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int ncbfsdpblocks;
    int nauxnonz = 0;            /* number of nonzeros in each auxiliary sdp block for reformulating matrix variables using
                                  * scalar variables */
@@ -1792,9 +1852,13 @@ SCIP_RETCODE CBFreadHcoord(
          goto TERMINATE;
       }
 
-      if ( SCIPisZero(scip, val) )
+      if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -1930,10 +1994,15 @@ SCIP_RETCODE CBFreadHcoord(
 
    SCIPfreeBlockMemoryArray(scip, &sdpvar, data->nsdpblocks);
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "HCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "HCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1953,6 +2022,7 @@ SCIP_RETCODE CBFreadHcoord(
 static
 SCIP_RETCODE CBFreadDcoord(
    SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
    CBF_DATA*             data,               /**< data pointer to save the results in */
    SCIP_FILE*            pfile,              /**< file to read from */
    SCIP_Longint*         linecount           /**< current linecount */
@@ -1960,6 +2030,7 @@ SCIP_RETCODE CBFreadDcoord(
 {
    SCIP_Real val;
    int nzerocoef = 0;
+   int nsmallcoef = 0;
    int constnnonz;
    int b;
    int i;
@@ -2065,9 +2136,13 @@ SCIP_RETCODE CBFreadDcoord(
          return SCIP_READERROR; /*lint !e527*/
       }
 
-      if ( SCIPisZero(scip, val) )
+      if ( readerdata->removesmallval && SCIPisZero(scip, val) )
       {
-         ++nzerocoef;
+         /* assume that coefficient of exactly 0 is no problem */
+         if ( val != 0.0 )
+            ++nsmallcoef;
+         else
+            ++nzerocoef;
       }
       else
       {
@@ -2087,10 +2162,15 @@ SCIP_RETCODE CBFreadDcoord(
       }
    }
 
+   if ( nsmallcoef > 0 )
+   {
+      SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
+         "DCOORD: Remove %d coefficients with absolute value less than epsilon = %g.\n", nsmallcoef, SCIPepsilon(scip));
+   }
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "DCOORD: Found %d coefficients with absolute value less than epsilon = %g.\n", nzerocoef, SCIPepsilon(scip));
+         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -2121,6 +2201,7 @@ SCIP_DECL_READERREAD(readerReadCbf)
    SCIP_Longint linecount = 0;
    SCIP_Bool versionread = FALSE;
    SCIP_Bool objread = FALSE;
+   SCIP_READERDATA* readerdata;
    CBF_DATA* data;
    int b;
 
@@ -2169,6 +2250,11 @@ SCIP_DECL_READERREAD(readerReadCbf)
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &data->linebuffer, CBF_MAX_LINE) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &data->namebuffer, CBF_MAX_NAME) );
+
+   readerdata = SCIPreaderGetData(reader);
+   assert( readerdata != NULL );
+
+   SCIP_CALL( SCIPgetBoolParam(scip, "reading/removesmallval", &readerdata->removesmallval) );
 
    /* create empty problem */
    SCIP_CALL( SCIPcreateProb(scip, filename, NULL, NULL, NULL, NULL, NULL, NULL, NULL) );
@@ -2265,12 +2351,12 @@ SCIP_DECL_READERREAD(readerReadCbf)
             else if ( strcmp(data->namebuffer, "OBJFCOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading OBJFCOORD\n");
-               SCIP_CALL( CBFreadObjFcoord(scip, data, scipfile, &linecount) );
+               SCIP_CALL( CBFreadObjFcoord(scip, readerdata, data, scipfile, &linecount) );
             }
             else if ( strcmp(data->namebuffer, "OBJACOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading OBJACOORD\n");
-               SCIP_CALL( CBFreadObjAcoord(scip, data, scipfile, &linecount) );
+               SCIP_CALL( CBFreadObjAcoord(scip, readerdata, data, scipfile, &linecount) );
             }
             else if ( strcmp(data->namebuffer, "OBJBCOORD") == 0 )
             {
@@ -2281,27 +2367,27 @@ SCIP_DECL_READERREAD(readerReadCbf)
             else if ( strcmp(data->namebuffer, "FCOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading FCOORD\n");
-               SCIP_CALL( CBFreadFcoord(scip, data, scipfile, &linecount) );
+               SCIP_CALL( CBFreadFcoord(scip, readerdata, data, scipfile, &linecount) );
             }
             else if ( strcmp(data->namebuffer, "ACOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading ACOORD\n");
-               SCIP_CALL( CBFreadAcoord(scip, data, scipfile, &linecount) );
+               SCIP_CALL( CBFreadAcoord(scip, readerdata, data, scipfile, &linecount) );
             }
             else if ( strcmp(data->namebuffer, "BCOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading BCOORD\n");
-               SCIP_CALL( CBFreadBcoord(scip, data, scipfile, &linecount) );
+               SCIP_CALL( CBFreadBcoord(scip, readerdata, data, scipfile, &linecount) );
             }
             else if ( strcmp(data->namebuffer, "HCOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading HCOORD\n");
-               SCIP_CALL( CBFreadHcoord(scip, data, scipfile, &linecount) );
+               SCIP_CALL( CBFreadHcoord(scip, readerdata, data, scipfile, &linecount) );
             }
             else if ( strcmp(data->namebuffer, "DCOORD") == 0 )
             {
                SCIPdebugMsg(scip, "Reading DCOORD\n");
-               SCIP_CALL( CBFreadDcoord(scip, data, scipfile, &linecount) );
+               SCIP_CALL( CBFreadDcoord(scip, readerdata, data, scipfile, &linecount) );
             }
             else
             {
@@ -3082,6 +3168,20 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
  * reader specific interface methods
  */
 
+/** destructor of reader to free user data (called when SCIP is exiting) */
+static
+SCIP_DECL_READERFREE(readerFreeCbf)
+{
+   SCIP_READERDATA* readerdata;
+
+   assert(strcmp(SCIPreaderGetName(reader), READER_NAME) == 0);
+   readerdata = SCIPreaderGetData(reader);
+   assert(readerdata != NULL);
+   SCIPfreeBlockMemory(scip, &readerdata);
+
+   return SCIP_OKAY;
+}
+
 /** includes the CBF file reader in SCIP */
 SCIP_RETCODE SCIPincludeReaderCbf(
    SCIP*                 scip                /**< SCIP data structure */
@@ -3089,6 +3189,8 @@ SCIP_RETCODE SCIPincludeReaderCbf(
 {
    SCIP_READERDATA* readerdata = NULL;
    SCIP_READER* reader;
+
+   SCIP_CALL( SCIPallocBlockMemory(scip, &readerdata) );
 
    /* include reader */
    SCIP_CALL( SCIPincludeReaderBasic(scip, &reader, READER_NAME, READER_DESC, READER_EXTENSION, readerdata) );
@@ -3099,6 +3201,7 @@ SCIP_RETCODE SCIPincludeReaderCbf(
    SCIP_CALL( SCIPsetReaderCopy(scip, reader, readerCopyCbf) );
    SCIP_CALL( SCIPsetReaderRead(scip, reader, readerReadCbf) );
    SCIP_CALL( SCIPsetReaderWrite(scip, reader, readerWriteCbf) );
+   SCIP_CALL( SCIPsetReaderFree(scip, reader, readerFreeCbf) );
 
    return SCIP_OKAY;
 }

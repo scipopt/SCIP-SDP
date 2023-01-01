@@ -3,30 +3,26 @@
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
 /* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
-/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
+/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2021 Discrete Optimization, TU Darmstadt               */
+/*               2014-2022 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
-/* This program is free software; you can redistribute it and/or             */
-/* modify it under the terms of the GNU Lesser General Public License        */
-/* as published by the Free Software Foundation; either version 3            */
-/* of the License, or (at your option) any later version.                    */
+/* Licensed under the Apache License, Version 2.0 (the "License");           */
+/* you may not use this file except in compliance with the License.          */
+/* You may obtain a copy of the License at                                   */
 /*                                                                           */
-/* This program is distributed in the hope that it will be useful,           */
-/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
-/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
-/* GNU Lesser General Public License for more details.                       */
+/*     http://www.apache.org/licenses/LICENSE-2.0                            */
 /*                                                                           */
-/* You should have received a copy of the GNU Lesser General Public License  */
-/* along with this program; if not, write to the Free Software               */
-/* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
+/* Unless required by applicable law or agreed to in writing, software       */
+/* distributed under the License is distributed on an "AS IS" BASIS,         */
+/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  */
+/* See the License for the specific language governing permissions and       */
+/* limitations under the License.                                            */
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
-/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
-/* see file COPYING in the SCIP distribution.                                */
+/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -172,7 +168,7 @@ Test(checksdpi, test1)
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.0);
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 1, sdpconstrow, sdpconstcol, sdpconstval, 1, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 1, sdpconstrow, sdpconstcol, sdpconstval, 1, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
 
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of 1d solution: %g != %g\n", dualsol, 1.0);
 }
@@ -238,7 +234,7 @@ Test(checksdpi, test2)
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.0);
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
 
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of 1d solution: %g != %g\n", dualsol, 1.0);
 }
@@ -302,7 +298,7 @@ Test(checksdpi, test3)
    cr_assert( SCIPsdpiIsDualInfeasible(sdpi) );
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 2, sdpconstrow, sdpconstcol, sdpconstval, 2, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
 
    cr_assert( objval >= 1e20 );
 }
@@ -332,7 +328,7 @@ Test(checksdpi, test4)
    SCIP_Real dualsol;
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 3, sdpconstrow, sdpconstcol, sdpconstval, 3, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 3, sdpconstrow, sdpconstcol, sdpconstval, 3, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
 
    cr_assert(objval >= 1e20);
 }
@@ -411,6 +407,6 @@ Test(checksdpi, test5)
    cr_assert_float_eq(dualsol, 1.541381, EPS, "Violation of dual solution: %g != %g\n", dualsol,  1.541381);
 
    /* directly solve problem */
-   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 3, sdpconstrow, sdpconstcol, sdpconstval, 3, sdprow, sdpcol, sdpval, 1e20, EPS, &objval, &dualsol) );
+   SCIP_CALL( SCIPsolveOneVarSDP(buffermem, obj, lb, ub, 2, 3, sdpconstrow, sdpconstcol, sdpconstval, 3, sdprow, sdpcol, sdpval, 1e20, EPS, NULL, NULL, &objval, &dualsol) );
    cr_assert_float_eq(dualsol, 1.541381, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.541381);
 }
