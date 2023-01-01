@@ -177,17 +177,20 @@ endif
 #-----------------------------------------------------------------------------
 # SDPA solver version >= 7.3.8
 ifeq ($(SDPS),sdpa)
+CFLAGS		=	-fPIC #-fopenmp
+# Note: In the following, -DFNAME_NONE overrides a different definition from SCIP to fix a bug that results in a segfault when setting up SDPA
+CXXFLAGS	=	-fPIC -pthread -DFNAME_NONE #-fopenmp
 ifeq ($(OPENBLAS),true)
 BLASLIB		=	-lopenblas
 else
 BLASLIB		=	-lblas -llapack
 endif
 ifeq ($(MUMPSSEQ),true)
-MUMPSLIB	=	-ldmumps_seq -lmumps_common_seq
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -Wl,-rpath,$(SCIPSDPLIBDIR)/shared -lgfortran
+MUMPSLIB	=	-ldmumps_seq -lmumps_common_seq -lpord -lmpiseq -lquadmath
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -Wl,-rpath,$(SCIPSDPLIBDIR)/static -lgfortran -lpthread -fPIC
 else
-MUMPSLIB	=	-ldmumps -lmumps_common -lpord -lgomp -lmpiseq
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -lpthread -Wl,-rpath,$(SCIPSDPLIBDIR)/shared -lgfortran   # pthread after (openblas)
+MUMPSLIB	=	-ldmumps -lmumps_common -lpord -lmpiseq -lquadmath #-lgomp -fopenmp
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -lpthread -Wl,-rpath,$(SCIPSDPLIBDIR)/static -lgfortran -fPIC  # pthread after (openblas)
 endif
 endif
 
