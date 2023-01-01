@@ -30,8 +30,6 @@
 /* #define SCIP_MORE_DEBUG */
 /* #define SCIP_DEBUG_PRINTTOFILE */ /* prints each problem inserted into SDPA to the file sdpa.dat-s and the starting point to sdpa.ini-s */
 
-/* #define SDPA_RESETPARAMS */ /* this can be used together with an update to the SDPA source code to prevent memory leaks when using SCIP-SDP with SDPA */
-
 /**@file   sdpisolver_sdpa.cpp
  * @brief  interface for SDPA
  * @author Tristan Gally
@@ -448,11 +446,7 @@ SCIP_RETCODE checkFeastolAndResolve(
          sdpisolver->sdpa->printParameters(stdout);
 #endif
          sdpisolver->sdpa->setInitPoint(false);
-#ifdef SDPA_RESETPARAMS
          sdpisolver->sdpa->resetParameters();
-#else
-         sdpisolver->sdpa->initializeSolve();
-#endif
          sdpisolver->sdpa->solve();
 
          /* update number of SDP-iterations and -calls */
@@ -1686,11 +1680,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->printParameters(stdout);
 #endif
       sdpisolver->sdpa->setInitPoint(false);
-#ifdef SDPA_RESETPARAMS
       sdpisolver->sdpa->resetParameters();
-#else
-      sdpisolver->sdpa->initializeSolve();
-#endif
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
 
@@ -1740,11 +1730,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->sdpa->printParameters(stdout);
 #endif
       sdpisolver->sdpa->setInitPoint(false);
-#ifdef SDPA_RESETPARAMS
       sdpisolver->sdpa->resetParameters();
-#else
-      sdpisolver->sdpa->initializeSolve();
-#endif
       sdpisolver->sdpa->solve();
       sdpisolver->solved = TRUE;
 
