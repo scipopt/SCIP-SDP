@@ -53,7 +53,7 @@
  *      & & v_i \geq 0 \quad \forall \ i \in I_u,\\
  *      & & w_i \geq 0 \quad \forall \ i \in I_\ell,
  *   \f}
- * In the code below, we use \f$X\f$ for the SDPA primal variable \f$Y\f$ and we use $\fZ\f$ for the SDPA dual variable \f$X\f$.
+ * In the code below, we use \f$ X\f$ for the SDPA primal variable \f$ Y\f$ and we use \f$ Z\f$ for the SDPA dual variable \f$ X\f$.
  */
 
 #include <assert.h>
