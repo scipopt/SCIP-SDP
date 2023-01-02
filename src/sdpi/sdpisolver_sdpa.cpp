@@ -79,10 +79,6 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{1784}*/
 
-#ifndef SDPA_INT
-#define SDPA_INT int
-#endif
-
 
 /* local defines */
 #define GAPTOLCHANGE                1        /**< change gaptol by this factor when switching from fast to default and from default to stable settings */
