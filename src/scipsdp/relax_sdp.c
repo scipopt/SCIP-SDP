@@ -3902,6 +3902,7 @@ SCIP_RETCODE determineWarmStartInformation(
                      &((*startZnblocknonz)[nblocks]), (*startZnblocknonz)[nblocks] + relaxdata->ipZnblocknonz[nblocks]) );
             }
          }
+         SCIPfreeBufferArrayNull(scip, &sdpblocks);
       }
 
 #ifdef SCIP_PRINT_WARMSTART
