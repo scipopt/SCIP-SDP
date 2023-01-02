@@ -3261,16 +3261,16 @@ SCIP_RETCODE determineWarmStartInformation(
          if ( relaxdata->warmstartproject != 4 )
          {
             /* fill LP-block */
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZrow)[b], 2 * nrows + 2 * nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZcol)[b], 2 * nrows + 2 * nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZval)[b], 2 * nrows + 2 * nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], 2 * nrows + 2 * nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], 2 * nrows + 2 * nvars) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[b], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZrow)[nblocks], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZcol)[nblocks], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(*startZval)[nblocks], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[nblocks], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[nblocks], 2 * nrows + 2 * nvars) );
+            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nrows + 2 * nvars) );
 
             /* to get a positive definite matrix, all the entries need to be strictly positive */
-            (*startZnblocknonz)[b] = 2 * nrows + 2 * nvars;
-            (*startXnblocknonz)[b] = 2 * nrows + 2 * nvars;
+            (*startZnblocknonz)[nblocks] = 2 * nrows + 2 * nvars;
+            (*startXnblocknonz)[nblocks] = 2 * nrows + 2 * nvars;
 
             for (r = 0; r < nrows; r++)
             {
@@ -3282,77 +3282,77 @@ SCIP_RETCODE determineWarmStartInformation(
                for (i = 0; i < rownnonz; i++)
                   rowval += SCIPgetSolVal(scip, dualsol, SCIPcolGetVar(rowcols[i])) * rowvals[i];
 
-               (*startZrow)[b][2*r] = 2 * r;
-               (*startZcol)[b][2*r] = 2 * r;
-               (*startZval)[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+               (*startZrow)[nblocks][2 * r] = 2 * r;
+               (*startZcol)[nblocks][2 * r] = 2 * r;
+               (*startZval)[nblocks][2 * r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
 
-               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[b][2*r], relaxdata->warmstartprojminevdual) )
-                  (*startZval)[b][2*r] = relaxdata->warmstartprojminevdual;
+               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*r], relaxdata->warmstartprojminevdual) )
+                  (*startZval)[nblocks][2*r] = relaxdata->warmstartprojminevdual;
                /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
                 * otherwise, so taking the convex combination doesn't change anything in that case */
-               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, (*startZval)[b][2 * r], 1.0) )
+               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, (*startZval)[nblocks][2 * r], 1.0) )
                {
                   /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
-                  if ( SCIPisLT(scip, (*startZval)[b][2 * r], 0.0) )
-                     (*startZval)[b][2*r] = relaxdata->warmstartipfactor;
+                  if ( SCIPisLT(scip, (*startZval)[nblocks][2 * r], 0.0) )
+                     (*startZval)[nblocks][2*r] = relaxdata->warmstartipfactor;
                   else
-                     (*startZval)[b][2*r] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[b][2 * r] + relaxdata->warmstartipfactor;
+                     (*startZval)[nblocks][2*r] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2 * r] + relaxdata->warmstartipfactor;
                }
                else if ( relaxdata->warmstartiptype == 2 )
                {
-                  (*startZval)[b][2*r] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[b][2 * r] + relaxdata->warmstartipfactor * relaxdata->ipZval[b][2 * r];
+                  (*startZval)[nblocks][2*r] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2 * r] + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * r];
 
                   /* if this is non-positive, we shift it to a strictly positive value */
-                  if ( SCIPisLT(scip, (*startZval)[b][2 * r], WARMSTART_MINVAL) )
-                     (*startZval)[b][2*r] = WARMSTART_MINVAL;
+                  if ( SCIPisLT(scip, (*startZval)[nblocks][2 * r], WARMSTART_MINVAL) )
+                     (*startZval)[nblocks][2*r] = WARMSTART_MINVAL;
                }
 
-               if ( relaxdata->warmstartpreoptsol && (*startZval)[b][2 * r] < WARMSTART_PREOPT_MIN_Z_LPVAL )
-                  (*startZval)[b][2 * r] = WARMSTART_PREOPT_MIN_Z_LPVAL;
+               if ( relaxdata->warmstartpreoptsol && (*startZval)[nblocks][2 * r] < WARMSTART_PREOPT_MIN_Z_LPVAL )
+                  (*startZval)[nblocks][2 * r] = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
-               (*startZrow)[b][2*r + 1] = 2 * r + 1;
-               (*startZcol)[b][2*r + 1] = 2 * r + 1;
-               (*startZval)[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+               (*startZrow)[nblocks][2 * r + 1] = 2 * r + 1;
+               (*startZcol)[nblocks][2 * r + 1] = 2 * r + 1;
+               (*startZval)[nblocks][2 * r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
 
-               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[b][2*r + 1], relaxdata->warmstartprojminevdual) )
-                  (*startZval)[b][2*r + 1] = relaxdata->warmstartprojminevdual;
-               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, (*startZval)[b][2*r + 1], 1.0) )
+               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*r + 1], relaxdata->warmstartprojminevdual) )
+                  (*startZval)[nblocks][2*r + 1] = relaxdata->warmstartprojminevdual;
+               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, (*startZval)[nblocks][2*r + 1], 1.0) )
                {
                   /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
-                  if ( SCIPisLT(scip, (*startZval)[b][2*r + 1], 0.0) )
-                     (*startZval)[b][2*r + 1] = relaxdata->warmstartipfactor;
+                  if ( SCIPisLT(scip, (*startZval)[nblocks][2*r + 1], 0.0) )
+                     (*startZval)[nblocks][2*r + 1] = relaxdata->warmstartipfactor;
                   else
-                     (*startZval)[b][2*r + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[b][2*r + 1] + relaxdata->warmstartipfactor;
+                     (*startZval)[nblocks][2*r + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*r + 1] + relaxdata->warmstartipfactor;
                }
                else if ( relaxdata->warmstartiptype == 2 )
                {
-                  (*startZval)[b][2*r + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[b][2*r + 1] + relaxdata->warmstartipfactor * relaxdata->ipZval[b][2*r + 1];
+                  (*startZval)[nblocks][2*r + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*r + 1] + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2*r + 1];
 
                   /* if this is non-positive, we shift it to a strictly positive value */
-                  if ( SCIPisLT(scip, (*startZval)[b][2*r + 1], WARMSTART_MINVAL) )
-                     (*startZval)[b][2*r + 1] = WARMSTART_MINVAL;
+                  if ( SCIPisLT(scip, (*startZval)[nblocks][2*r + 1], WARMSTART_MINVAL) )
+                     (*startZval)[nblocks][2*r + 1] = WARMSTART_MINVAL;
                }
 
-               if ( relaxdata->warmstartpreoptsol && (*startZval)[b][2*r + 1] < WARMSTART_PREOPT_MIN_Z_LPVAL )
-                  (*startZval)[b][2*r + 1] = WARMSTART_PREOPT_MIN_Z_LPVAL;
+               if ( relaxdata->warmstartpreoptsol && (*startZval)[nblocks][2*r + 1] < WARMSTART_PREOPT_MIN_Z_LPVAL )
+                  (*startZval)[nblocks][2*r + 1] = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
                if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
                {
-                  (*startXrow)[b][2*r] = 2*r;
-                  (*startXcol)[b][2*r] = 2*r;
-                  (*startXval)[b][2*r] = maxprimalentry;
-                  (*startXrow)[b][2*r + 1] = 2*r + 1;
-                  (*startXcol)[b][2*r + 1] = 2*r + 1;
-                  (*startXval)[b][2*r + 1] = maxprimalentry;
+                  (*startXrow)[nblocks][2 * r] = 2 * r;
+                  (*startXcol)[nblocks][2 * r] = 2 * r;
+                  (*startXval)[nblocks][2 * r] = maxprimalentry;
+                  (*startXrow)[nblocks][2 * r + 1] = 2 * r + 1;
+                  (*startXcol)[nblocks][2 * r + 1] = 2 * r + 1;
+                  (*startXval)[nblocks][2 * r + 1] = maxprimalentry;
                }
                else if ( relaxdata->warmstartprimaltype == 2 )
                {
-                  (*startXrow)[b][2*r] = (*startZrow)[b][2*r];
-                  (*startXcol)[b][2*r] = (*startZcol)[b][2*r];
-                  (*startXval)[b][2*r] = 1.0 / (*startZval)[b][2*r];
-                  (*startXrow)[b][2*r + 1] = (*startZrow)[b][2*r + 1];
-                  (*startXcol)[b][2*r + 1] = (*startZcol)[b][2*r + 1];
-                  (*startXval)[b][2*r + 1] = 1.0 / (*startZval)[b][2*r + 1];
+                  (*startXrow)[nblocks][2 * r] = (*startZrow)[nblocks][2 * r];
+                  (*startXcol)[nblocks][2 * r] = (*startZcol)[nblocks][2 * r];
+                  (*startXval)[nblocks][2 * r] = 1.0 / (*startZval)[nblocks][2 * r];
+                  (*startXrow)[nblocks][2 * r + 1] = (*startZrow)[nblocks][2 * r + 1];
+                  (*startXcol)[nblocks][2 * r + 1] = (*startZcol)[nblocks][2 * r + 1];
+                  (*startXval)[nblocks][2 * r + 1] = 1.0 / (*startZval)[nblocks][2 * r + 1];
                }
                else if ( relaxdata->warmstartprimaltype != 3 && relaxdata->warmstartiptype == 1 )
                {
@@ -3363,74 +3363,74 @@ SCIP_RETCODE determineWarmStartInformation(
 
             for (v = 0; v < nvars; v++)
             {
-               (*startZrow)[b][2*nrows + 2 * v] = 2 * nrows + 2 * v;
-               (*startZcol)[b][2*nrows + 2 * v] = 2 * nrows + 2 * v;
-               (*startZval)[b][2*nrows + 2 * v] = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
-               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[b][2*nrows + 2*v], relaxdata->warmstartprojminevdual) )
-                  (*startZval)[b][2*nrows + 2*v] = relaxdata->warmstartprojminevdual;
-               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, (*startZval)[b][2*nrows + 2*v], 1.0) )
+               (*startZrow)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+               (*startZcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+               (*startZval)[nblocks][2 * nrows + 2 * v] = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
+               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v], relaxdata->warmstartprojminevdual) )
+                  (*startZval)[nblocks][2*nrows + 2*v] = relaxdata->warmstartprojminevdual;
+               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v], 1.0) )
                {
                   /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
-                  if ( SCIPisLT(scip, (*startZval)[b][2*nrows + 2*v], 0.0) )
-                     (*startZval)[b][2*nrows + 2*v] = relaxdata->warmstartipfactor;
+                  if ( SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v], 0.0) )
+                     (*startZval)[nblocks][2*nrows + 2*v] = relaxdata->warmstartipfactor;
                   else
-                     (*startZval)[b][2*nrows + 2*v] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[b][2*nrows + 2*v] + relaxdata->warmstartipfactor;
+                     (*startZval)[nblocks][2*nrows + 2*v] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v] + relaxdata->warmstartipfactor;
                }
                else if ( relaxdata->warmstartiptype == 2 )
                {
-                  (*startZval)[b][2*nrows + 2*v] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[b][2*nrows + 2*v] + relaxdata->warmstartipfactor * relaxdata->ipZval[b][2*nrows + 2*v];
+                  (*startZval)[nblocks][2*nrows + 2*v] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v] + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2*nrows + 2*v];
 
                   /* if this is non-positive, we shift it to a strictly positive value */
-                  if ( SCIPisLT(scip, (*startZval)[b][2*nrows + 2*v], WARMSTART_MINVAL) )
-                     (*startZval)[b][2*nrows + 2*v] = WARMSTART_MINVAL;
+                  if ( SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v], WARMSTART_MINVAL) )
+                     (*startZval)[nblocks][2*nrows + 2*v] = WARMSTART_MINVAL;
                }
 
-               if ( relaxdata->warmstartpreoptsol && (*startZval)[b][2*nrows + 2*v] < WARMSTART_PREOPT_MIN_Z_LPVAL )
-                  (*startZval)[b][2*nrows + 2*v] = WARMSTART_PREOPT_MIN_Z_LPVAL;
+               if ( relaxdata->warmstartpreoptsol && (*startZval)[nblocks][2*nrows + 2*v] < WARMSTART_PREOPT_MIN_Z_LPVAL )
+                  (*startZval)[nblocks][2*nrows + 2*v] = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
-               (*startZrow)[b][2*nrows + 2*v + 1] = 2 * nrows + 2 * v + 1;
-               (*startZcol)[b][2*nrows + 2*v + 1] = 2 * nrows + 2 * v + 1;
-               (*startZval)[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
+               (*startZrow)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+               (*startZcol)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+               (*startZval)[nblocks][2 * nrows + 2 * v + 1] = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
 
-               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[b][2*nrows + 2*v + 1], relaxdata->warmstartprojminevdual) )
-                  (*startZval)[b][2*nrows + 2*v + 1] = relaxdata->warmstartprojminevdual;
-               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, (*startZval)[b][2*nrows + 2*v + 1], 1.0) )
+               if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], relaxdata->warmstartprojminevdual) )
+                  (*startZval)[nblocks][2*nrows + 2*v + 1] = relaxdata->warmstartprojminevdual;
+               else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], 1.0) )
                {
                   /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
-                  if ( SCIPisLT(scip, (*startZval)[b][2*nrows + 2*v + 1], 0.0) )
-                     (*startZval)[b][2*nrows + 2*v + 1] = relaxdata->warmstartipfactor;
+                  if ( SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], 0.0) )
+                     (*startZval)[nblocks][2*nrows + 2*v + 1] = relaxdata->warmstartipfactor;
                   else
-                     (*startZval)[b][2*nrows + 2*v + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[b][2*nrows + 2*v + 1] + relaxdata->warmstartipfactor;
+                     (*startZval)[nblocks][2*nrows + 2*v + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v + 1] + relaxdata->warmstartipfactor;
                }
                else if ( relaxdata->warmstartiptype == 2 )
                {
-                  (*startZval)[b][2*nrows + 2*v + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[b][2*nrows + 2*v] + relaxdata->warmstartipfactor * relaxdata->ipZval[b][2*nrows + 2*v + 1];
+                  (*startZval)[nblocks][2*nrows + 2*v + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v] + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2*nrows + 2*v + 1];
 
                   /* if this is non-positive, we shift it to a strictly positive value */
-                  if ( SCIPisLT(scip, (*startZval)[b][2*nrows + 2*v + 1], WARMSTART_MINVAL) )
-                     (*startZval)[b][2*nrows + 2*v + 1] = WARMSTART_MINVAL;
+                  if ( SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], WARMSTART_MINVAL) )
+                     (*startZval)[nblocks][2*nrows + 2*v + 1] = WARMSTART_MINVAL;
                }
 
-               if ( relaxdata->warmstartpreoptsol && (*startZval)[b][2*nrows + 2*v + 1] < WARMSTART_PREOPT_MIN_Z_LPVAL )
-                  (*startZval)[b][2*nrows + 2*v + 1] = WARMSTART_PREOPT_MIN_Z_LPVAL;
+               if ( relaxdata->warmstartpreoptsol && (*startZval)[nblocks][2*nrows + 2*v + 1] < WARMSTART_PREOPT_MIN_Z_LPVAL )
+                  (*startZval)[nblocks][2*nrows + 2*v + 1] = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
                if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
                {
-                  (*startXrow)[b][2*nrows + 2*v] = 2*nrows + 2*v;
-                  (*startXcol)[b][2*nrows + 2*v] = 2*nrows + 2*v;
-                  (*startXval)[b][2*nrows + 2*v] = maxprimalentry;
-                  (*startXrow)[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-                  (*startXcol)[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-                  (*startXval)[b][2*nrows + 2*v + 1] = maxprimalentry;
+                  (*startXrow)[nblocks][2*nrows + 2*v] = 2*nrows + 2*v;
+                  (*startXcol)[nblocks][2*nrows + 2*v] = 2*nrows + 2*v;
+                  (*startXval)[nblocks][2*nrows + 2*v] = maxprimalentry;
+                  (*startXrow)[nblocks][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+                  (*startXcol)[nblocks][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
+                  (*startXval)[nblocks][2*nrows + 2*v + 1] = maxprimalentry;
                }
                else if ( relaxdata->warmstartprimaltype == 2 )
                {
-                  (*startXrow)[b][2*nrows + 2*v] = (*startZrow)[b][2*nrows + 2*v];
-                  (*startXcol)[b][2*nrows + 2*v] = (*startZcol)[b][2*nrows + 2*v];
-                  (*startXval)[b][2*nrows + 2*v] = 1.0 / (*startZval)[b][2*nrows + 2*v];
-                  (*startXrow)[b][2*nrows + 2*v + 1] = (*startZrow)[b][2*nrows + 2*v + 1];
-                  (*startXcol)[b][2*nrows + 2*v + 1] = (*startZcol)[b][2*nrows + 2*v + 1];
-                  (*startXval)[b][2*nrows + 2*v + 1] = 1.0 / (*startZval)[b][2*nrows + 2*v + 1];
+                  (*startXrow)[nblocks][2*nrows + 2*v] = (*startZrow)[nblocks][2*nrows + 2*v];
+                  (*startXcol)[nblocks][2*nrows + 2*v] = (*startZcol)[nblocks][2*nrows + 2*v];
+                  (*startXval)[nblocks][2*nrows + 2*v] = 1.0 / (*startZval)[nblocks][2*nrows + 2*v];
+                  (*startXrow)[nblocks][2*nrows + 2*v + 1] = (*startZrow)[nblocks][2*nrows + 2*v + 1];
+                  (*startXcol)[nblocks][2*nrows + 2*v + 1] = (*startZcol)[nblocks][2*nrows + 2*v + 1];
+                  (*startXval)[nblocks][2*nrows + 2*v + 1] = 1.0 / (*startZval)[nblocks][2*nrows + 2*v + 1];
                }
                else if ( relaxdata->warmstartprimaltype != 3 && relaxdata->warmstartproject == 1 )
                {
