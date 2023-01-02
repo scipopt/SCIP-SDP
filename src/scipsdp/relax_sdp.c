@@ -4276,9 +4276,11 @@ SCIP_RETCODE calcRelax(
       assert( startXval != NULL );
       assert( startXcol != NULL );
       assert( startXrow != NULL );
+      assert( startXnblocknonz != NULL );
       assert( startZval != NULL );
       assert( startZcol != NULL );
       assert( startZrow != NULL );
+      assert( startZnblocknonz != NULL );
 
       /* free memory */
       for (b = 0; b < nblocks; b++)
