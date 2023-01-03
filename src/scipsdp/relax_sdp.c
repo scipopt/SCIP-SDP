@@ -3416,21 +3416,21 @@ SCIP_RETCODE determineWarmStartInformation(
 
                if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
                {
-                  (*startXrow)[nblocks][2*nrows + 2*v] = 2*nrows + 2*v;
-                  (*startXcol)[nblocks][2*nrows + 2*v] = 2*nrows + 2*v;
-                  (*startXval)[nblocks][2*nrows + 2*v] = maxprimalentry;
-                  (*startXrow)[nblocks][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-                  (*startXcol)[nblocks][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-                  (*startXval)[nblocks][2*nrows + 2*v + 1] = maxprimalentry;
+                  (*startXrow)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+                  (*startXcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+                  (*startXval)[nblocks][2 * nrows + 2 * v] = maxprimalentry;
+                  (*startXrow)[nblocks][2 * nrows + 2 * v + 1] = 2*nrows + 2*v + 1;
+                  (*startXcol)[nblocks][2 * nrows + 2 * v + 1] = 2*nrows + 2*v + 1;
+                  (*startXval)[nblocks][2 * nrows + 2 * v + 1] = maxprimalentry;
                }
                else if ( relaxdata->warmstartprimaltype == 2 )
                {
-                  (*startXrow)[nblocks][2*nrows + 2*v] = (*startZrow)[nblocks][2*nrows + 2*v];
-                  (*startXcol)[nblocks][2*nrows + 2*v] = (*startZcol)[nblocks][2*nrows + 2*v];
-                  (*startXval)[nblocks][2*nrows + 2*v] = 1.0 / (*startZval)[nblocks][2*nrows + 2*v];
-                  (*startXrow)[nblocks][2*nrows + 2*v + 1] = (*startZrow)[nblocks][2*nrows + 2*v + 1];
-                  (*startXcol)[nblocks][2*nrows + 2*v + 1] = (*startZcol)[nblocks][2*nrows + 2*v + 1];
-                  (*startXval)[nblocks][2*nrows + 2*v + 1] = 1.0 / (*startZval)[nblocks][2*nrows + 2*v + 1];
+                  (*startXrow)[nblocks][2 * nrows + 2 * v] = (*startZrow)[nblocks][2 * nrows + 2 * v];
+                  (*startXcol)[nblocks][2 * nrows + 2 * v] = (*startZcol)[nblocks][2 * nrows + 2 * v];
+                  (*startXval)[nblocks][2 * nrows + 2 * v] = 1.0 / (*startZval)[nblocks][2 * nrows + 2 * v];
+                  (*startXrow)[nblocks][2 * nrows + 2 * v + 1] = (*startZrow)[nblocks][2 * nrows + 2 * v + 1];
+                  (*startXcol)[nblocks][2 * nrows + 2 * v + 1] = (*startZcol)[nblocks][2 * nrows + 2 * v + 1];
+                  (*startXval)[nblocks][2 * nrows + 2 * v + 1] = 1.0 / (*startZval)[nblocks][2 * nrows + 2 * v + 1];
                }
                else if ( relaxdata->warmstartprimaltype != 3 && relaxdata->warmstartproject == 1 )
                {
