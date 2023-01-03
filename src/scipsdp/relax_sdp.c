@@ -82,7 +82,7 @@
 #define DEFAULT_WARMSTARTPROJECT    2        /**< How to update dual matrix for new bounds: 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
 #define DEFAULT_WARMSTARTPROJMINEV  -1.0     /**< minimal eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
-#define DEFAULT_WARMSTART_PREOPTIMAL_SOL FALSE /**< Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
+#define DEFAULT_WARMSTARTPREOPTSOL  FALSE    /**< Should a preoptimal solution (with larger gap) be used for warmstarts instead of optimal solution (currently only implemented fo DSDP) */
 #define DEFAULT_WARMSTARTPREOPTGAP  1e-2     /**< If warmstartpreoptimalsol is TRUE, this is the gap where the preoptimal solution is saved (currently only implemented fo DSDP) */
 #define DEFAULT_WARMSTARTROUNDONLYINF FALSE  /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4)? */
 
@@ -5664,7 +5664,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
          "Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts",
-         &(relaxdata->warmstartpreoptsol), TRUE, DEFAULT_WARMSTART_PREOPTIMAL_SOL, NULL, NULL) );
+         &(relaxdata->warmstartpreoptsol), TRUE, DEFAULT_WARMSTARTPREOPTSOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartpreoptgap",
          "If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved",
