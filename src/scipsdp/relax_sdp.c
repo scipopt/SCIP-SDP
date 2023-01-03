@@ -1801,24 +1801,24 @@ SCIP_RETCODE generateConflictCons(
  *
  * Solve the primal rounding problem
  * \f{eqnarray*}{
- *    \max & & \sum_{k \in K} A_0^{(k)} \bullet (V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T) + \sum_{j \in J} c_j x_j - \sum_{i \in I_u} u_i v_i + \sum_{i \in I_\ell} \ell_i w_i \ \
- *    \mbox{s.t.} & & \sum_{k \in K} A_i^{(k)} \bullet (V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T) + \sum_{j \in J} d_{ij} x_j - 1_{\{u_i < \infty\}} v_i + 1_{\{\ell_i > -\infty\}} w_i = b_i \quad \forall \ i \in I,\ \
- *    & & \lambda^{(k)}_i \geq 0 \quad \forall \ k \in K, i \leq n \    \
- *    & & x_j \geq 0 \quad \forall \ j \in J,\                          \
- *    & & v_i \geq 0 \quad \forall \ i \in I_u,\                        \
+ *    \max & & \sum_{k \in K} A_0^{(k)} \bullet (V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T) + \sum_{j \in J} c_j x_j - \sum_{i \in I_u} u_i v_i + \sum_{i \in I_\ell} \ell_i w_i \\
+ *    \mbox{s.t.} & & \sum_{k \in K} A_i^{(k)} \bullet (V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T) + \sum_{j \in J} d_{ij} x_j - 1_{\{u_i < \infty\}} v_i + 1_{\{\ell_i > -\infty\}} w_i = b_i \quad \forall \ i \in I, \\
+ *    & & \lambda^{(k)}_i \geq 0 \quad \forall \ k \in K, i \leq n \\
+ *    & & x_j \geq 0 \quad \forall \ j \in J,\\
+ *    & & v_i \geq 0 \quad \forall \ i \in I_u,\\
  *    & & w_i \geq 0 \quad \forall \ i \in I_\ell,
  * \f}
- * where \f$ V^{(k)} \text{diag}(\bar{\lambda}^{(k)}) (V^{(k)})^T \f$ is an eigenvector decomposition of the optimal primal solution
+ * where \f$ V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T \f$ is an eigenvector decomposition of the optimal primal solution
  * of the parent node, as well as the dual rounding problem
  * \f{eqnarray*}{
- *    \min & & b^T y \                                                  \
- *    \mbox{s.t.} & & \sum_{i \in I} d_{ij} y_i \geq c_j \quad \forall \ j \in J, \ \
- *    & & \sum_{i \in I} A_i^{(k)} y_i - A_0^{(k)} = V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T \quad \forall \ k \in K, \ \
- *    & & \ell_i \leq y_i \leq u_i \quad \forall \ i \in I, \           \
- *    & & \lambda^{(k)}_i \geq 0 \quad \forall \ k \in K, i \leq n \    \
+ *    \min & & b^T y \\
+ *    \mbox{s.t.} & & \sum_{i \in I} d_{ij} y_i \geq c_j \quad \forall \ j \in J, \\
+ *    & & \sum_{i \in I} A_i^{(k)} y_i - A_0^{(k)} = V^{(k)} \text{diag}(\lambda^{(k)}) (V^{(k)})^T \quad \forall \ k \in K, \\
+ *    & & \ell_i \leq y_i \leq u_i \quad \forall \ i \in I, \\
+ *    & & \lambda^{(k)}_i \geq 0 \quad \forall \ k \in K, i \leq n, \\
  * \f}
- * where \f$ V^{(k)} \text{diag}(\bar{\lambda}^{(k)}) (V^{(k)})^T \f$ is now an eigenvector decomposition of the optimal solution
- * of the parent node for the dual problem. The matrix equation is reformulated as blocksize * (blocksize + 1) /2 linear constraints
+ * where \f$ V^{(k)} \text{diag}(\lambda^{(k)})(V^{(k)})^T \f$ is now an eigenvector decomposition of the optimal solution
+ * of the parent node for the dual problem. The matrix equation is reformulated as blocksize * (blocksize + 1)/2 linear constraints
  * over the lower triangular entries.
  */
 static
