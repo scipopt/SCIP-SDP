@@ -76,10 +76,10 @@
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 
 #define DEFAULT_WARMSTART           FALSE    /**< Should the SDP solver try to use warmstarts? */
-#define DEFAULT_WARMSTARTIPFACTOR   0.50     /**< factor for interior point in convex combination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< type of warmstarting the primal problem: 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
 #define DEFAULT_WARMSTARTIPTYPE     1        /**< type of interior point for convex combination for warmstarts: 1: scaled identity, 2: analytic center */
-#define DEFAULT_WARMSTARTPROJECT    2        /**< How to update dual matrix for new bounds: 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
+#define DEFAULT_WARMSTARTIPFACTOR   0.50     /**< factor for interior point in convex combination of IP and parent solution, if warmstarts are enabled */
+#define DEFAULT_WARMSTARTPROJECT    2        /**< Projection type of dual matrix: 1: old bounds, 2: new bounds, 3: new bounds and project on psd cone, 4: new bounds and solve rounding problem */
 #define DEFAULT_WARMSTARTPROJMINEV  -1.0     /**< minimal eigenvector to allow when projecting onto the positive (semi-)definite cone */
 #define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
 #define DEFAULT_WARMSTARTPREOPTSOL  FALSE    /**< Should a preoptimal solution (with larger gap) be used for warmstarts instead of optimal solution (currently only implemented fo DSDP) */
