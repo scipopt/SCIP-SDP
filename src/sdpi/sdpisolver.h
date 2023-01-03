@@ -224,6 +224,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
                                               *   may be NULL if startXnblocknonz = NULL */
+   int*                  lpsdpiidx,          /**< array with new indices of each original LP row (or -1) */
+   int                   noriglpcons,        /**< number of original LP rows (needed for transfering starting points) */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
@@ -308,6 +310,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
                                               *   may be NULL if startXnblocknonz = NULL */
+   int*                  lpsdpiidx,          /**< array with new indices of each original LP row (or -1) */
+   int                   noriglpcons,        /**< number of original LP rows (needed for transfering starting points) */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */

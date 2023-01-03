@@ -778,6 +778,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
                                               *   may be NULL if startXnblocknonz = NULL */
+   int*                  lpsdpiidx,          /**< array with new indices of each original LP row (or -1) */
+   int                   noriglpcons,        /**< number of original LP rows (needed for transfering starting points) */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
@@ -787,7 +789,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
       nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
-      starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
+      starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, lpsdpiidx, noriglpcons, startsettings,
       timelimit, usedsdpitime, NULL, NULL);
 }
 
@@ -868,6 +870,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
                                               *   may be NULL if startXnblocknonz = NULL */
+   int*                  lpsdpiidx,          /**< array with new indices of each original LP row (or -1) */
+   int                   noriglpcons,        /**< number of original LP rows (needed for transfering starting points) */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP and MOSEK, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP and MOSEK) */
@@ -1521,16 +1525,27 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       for (i = 0; i < startZnblocknonz[nsdpblocks]; i++)
       {
          assert( startZrow[nsdpblocks][i] == startZcol[nsdpblocks][i] );
+         assert( 0 <= startZrow[nsdpblocks][i] && startZrow[nsdpblocks][i] < 2 * noriglpcons + 2 * nvars );
 
-         if ( startZrow[nsdpblocks][i] < 2 * sdpisolver->nsdpalpcons ) /* linear constraint */
+         if ( startZrow[nsdpblocks][i] < 2 * noriglpcons ) /* linear constraint */
          {
-            sdpaind = sdpisolver->rowmapper[startZrow[nsdpblocks][i]];
-            if ( sdpaind > -1 )
-               sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, sdpaind, sdpaind, startZval[nsdpblocks][i]);
+            int rowidx;
+
+            rowidx = lpsdpiidx[startZrow[nsdpblocks][i]];  /* get new LP row index */
+            if ( rowidx >= 0 )
+            {
+               sdpaind = sdpisolver->rowmapper[rowidx];
+               if ( sdpaind > -1 )
+                  sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, sdpaind, sdpaind, startZval[nsdpblocks][i]);
+            }
          }
          else /* varbound */
          {
-            varboundind = sdpisolver->inputtovbmapper[startZrow[nsdpblocks][i] - 2 * sdpisolver->nsdpalpcons];
+            int varidx;
+
+            varidx = startZrow[nsdpblocks][i] - 2 * noriglpcons;
+            assert( 0 <= varidx && varidx < 2 * nvars );
+            varboundind = sdpisolver->inputtovbmapper[varidx];
             if ( varboundind > -1 ) /* rhs */
             {
                sdpisolver->sdpa->inputInitXMat((long long) nsdpblocks + 1, nlpineqs + varboundind + 1,
@@ -1560,7 +1575,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          assert( startXrow[nsdpblocks][i] == startXcol[nsdpblocks][i] );
 
-         if ( startXrow[nsdpblocks][i] < 2 * sdpisolver->nsdpalpcons ) /* linear constraint */
+         if ( startXrow[nsdpblocks][i] < 2 * noriglpcons ) /* linear constraint */
          {
             sdpaind = sdpisolver->rowmapper[startXrow[nsdpblocks][i]];
             if ( sdpaind > -1 )
@@ -1568,7 +1583,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          }
          else /* varbound */
          {
-            varboundind = sdpisolver->inputtovbmapper[startXrow[nsdpblocks][i] - 2 * sdpisolver->nsdpalpcons];
+            int varidx;
+
+            varidx = startXrow[nsdpblocks][i] - 2 * noriglpcons;
+            assert( 0 <= varidx && varidx < 2 * nvars );
+            varboundind = sdpisolver->inputtovbmapper[varidx];
             if ( varboundind > -1 ) /*lhs */
             {
                sdpisolver->sdpa->inputInitYMat((long long) nsdpblocks + 1, nlpineqs + varboundind + 1,

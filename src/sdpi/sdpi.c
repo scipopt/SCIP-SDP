@@ -268,6 +268,7 @@ struct SCIP_SDPi
    SCIP_Real*            sdpilplhs;          /**< working space for left hand sides of LP rows */
    SCIP_Real*            sdpilprhs;          /**< working space for right hand sides of LP rows */
    int*                  sdpilpidx;          /**< working space for original indices of LP row sides */
+   int*                  lpsdpiidx;          /**< working space for new indices of original LP rows (or -1) */
    int                   lpnnonz;            /**< number of nonzero elements in the LP-constraint matrix */
    int                   maxlpnnonz;         /**< maximal number of nonzero elements in the LP-constraint matrix */
    int*                  lprow;              /**< row-index for each entry in lpval-array */
@@ -428,6 +429,7 @@ SCIP_RETCODE ensureLPDataMemory(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpilplhs), sdpi->maxnlpcons, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpilprhs), sdpi->maxnlpcons, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpilpidx), sdpi->maxnlpcons, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lpsdpiidx), 2 * sdpi->maxnlpcons, 2 * newsize) );
       sdpi->maxnlpcons = newsize;
    }
 
@@ -806,6 +808,7 @@ SCIP_RETCODE prepareLPData(
    SCIP_Real*            sdpilplhs,          /**< prepared array to store lhs of LP-constraints after fixing variables */
    SCIP_Real*            sdpilprhs,          /**< prepared array to store rhs of LP-constraints after fixing variables */
    int*                  sdpilpidx,          /**< array to store the original indices of the prepared row sides */
+   int*                  lpsdpiidx,          /**< array to store the new indices of each original LP row (or -1) */
    int*                  sdpilpnnonz,        /**< pointer to store the number of nonzeros in prepared LP-constraints */
    int*                  sdpilprow,          /**< array of prepared rows of nonzero entries in LP-constraints */
    int*                  sdpilpcol,          /**< array of prepared columns of nonzero entries in LP-constraints */
@@ -829,6 +832,7 @@ SCIP_RETCODE prepareLPData(
    assert( sdpi->nlpcons == 0 || sdpilplhs != NULL );
    assert( sdpi->nlpcons == 0 || sdpilprhs != NULL );
    assert( sdpi->nlpcons == 0 || sdpilpidx != NULL );
+   assert( sdpi->nlpcons == 0 || lpsdpiidx != NULL );
    assert( sdpilpnnonz != NULL );
    assert( sdpi->nlpcons == 0 || sdpilprow != NULL );
    assert( sdpi->nlpcons == 0 || sdpilpcol != NULL );
@@ -849,6 +853,10 @@ SCIP_RETCODE prepareLPData(
       sdpi->sdpilbrowidx[i] = 0;
       sdpi->sdpiubrowidx[i] = 0;
    }
+
+   /* init map */
+   for (i = 0; i < 2 * sdpi->nlpcons; ++i)
+      lpsdpiidx[i] = -1;
 
    currentrow = sdpi->lprow[0];
    for (i = 0; i < sdpi->lpnnonz; ++i)
@@ -891,6 +899,8 @@ SCIP_RETCODE prepareLPData(
             sdpilplhs[*nsdpilpcons] = lhs;
             sdpilprhs[*nsdpilpcons] = rhs;
             sdpilpidx[*nsdpilpcons] = currentrow;
+            lpsdpiidx[2 * currentrow] = *nsdpilpcons;
+            lpsdpiidx[2 * currentrow + 1] = *nsdpilpcons;
             ++(*nsdpilpcons);
             oldsdpilpnnonz = *sdpilpnnonz;
          }
@@ -1179,7 +1189,7 @@ SCIP_RETCODE checkSlaterCondition(
          sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol, sdpi->sdpval,
          indchanges, nremovedinds, blockindchanges, nremovedblocks,
          nactivelpcons, sdpilplhs, sdpilprhs, sdpilpnnonz, sdpilprow, sdpilpcol, sdpilpval,
-         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0,
          SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime, &origfeas, &penaltybound) );
 
    /* analyze result */
@@ -1393,7 +1403,7 @@ SCIP_RETCODE checkSlaterCondition(
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, slaternactivelpcons, slaterlplhs, slaterlprhs,
             sdpilpnnonz + sdpi->nvars - nremovedslaterlpinds, slaterlprow, slaterlpcol, slaterlpval, NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime) );
+            NULL, NULL, NULL, NULL, NULL, NULL, 0, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime) );
 
       /* analyze result */
       if ( SCIPsdpiSolverIsOptimal(sdpi->sdpisolver) )
@@ -1617,6 +1627,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->sdpilplhs = NULL;
    (*sdpi)->sdpilprhs = NULL;
    (*sdpi)->sdpilpidx = NULL;
+   (*sdpi)->lpsdpiidx = NULL;
    (*sdpi)->sdpilprow = NULL;
    (*sdpi)->sdpilpcol = NULL;
    (*sdpi)->sdpilpval = NULL;
@@ -1672,6 +1683,7 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpilprhs), (*sdpi)->maxnlpcons);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpilplhs), (*sdpi)->maxnlpcons);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpilpidx), (*sdpi)->maxnlpcons);
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpsdpiidx), 2 * (*sdpi)->maxnlpcons);
 
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpval), (*sdpi)->maxlpnnonz);
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lpcol), (*sdpi)->maxlpnnonz);
@@ -1860,6 +1872,7 @@ SCIP_RETCODE SCIPsdpiClone(
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpilplhs), oldsdpi->nlpcons) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpilprhs), oldsdpi->nlpcons) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpilpidx), oldsdpi->nlpcons) );
+   BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->lpsdpiidx), 2 * oldsdpi->nlpcons) );
 
    newsdpi->lpnnonz = lpnnonz;
    newsdpi->maxlpnnonz = lpnnonz;
@@ -2837,7 +2850,7 @@ SCIP_RETCODE SCIPsdpiSolve(
    {
       /* we expect that additional fixings are only found seldomly, so this function is usually called only once per solve */
       SCIP_CALL( prepareLPData(sdpi, sdpi->sdpilb, sdpi->sdpiub, sdpi->sdpilbrowidx, sdpi->sdpiubrowidx, &sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
-            sdpi->sdpilpidx, &sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, &fixingfound) );
+            sdpi->sdpilpidx, sdpi->lpsdpiidx, &sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, &fixingfound) );
 
       SCIPdebugMessage("Number of active LP constraints: %d (original: %d); %d nonzeros.\n", sdpi->nactivelpcons, sdpi->nlpcons, sdpilpnnonz);
    }
@@ -3021,7 +3034,7 @@ SCIP_RETCODE SCIPsdpiSolve(
             sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
             sdpi->sdpval, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, sdpi->nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
             sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
-            startXnblocknonz, startXrow, startXcol, startXval, startsettings, timelimit, sdpi->usedsdpitime) );
+            startXnblocknonz, startXrow, startXcol, startXval, sdpi->lpsdpiidx, sdpi->nlpcons, startsettings, timelimit, sdpi->usedsdpitime) );
 
       sdpi->solved = TRUE;
 
@@ -3076,7 +3089,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                sdpi->sdpval, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, sdpi->nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
                sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
-               startXnblocknonz, startXrow, startXcol, startXval, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime, &feasorig, NULL) );
+               startXnblocknonz, startXrow, startXcol, startXval, sdpi->lpsdpiidx, sdpi->nlpcons, SCIP_SDPSOLVERSETTING_UNSOLVED, timelimit, sdpi->usedsdpitime, &feasorig, NULL) );
 
          /* add time, iterations and sdpcalls */
          addedopttime = 0.0;
@@ -3145,7 +3158,7 @@ SCIP_RETCODE SCIPsdpiSolve(
                      sdpi->sdpnnonz, sdpi->sdpnblockvarnonz, sdpi->sdpvar, sdpi->sdprow, sdpi->sdpcol,
                      sdpi->sdpval, sdpi->indchanges, sdpi->nremovedinds, sdpi->blockindchanges, sdpi->nremovedblocks, sdpi->nactivelpcons, sdpi->sdpilplhs, sdpi->sdpilprhs,
                      sdpilpnnonz, sdpi->sdpilprow, sdpi->sdpilpcol, sdpi->sdpilpval, starty, startZnblocknonz, startZrow, startZcol, startZval,
-                     startXnblocknonz, startXrow, startXcol, startXval, startsettings, timelimit, sdpi->usedsdpitime, &feasorig, &penaltybound) );
+                     startXnblocknonz, startXrow, startXcol, startXval, sdpi->lpsdpiidx, sdpi->nlpcons, startsettings, timelimit, sdpi->usedsdpitime, &feasorig, &penaltybound) );
 
                /* add time, iterations and sdpcalls */
                addedopttime = 0.0;
