@@ -2543,7 +2543,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
 /** gets preoptimal dual solution vector and primal matrix for warmstarting purposes
  *
  *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
- *  independant of some lhs/rhs being infinity
+ *  independent of some lhs/rhs being infinity
  *  @note If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
  *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
  */
