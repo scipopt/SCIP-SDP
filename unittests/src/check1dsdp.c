@@ -150,7 +150,7 @@ Test(checksdpi, test1)
    rhs = SCIPsdpiInfinity(sdpi);
 
    /* load LP data, but leave SDP block empty */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
          nrows, &lhs, &rhs, nnonz, &row, &col, &val) );
 
    /* solve problem: no Slater-check, no time limit */
@@ -216,7 +216,7 @@ Test(checksdpi, test2)
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
    /* load LP data, but leave SDP block empty */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
          nrows, lhs, rhs, nnonz, row, col, val) );
 
    /* solve problem: no Slater-check, no time limit */
@@ -282,7 +282,7 @@ Test(checksdpi, test3)
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
    /* load LP data, but leave SDP block empty */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
          nrows, lhs, rhs, nnonz, row, col, val) );
 
    /* solve problem: no Slater-check, no time limit */
@@ -391,7 +391,7 @@ Test(checksdpi, test5)
    sdpvalss = &sdpvals;
 
    /* load SDP data */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, 1, &obj, &lb, &ub, 1, &sdpblocksizes, &sdpnblockvars, 3, &sdpconstnblocknonz, &sdpconstrows, &sdpconstcols, &sdpconstvals,
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, 1, &obj, &lb, &ub, NULL, 1, &sdpblocksizes, &sdpnblockvars, 3, &sdpconstnblocknonz, &sdpconstrows, &sdpconstcols, &sdpconstvals,
          3, &sdpnblockvarnonzs, &sdpvars, &sdprowss, &sdpcolss, &sdpvalss, 0, NULL, NULL, 0, NULL, NULL, NULL) );
 
    /* solve problem: no Slater-check, no time limit */
