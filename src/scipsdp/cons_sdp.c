@@ -7502,6 +7502,8 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
          SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
 #endif
       }
+      else
+         rank1result = TRUE;
 
       if ( ! rank1result )
       {
