@@ -394,9 +394,9 @@ SCIP_RETCODE checkFeastolAndResolve(
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array */
+   int*                  lpind,              /**< column-index for each entry in lpval-array */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries */
    SCIP_Real*            feastol,            /**< current feasibility tolerance for SDPA */
    SCIP_Real*            gaptol              /**< current gap tolerance for SDPA */
    )
@@ -429,7 +429,7 @@ SCIP_RETCODE checkFeastolAndResolve(
       /* check the solution for feasibility with regards to our tolerance */
       SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-            indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+            indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lpbeg, lpind, lpval,
             solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
       BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
 
@@ -758,9 +758,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array */
+   int*                  lpind,              /**< column-index for each entry in lpval-array */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries */
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                               *   also length of corresponding row/col/val-arrays; or NULL */
@@ -788,7 +788,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 {/*lint !e1784*/
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-      nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+      nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lpbeg, lpind, lpval,
       starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, lpsdpiidx, noriglpcons, startsettings,
       timelimit, usedsdpitime, NULL, NULL);
 }
@@ -850,9 +850,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array */
+   int*                  lpind,              /**< column-index for each entry in lpval-array */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries */
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                               *   also length of corresponding row/col/val-arrays; or NULL */
@@ -927,9 +927,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nlpcons >= 0 );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
+   assert( nlpcons == 0 || lpbeg != NULL );
    assert( lpnnonz >= 0 );
-   assert( nlpcons == 0 || lprow != NULL );
-   assert( nlpcons == 0 || lpcol != NULL );
+   assert( nlpcons == 0 || lpind != NULL );
    assert( nlpcons == 0 || lpval != NULL );
    assert( startZnblocknonz == NULL || startZrow != NULL );
    assert( startZnblocknonz == NULL || startZcol != NULL );
@@ -1146,7 +1146,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    if ( nlpineqs + sdpisolver->nvarbounds > 0 )
    {
       /* the last block is the LP block, the size has a negative sign */
-      SCIPdebugMessage("adding LP block to SDPA as block %d with size %d\n", nsdpablocks + 1, nlpineqs + sdpisolver->nvarbounds);
+      SCIPdebugMessage("adding LP block to SDPA as block %d with %d LP inequalities and %d variable bounds.\n", nsdpablocks + 1, nlpineqs, sdpisolver->nvarbounds);
       sdpisolver->sdpa->inputBlockSize((long long) (nsdpablocks + 1), (long long) -(nlpineqs + sdpisolver->nvarbounds));
       sdpisolver->sdpa->inputBlockType((long long) (nsdpablocks + 1), SDPA::LP);
    }
@@ -1266,110 +1266,85 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* inserting LP nonzeros */
    if ( lpnnonz > 0 )
    {
-      SCIP_Bool lhspresent = FALSE;
-      SCIP_Bool rhspresent = FALSE;
       long long lhsrhscnt = 1;   /* 1 because SDPA starts with 1 */
-      int lastrow = -1;
-      int v;
 
-      for (i = 0; i < lpnnonz; i++)
+      for (i = 0; i < nlpcons; ++i)
       {
-         assert( i == 0 || lprow[i-1] <= lprow[i] );  /* rows should be sorted */
-         assert( 0 <= lprow[i] && lprow[i] < nlpcons );
-         assert( 0 <= lpcol[i] && lpcol[i] < nvars );
-         assert( REALABS(lpval[i]) > sdpisolver->epsilon );
+         SCIP_Bool lhspresent = FALSE;
+         SCIP_Bool rhspresent = FALSE;
+         int nextbeg;
+         int v;
+         int j;
 
-         /* if we found a new row */
-         if ( lprow[i] > lastrow )
+         /* determine presence of new lhs/rhs */
+         if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
+            lhspresent = TRUE;
+
+         if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
+            rhspresent = TRUE;
+
+         assert( 0 <= lpbeg[i] && lpbeg[i] < lpnnonz );
+
+         if ( i == nlpcons - 1 )
+            nextbeg = lpnnonz;
+         else
+            nextbeg = lpbeg[i+1];
+
+         for (j = lpbeg[i]; j < nextbeg; ++j)
          {
-            /* move counter forward */
-            if ( lhspresent )
+            assert( 0 <= lpind[j] && lpind[j] < nvars );
+            assert( REALABS(lpval[j]) > sdpisolver->epsilon );
+
+            /* if the variable is active */
+            v = sdpisolver->inputtosdpamapper[lpind[j]];
+            if ( v > 0 )
             {
-               assert( 0 <= lastrow && lastrow < nlpcons );
-
-               /* LP constraints are added as diagonal entries of the last block, left-hand-side is added as variable zero */
-               sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, lplhs[lastrow], checkinput);
-
-               /* if we use a penalty formulation, add the r * Identity entry */
-               if ( penaltyparam >= sdpisolver->epsilon )
+               /* add the LP-nonzero to the lhs-inequality if it exists: */
+               if ( lhspresent )
                {
-                  /* LP nonzeros are added as diagonal entries of the last block, the r-variable is variable nactivevars + 1 */
-                  sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
+                  /* LP nonzeros are added as diagonal entries of the last block */
+                  sdpisolver->sdpa->inputElement((long long) v, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, lpval[j], checkinput);
                }
-               ++lhsrhscnt;
-            }
 
-            if ( rhspresent )
-            {
-               assert( 0 <= lastrow && lastrow < nlpcons );
-
-               /* LP constraints are added as diagonal entries of the last block, right-hand side is added as variable zero with negative value */
-               sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, - lprhs[lastrow], checkinput);
-
-               /* if we use a penalty formulation, add the r * Identity entry */
-               if ( penaltyparam >= sdpisolver->epsilon )
+               /* add the LP-nonzero to the rhs-inequality if it exists: */
+               if ( rhspresent )
                {
-                  /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with
-                   * blocks starting at 1, as are rows), the r-variable is variable nactivevars + 1 */
-                  sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
+                  /* LP nonzeros are added as diagonal entries of the last block; negative value because this is a <=-constraint, while SDPA works with >= */
+                  sdpisolver->sdpa->inputElement((long long) v, (long long) (nsdpablocks + 1), lhsrhscnt + lhspresent, lhsrhscnt + lhspresent, - lpval[j], checkinput);
                }
-               ++lhsrhscnt;
             }
-
-            lastrow = lprow[i];
-
-            /* determine presence of new lhs/rhs */
-            if ( lplhs[lastrow] > - SCIPsdpiSolverInfinity(sdpisolver) )
-               lhspresent = TRUE;
-            else
-               lhspresent = FALSE;
-
-            if ( lprhs[lastrow] < SCIPsdpiSolverInfinity(sdpisolver) )
-               rhspresent = TRUE;
-            else
-               rhspresent = FALSE;
          }
 
-         /* if the variable is active */
-         v = sdpisolver->inputtosdpamapper[lpcol[i]];
-         if ( v > 0 )
+         /* move counter forward */
+         if ( lhspresent )
          {
-            /* add the LP-nonzero to the lhs-inequality if it exists: */
-            if ( lhspresent )
-            {
-               /* LP nonzeros are added as diagonal entries of the last block */
-               sdpisolver->sdpa->inputElement((long long) v, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, lpval[i], checkinput);
-            }
+            /* LP constraints are added as diagonal entries of the last block, left-hand-side is added as variable zero */
+            sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, lplhs[i], checkinput);
 
-            /* add the LP-nonzero to the rhs-inequality if it exists: */
-            if ( rhspresent )
+            /* if we use a penalty formulation, add the r * Identity entry */
+            if ( penaltyparam >= sdpisolver->epsilon )
             {
-               /* LP nonzeros are added as diagonal entries of the last block; negative value because this is a <=-constraint, while SDPA works with >= */
-               sdpisolver->sdpa->inputElement((long long) v, (long long) (nsdpablocks + 1), lhsrhscnt + lhspresent, lhsrhscnt + lhspresent, - lpval[i], checkinput);
+               /* LP nonzeros are added as diagonal entries of the last block, the r-variable is variable nactivevars + 1 */
+               sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
             }
+            ++lhsrhscnt;
+         }
+
+         if ( rhspresent )
+         {
+            /* LP constraints are added as diagonal entries of the last block, right-hand side is added as variable zero with negative value */
+            sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, - lprhs[i], checkinput);
+
+            /* if we use a penalty formulation, add the r * Identity entry */
+            if ( penaltyparam >= sdpisolver->epsilon )
+            {
+               /* LP nonzeros are added as diagonal entries of the last block (coming after the last SDP-block, with
+                * blocks starting at 1, as are rows), the r-variable is variable nactivevars + 1 */
+               sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
+            }
+            ++lhsrhscnt;
          }
       }
-
-      /* take care of last row */
-      if ( lhspresent )
-      {
-         assert( 0 <= lastrow && lastrow < nlpcons );
-         sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, lplhs[lastrow], checkinput);
-         if ( penaltyparam >= sdpisolver->epsilon )
-            sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
-         ++lhsrhscnt;
-      }
-
-      if ( rhspresent )
-      {
-         assert( 0 <= lastrow && lastrow < nlpcons );
-         sdpisolver->sdpa->inputElement(0LL, (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, - lprhs[lastrow], checkinput);
-         if ( penaltyparam >= sdpisolver->epsilon )
-            sdpisolver->sdpa->inputElement((long long) (sdpisolver->nactivevars + 1), (long long) (nsdpablocks + 1), lhsrhscnt, lhsrhscnt, 1.0, checkinput);
-         ++lhsrhscnt;
-      }
-
-      assert( lhsrhscnt == (long long) nlpineqs + 1 );
    }
 
    /* inserting variable bounds */
@@ -1694,7 +1669,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
     * reports feasibility, resolve it with adjusted tolerance */
    SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
          sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-         nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol, &gaptol) );
+         nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lpbeg, lpind, lpval, &feastol, &gaptol) );
 
    /* check whether problem has been stably solved, if it wasn't and we didn't yet use the default parametersettings (for the penalty formulation we do so), try
     * again with more stable parameters */
@@ -1744,7 +1719,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * reports feasibility, resolve it with adjusted tolerance */
       SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-            nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol, &gaptol) );
+            nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lpbeg, lpind, lpval, &feastol, &gaptol) );
    }
 
    /* if we still didn't converge, and did not yet use the stable settings, set the parameters even more conservativly */
@@ -1794,7 +1769,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
        * reports feasibility, resolve it with adjusted tolerance */
       SCIP_CALL( checkFeastolAndResolve(sdpisolver, penaltyparam, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
             sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-            nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval, &feastol, &gaptol) );
+            nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lpbeg, lpind, lpval, &feastol, &gaptol) );
    }
 
 #ifdef SCIP_MORE_DEBUG

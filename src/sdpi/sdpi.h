@@ -192,9 +192,9 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_Real*            lplhs,              /**< left-hand sides of LP rows (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of LP rows (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval               /**< values of LP-constraint matrix entries (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval               /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    );
 
 /** adds rows to the LP-Block
@@ -208,10 +208,9 @@ SCIP_RETCODE SCIPsdpiAddLPRows(
    const SCIP_Real*      lhs,                /**< left-hand sides of new rows */
    const SCIP_Real*      rhs,                /**< right-hand sides of new rows */
    int                   nnonz,              /**< number of nonzero elements to be added to the LP constraint matrix */
-   const int*            row,                /**< row-indices of constraint-matrix entries, going from 0 to nrows - 1, these will be changed
-                                              *   to nlpcons + i */
-   const int*            col,                /**< column-indices of constraint-matrix entries */
-   const SCIP_Real*      val                 /**< values of constraint-matrix entries */
+   const int*            beg,                /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   const int*            ind,                /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   const SCIP_Real*      val                 /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    );
 
 /** deletes all rows in the given range from the LP-Block */

@@ -79,9 +79,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all variables (including fixed ones) in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
    SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
@@ -125,9 +125,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all variables (including fixed ones) in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
    SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
@@ -183,9 +183,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all scalar variables in the solution that should be checked */
    SCIP_Real**           solmatrices,        /**< values of all matrix variables in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */

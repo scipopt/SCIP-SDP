@@ -1076,8 +1076,8 @@ SCIP_RETCODE putLpDataInInterface(
    SCIP_Real* ub;
    SCIP_Real* val;
    int* inds;
-   int* rowind;
-   int* colind;
+   int* beg;
+   int* ind;
    int nrowssdpi;
    int nrows;
    int nvars;
@@ -1108,8 +1108,8 @@ SCIP_RETCODE putLpDataInInterface(
    /* allocate memory */
    SCIP_CALL( SCIPallocBufferArray(scip, &lhs, nrows) );
    SCIP_CALL( SCIPallocBufferArray(scip, &rhs, nrows) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &rowind, scipnnonz) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &colind, scipnnonz) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &beg, nrows) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &ind, scipnnonz) );
    SCIP_CALL( SCIPallocBufferArray(scip, &val, scipnnonz) );
 
    /* insert the nonzeroes */
@@ -1151,16 +1151,16 @@ SCIP_RETCODE putLpDataInInterface(
       /* if the row is not completely redundant - still use lhs/rhs even if redundant if one side is non-redundant */
       if ( ! lhsredundant || ! rhsredundant )
       {
+         beg[nconss] = nnonz;
          for (j = 0; j < rownnonz; j++)
          {
             if ( ! SCIPisZero(scip, rowvals[j]) )
             {
                assert( SCIPcolGetVar(rowcols[j]) != NULL );
-               colind[nnonz] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[j]));
-               assert( 0 <= colind[nnonz] && colind[nnonz] < nvars );
-               rowind[nnonz] = nconss;
+               ind[nnonz] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[j]));
+               assert( 0 <= ind[nnonz] && ind[nnonz] < nvars );
                val[nnonz] = rowvals[j];
-               nnonz++;
+               ++nnonz;
             }
          }
 
@@ -1211,12 +1211,12 @@ SCIP_RETCODE putLpDataInInterface(
    }
 
    /* add the LP-block to the sdpi */
-   SCIP_CALL( SCIPsdpiAddLPRows(relaxdata->sdpi, nconss, lhs, rhs, nnonz, (const int*)rowind, (const int*)colind, val) );
+   SCIP_CALL( SCIPsdpiAddLPRows(relaxdata->sdpi, nconss, lhs, rhs, nnonz, beg, ind, val) );
 
    /* free the remaining arrays */
    SCIPfreeBufferArray(scip, &val);
-   SCIPfreeBufferArray(scip, &colind);
-   SCIPfreeBufferArray(scip, &rowind);
+   SCIPfreeBufferArray(scip, &ind);
+   SCIPfreeBufferArray(scip, &beg);
    SCIPfreeBufferArray(scip, &rhs);
    SCIPfreeBufferArray(scip, &lhs);
 
@@ -3373,7 +3373,6 @@ SCIP_RETCODE determineWarmStartInformation(
    )
 {
    SCIP_CONS** conss;
-   SCIP_VAR** vars;
    int nblocks;
    int nvars;
    int v;
@@ -3401,7 +3400,6 @@ SCIP_RETCODE determineWarmStartInformation(
 
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
-   vars = SCIPgetVars(scip);
 
    if ( relaxdata->warmstartprimaltype != 2 && relaxdata->warmstartiptype == 2 && SCIPisEQ(scip, relaxdata->warmstartipfactor, 1.0) )
    {
@@ -3863,7 +3861,6 @@ SCIP_RETCODE determineWarmStartInformation(
             int nsavedentries;
             int lastentry;
             int j;
-            int i;
 
             /* sort indices by row/col; TODO: check if this is necessary */
             SCIPsortIntIntReal((*startXrow)[nblocks], (*startXcol)[nblocks], (*startXval)[nblocks], (*startXnblocknonz)[nblocks]);
