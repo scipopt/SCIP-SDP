@@ -1495,7 +1495,7 @@ SCIP_RETCODE computeConflictCut(
 
             if ( (! lhsredundant || ! rhsredundant) )
             {
-               if ( ! SCIProwIsLocal(row) && ! SCIPisInfinity(scip, REALABS(lhsvals[i])) && ! SCIPisInfinity(scip, REALABS(rhsvals[i])) )
+               if ( ! SCIProwIsLocal(row) && ! SCIPisInfinity(scip, REALABS(lhsvals[nactiverows])) && ! SCIPisInfinity(scip, REALABS(rhsvals[nactiverows])) )
                {
                   /* (re)init row data */
                   rownnonz = SCIProwGetNNonz(row);
@@ -1505,8 +1505,8 @@ SCIP_RETCODE computeConflictCut(
                   rowcols = SCIProwGetCols(row);
 
                   /* make sure that the primal values are >= 0 */
-                  primallhsval = MAX(lhsvals[i], 0.0);
-                  primalrhsval = MAX(rhsvals[i], 0.0);
+                  primallhsval = MAX(lhsvals[nactiverows], 0.0);
+                  primalrhsval = MAX(rhsvals[nactiverows], 0.0);
                   assert( SCIPisFeasGE(scip, primallhsval, 0.0) );
                   assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
 
