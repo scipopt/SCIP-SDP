@@ -2504,6 +2504,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    assert( blockindchanges != NULL );
    assert( primalmatrices != NULL );
 
+   DSDP_CALL( DSDPComputeX(sdpisolver->dsdp) );
+
    /* loop over all SDP blocks */
    for (b = 0; b < nsdpblocks; b++)
    {
@@ -2529,9 +2531,10 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          int i;
 
          redsize = blocksize - nremovedinds[b];
-
          DSDP_CALL( SDPConeGetXArray(sdpisolver->sdpcone, b - blockindchanges[b], &X, &n) );
          assert( n == redsize * (redsize + 1)/2 );
+
+         /* DSDP_CALL( SDPConeViewX(sdpisolver->sdpcone, b - blockindchanges[b], blocksize, X, n) ); */
 
          /* fill in matrix */
          for (j = 0; j < blocksize; ++j)
@@ -2540,7 +2543,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
             {
                assert( 0 <= j - indchanges[b][j] && j - indchanges[b][j] < redsize );
 
-               for (i = j; i < blocksize; ++i)
+               for (i = 0; i <= j; ++i)
                {
                   if ( indchanges[b][i] >= 0 )
                   {
