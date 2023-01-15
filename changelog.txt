@@ -5,7 +5,16 @@ features:
 
 - Revised the internal structure to store LP rows. They are now stored as common in LP-solvers, i.e., with an array that stores the
   beginning entries of each row. This saves memory and makes data handling easier.
+- SDPI now tightens rows according to integrality.
 
+API changes:
+- SCIPsdpiLoadSDP() now takes information about integrality of variables.
+
+fixed bugs:
+- fixed bug in the access to the primal solution matrix with DSDP
+- fixed bug with computing conflict constraint
+- The interface to DSDP now allocated memory once and reallocates it as needed, because DSDP needs it throughout the solution
+  process and for accessing solutions.
 
 SCIP-SDP version 4.1.0
 ======================
