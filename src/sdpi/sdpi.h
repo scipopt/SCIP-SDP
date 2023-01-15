@@ -169,6 +169,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_Real*            obj,                /**< objective function values of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */
    SCIP_Real*            ub,                 /**< upper bounds of variables */
+   SCIP_Bool*            isintegral,         /**< whether the variables are integral (or NULL) */
    int                   nsdpblocks,         /**< number of SDP-blocks */
    int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int*                  sdpnblockvars,      /**< number of variables in each SDP-block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */

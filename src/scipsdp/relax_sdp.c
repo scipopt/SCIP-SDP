@@ -517,6 +517,7 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_Real* obj;
    SCIP_Real* lb;
    SCIP_Real* ub;
+   SCIP_Bool* isintegral;
    int*** row;
    int*** col;
    int** nblockvarnonz;
@@ -553,6 +554,7 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_CALL( SCIPallocBufferArray(scip, &obj, nvarspen) );
    SCIP_CALL( SCIPallocBufferArray(scip, &lb, nvarspen) );
    SCIP_CALL( SCIPallocBufferArray(scip, &ub, nvarspen) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &isintegral, nvarspen) );
 
    for (i = 0; i < nvars; i++)
    {
@@ -560,6 +562,10 @@ SCIP_RETCODE putSdpDataInInterface(
       obj[idx] = SCIPvarGetObj(vars[i]);
       lb[idx] = SCIPvarGetLbLocal(vars[i]);
       ub[idx] = SCIPvarGetUbLocal(vars[i]);
+      if ( SCIPvarIsIntegral(vars[i]) )
+         isintegral[i] = TRUE;
+      else
+         isintegral[i] = FALSE;
    }
 
    if ( boundprimal )
@@ -687,7 +693,7 @@ SCIP_RETCODE putSdpDataInInterface(
    /* load data into SDPI */
    if ( primalobj )
    {
-      SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, nsdpblocks, sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
+      SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, isintegral, nsdpblocks, sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
             constcol, constval, sdpnnonz, nblockvarnonz, sdpvar, row, col, val, 0,
             NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
    }
@@ -697,7 +703,7 @@ SCIP_RETCODE putSdpDataInInterface(
       for (i = 0; i < nsdpblocks; i++)
          nconstblocknonz[i] = 0;
 
-      SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, nsdpblocks, sdpblocksizes, nblockvars, 0, nconstblocknonz, NULL,
+      SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, isintegral, nsdpblocks, sdpblocksizes, nblockvars, 0, nconstblocknonz, NULL,
             NULL, NULL, sdpnnonz, nblockvarnonz, sdpvar, row, col,  val, 0,
             NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
    }
@@ -738,6 +744,7 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIPfreeBufferArrayNull(scip, &nconstblocknonz);
    SCIPfreeBufferArrayNull(scip, &nblockvarnonz);
    SCIPfreeBufferArrayNull(scip, &sdpblocksizes);
+   SCIPfreeBufferArray(scip, &isintegral);
    SCIPfreeBufferArray(scip, &ub);
    SCIPfreeBufferArray(scip, &lb);
    SCIPfreeBufferArray(scip, &obj);

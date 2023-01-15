@@ -109,6 +109,7 @@
 #include "scip/def.h"                        /* for SCIP_Real, _Bool, ... */
 #include "scip/pub_misc.h"                   /* for sorting */
 #include "scip/pub_message.h"                /* for debug and error message */
+#include "scip/dbldblarith.h"
 
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
@@ -219,6 +220,7 @@ struct SCIP_SDPi
    SCIP_Real*            obj;                /**< objective function values of variables */
    SCIP_Real*            lb;                 /**< lower bounds of variables */
    SCIP_Real*            ub;                 /**< upper bounds of variables */
+   SCIP_Bool*            isintegral;         /**< whether the variables are integral */
    SCIP_Real*            sdpilb;             /**< copy for lower bounds of variables */
    SCIP_Real*            sdpiub;             /**< copy for upper bounds of variables */
    int*                  sdpilbrowidx;       /**< index of row that provided the bound in sdpilb (or -1) */
@@ -397,6 +399,7 @@ SCIP_RETCODE ensureBoundDataMemory(
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->obj), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->lb), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->ub), sdpi->maxnvars, newsize) );
+      BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->isintegral), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpilb), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpiub), sdpi->maxnvars, newsize) );
       BMS_CALL( BMSreallocBlockMemoryArray(sdpi->blkmem, &(sdpi->sdpilbrowidx), sdpi->maxnvars, newsize) );
@@ -790,6 +793,316 @@ SCIP_RETCODE findEmptyRowColsSDP(
    return SCIP_OKAY;
 }
 
+
+/** tightens the coefficients of the given row based on the maximal activity
+ *
+ *  See cons_linear.c:consdataTightenCoefs() and cuts.c:SCIPcutsTightenCoefficients() for details.
+ *  The speed can possibly be improved by sorting the coefficients - see cuts.c:SCIPcutsTightenCoefficients().
+ *
+ *  Following the dissertation of Achterberg (Algorithm 10.1, page 134), the formulas for tightening a linear constraint
+ *  \f$ \underline{\beta} \leq a^T x \leq \overline{\beta} \f$ are as follows:
+ *  \f{align*}{
+ *      & \text{For all } j \in I \text{ with } a_j > 0,\; \underline{\alpha} + a_j \geq \underline{\beta}, \text{ and } \overline{\alpha} - a_j \leq \overline{\beta}:\\
+ *      & a'_j := \max \{ \underline{\beta} - \underline{\alpha},\; \overline{\alpha} - \overline{\beta} \};\\
+ *      & \underline{\beta} := \underline{\beta} - (a_j - a'_j) \ell_j,\quad \overline{\beta} := \overline{\beta} - (a_j - a'_j) u_j;\\
+ *      & a_j := a'_j.\\[2ex]
+ *      & \text{For all } j \in I \text{ with } a_j < 0,\; \underline{\alpha} - a_j \geq \underline{\beta}, \text{ and } \overline{\alpha} + a_j \leq \overline{\beta}: \\
+ *      & a'_j := \min \{\underline{\alpha} - \underline{\beta},\; \overline{\beta} - \overline{\alpha} \};\\
+ *      & \underline{\beta} := \underline{\beta} - (a_j - a'_j) u_j,\quad \overline{\beta} := \overline{\beta} - (a_j - a'_j) \ell_j;\\
+ *      & a_j := a'_j.
+ *  \f}
+ *  where \f$\underline{\alpha}\f$ and \f$\overline{\alpha}\f$ are the minimal and maximal activities.
+ */
+static
+SCIP_RETCODE tightenRowCoefs(
+   SCIP_SDPI*            sdpi,               /**< SDP interface */
+   SCIP_Real*            sdpilb,             /**< current lower bounds */
+   SCIP_Real*            sdpiub,             /**< current upper bounds */
+   SCIP_Real*            rowvals,            /**< nonzero coefficients in row */
+   int*                  rowinds,            /**< indices of the variables in row */
+   int*                  rownnonz,           /**< pointer to store the number of nonzero coefficients */
+   SCIP_Real*            rowlhs,             /**< lhs of row */
+   SCIP_Real*            rowrhs,             /**< rhs of row */
+   SCIP_Bool*            lhsredundant,       /**< pointer to store whether lhs of row is redundant */
+   SCIP_Bool*            rhsredundant,       /**< pointer to store whether rhs of row is redundant */
+   int*                  nchgcoefs           /**< pointer to count total number of changed coefficients */
+   )
+{
+   SCIP_Real minact;
+   SCIP_Real maxact;
+   SCIP_Real QUAD(minactquad);
+   SCIP_Real QUAD(maxactquad);
+   SCIP_Bool minactinf = FALSE;
+   SCIP_Bool maxactinf = FALSE;
+   SCIP_Real maxintabsval = 0.0;
+   SCIP_Bool hasintvar = FALSE;
+   int i;
+
+   assert( sdpi != NULL );
+   assert( rowvals != NULL );
+   assert( rowinds != NULL );
+   assert( rownnonz != NULL );
+   assert( rowlhs != NULL );
+   assert( rowrhs != NULL );
+   assert( lhsredundant != NULL );
+   assert( rhsredundant != NULL );
+   assert( nchgcoefs != NULL );
+
+   *lhsredundant = FALSE;
+   *rhsredundant = FALSE;
+   *nchgcoefs = 0;
+
+   /* do nothing for equations: we do not expect to be able to tighten coefficients */
+   if ( REALABS(*rowlhs - *rowrhs) < sdpi->epsilon )
+      return SCIP_OKAY;
+
+   QUAD_ASSIGN(minactquad, 0.0);
+   QUAD_ASSIGN(maxactquad, 0.0);
+
+   /* compute activities */
+   for (i = 0; i < *rownnonz; ++i)
+   {
+      SCIP_Real lb;
+      SCIP_Real ub;
+
+      assert( 0 <= rowinds[i] && rowinds[i] < sdpi->nvars );
+      lb = sdpilb[rowinds[i]];
+      ub = sdpiub[rowinds[i]];
+
+      if ( sdpi->isintegral[rowinds[i]] )
+      {
+         maxintabsval = MAX(maxintabsval, REALABS(rowvals[i]));
+         hasintvar = TRUE;
+      }
+
+      /* check sign */
+      if ( rowvals[i] > 0.0 )
+      {
+         /* if upper bound is finite */
+         if ( ub < SCIPsdpiInfinity(sdpi) )
+            SCIPquadprecSumQD(maxactquad, maxactquad, rowvals[i] * ub);
+         else
+            maxactinf = TRUE;
+
+         /* if lower bound is finite */
+         if ( lb > - SCIPsdpiInfinity(sdpi) )
+            SCIPquadprecSumQD(minactquad, minactquad, rowvals[i] * lb);
+         else
+            minactinf = TRUE;
+      }
+      else
+      {
+         /* if lower bound is finite */
+         if ( lb > - SCIPsdpiInfinity(sdpi) )
+            SCIPquadprecSumQD(maxactquad, maxactquad, rowvals[i] * lb);
+         else
+            maxactinf = TRUE;
+
+         /* if upper bound is finite */
+         if ( ub < SCIPsdpiInfinity(sdpi) )
+            SCIPquadprecSumQD(minactquad, minactquad, rowvals[i] * ub);
+         else
+            minactinf = TRUE;
+      }
+   }
+
+   /* if the constraint has no integer variable, we cannot tighten the coefficients */
+   if ( ! hasintvar )
+      return SCIP_OKAY;
+
+   /* if both activities are infinity, we cannot do anything */
+   if ( minactinf && maxactinf )
+      return SCIP_OKAY;
+
+   /* init activities */
+   if ( minactinf )
+      minact = - SCIPsdpiInfinity(sdpi);
+   else
+      minact = QUAD_TO_DBL(minactquad);
+
+   if ( maxactinf )
+      maxact = SCIPsdpiInfinity(sdpi);
+   else
+      maxact = QUAD_TO_DBL(maxactquad);
+
+   /* if row is redundant in activity bounds for lhs */
+   if ( *rowlhs <= - SCIPsdpiInfinity(sdpi) )
+      *lhsredundant = TRUE;
+   else if ( minact >= *rowlhs - sdpi->epsilon )
+      *lhsredundant = TRUE;
+
+   /* if row is redundant in activity bounds for rhs */
+   if ( *rowrhs >= SCIPsdpiInfinity(sdpi) )
+      *rhsredundant = TRUE;
+   else if ( maxact <= *rowrhs + sdpi->epsilon )
+      *rhsredundant = TRUE;
+
+   /* if both sides are redundant, we can exit */
+   if ( *lhsredundant && *rhsredundant )
+      return SCIP_OKAY;
+
+   /* no coefficient tightening can be performed if this check is true, see the tests below */
+   if ( minact + maxintabsval < *rowlhs - sdpi->epsilon || maxact - maxintabsval > *rowrhs + sdpi->epsilon )
+      return SCIP_OKAY;
+
+   /* loop over the integral variables and try to tighten the coefficients */
+   for (i = 0; i < *rownnonz;)
+   {
+      SCIP_Real QUAD(lhsdeltaquad);
+      SCIP_Real QUAD(rhsdeltaquad);
+      SCIP_Real QUAD(tmpquad);
+      SCIP_Real newvallhs;
+      SCIP_Real newvalrhs;
+      SCIP_Real newval;
+      SCIP_Real newlhs;
+      SCIP_Real newrhs;
+      SCIP_Real lb;
+      SCIP_Real ub;
+
+      /* skip continuous variables */
+      if ( ! sdpi->isintegral[rowinds[i]] )
+      {
+         ++i;
+         continue;
+      }
+
+      lb = sdpilb[rowinds[i]];
+      ub = sdpiub[rowinds[i]];
+
+      if ( rowvals[i] > 0.0 && minact + rowvals[i] >= *rowlhs - sdpi->epsilon && maxact - rowvals[i] <= *rowrhs + sdpi->epsilon )
+      {
+         newvallhs = *rowlhs - minact;
+         newvalrhs = maxact - *rowrhs;
+         newval = MAX(newvallhs, newvalrhs);
+         assert( newval > -sdpi->epsilon );
+
+         if ( REALABS(newval - rowvals[i]) > sdpi->epsilon )
+         {
+            /* compute new lhs: lhs - (oldval - newval) * lb = lhs + (newval - oldval) * lb */
+            if ( *rowlhs > - SCIPsdpiInfinity(sdpi) )
+            {
+               SCIPquadprecSumDD(lhsdeltaquad, newval, -rowvals[i]);
+               SCIPquadprecProdQD(lhsdeltaquad, lhsdeltaquad, lb);
+               SCIPquadprecSumQD(tmpquad, lhsdeltaquad, *rowlhs);
+               newlhs = QUAD_TO_DBL(tmpquad);
+            }
+            else
+               newlhs = *rowlhs;
+
+            /* compute new rhs: rhs - (oldval - newval) * ub = rhs + (newval - oldval) * ub */
+            if ( *rowrhs < SCIPsdpiInfinity(sdpi) )
+            {
+               SCIPquadprecSumDD(rhsdeltaquad, newval, -rowvals[i]);
+               SCIPquadprecProdQD(rhsdeltaquad, rhsdeltaquad, ub);
+               SCIPquadprecSumQD(tmpquad, rhsdeltaquad, *rowrhs);
+               newrhs = QUAD_TO_DBL(tmpquad);
+            }
+            else
+               newrhs = *rowrhs;
+
+            SCIPdebugPrintf("tightened coefficient from %g to %g; lhs changed from %g to %g; rhs changed from %g to %g; the bounds are [%g,%g]\n",
+               rowvals[i], newval, *rowlhs, newlhs, *rowrhs, newrhs, lb, ub);
+
+            *rowlhs = newlhs;
+            *rowrhs = newrhs;
+
+            ++(*nchgcoefs);
+
+            if ( newval > sdpi->epsilon )
+            {
+               if ( *rowlhs > - SCIPsdpiInfinity(sdpi) )
+               {
+                  SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
+                  minact = QUAD_TO_DBL(minactquad);
+               }
+               if ( *rowrhs < SCIPsdpiInfinity(sdpi) )
+               {
+                  SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
+                  maxact = QUAD_TO_DBL(maxactquad);
+               }
+
+               rowvals[i] = newval;
+            }
+            else
+            {
+               --(*rownnonz);
+               rowvals[i] = rowvals[*rownnonz];
+               rowinds[i] = rowinds[*rownnonz];
+               continue;
+            }
+         }
+      }
+      else if ( rowvals[i] < 0.0 && minact - rowvals[i] >= *rowlhs - sdpi->epsilon && maxact + rowvals[i] <= *rowrhs + sdpi->epsilon )
+      {
+         newvallhs = minact - *rowlhs;
+         newvalrhs = *rowrhs - maxact;
+         newval = MIN(newvallhs, newvalrhs);
+         assert( newval < sdpi->epsilon );
+
+         if ( REALABS(newval - rowvals[i]) > sdpi->epsilon )
+         {
+            /* compute new lhs: lhs - (oldval - newval) * ub = lhs + (newval - oldval) * ub */
+            if ( *rowlhs > - SCIPsdpiInfinity(sdpi) )
+            {
+               SCIPquadprecSumDD(lhsdeltaquad, newval, -rowvals[i]);
+               SCIPquadprecProdQD(lhsdeltaquad, lhsdeltaquad, ub);
+               SCIPquadprecSumQD(tmpquad, lhsdeltaquad, *rowlhs);
+               newlhs = QUAD_TO_DBL(tmpquad);
+            }
+            else
+               newlhs = *rowlhs;
+
+            /* compute new rhs: rhs - (oldval - newval) * lb = rhs + (newval - oldval) * lb */
+            if ( *rowrhs < SCIPsdpiInfinity(sdpi) )
+            {
+               SCIPquadprecSumDD(rhsdeltaquad, newval, -rowvals[i]);
+               SCIPquadprecProdQD(rhsdeltaquad, rhsdeltaquad, lb);
+               SCIPquadprecSumQD(tmpquad, rhsdeltaquad, *rowrhs);
+               newrhs = QUAD_TO_DBL(tmpquad);
+            }
+            else
+               newrhs = *rowrhs;
+
+            SCIPdebugPrintf("tightened coefficient from %g to %g; lhs changed from %g to %g; rhs changed from %g to %g; the bounds are [%g,%g]\n",
+               rowvals[i], newval, *rowlhs, newlhs, *rowrhs, newrhs, lb, ub);
+
+            *rowlhs = newlhs;
+            *rowrhs = newrhs;
+
+            ++(*nchgcoefs);
+
+            if ( newval < - sdpi->epsilon )
+            {
+               if ( *rowlhs > - SCIPsdpiInfinity(sdpi) )
+               {
+                  SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
+                  minact = QUAD_TO_DBL(minactquad);
+               }
+               if ( *rowrhs < SCIPsdpiInfinity(sdpi) )
+               {
+                  SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
+                  maxact = QUAD_TO_DBL(maxactquad);
+               }
+
+               rowvals[i] = newval;
+            }
+            else
+            {
+               --(*rownnonz);
+               rowvals[i] = rowvals[*rownnonz];
+               rowinds[i] = rowinds[*rownnonz];
+               continue;
+            }
+         }
+      }
+
+      ++i;
+   }
+
+   return SCIP_OKAY;
+}
+
+
 /** prepares LP data
  *
  *  - remove variables that are fixed and adjust lhs/rhs
@@ -906,15 +1219,32 @@ SCIP_RETCODE prepareLPData(
       /* if the row has at least two active variables, we keep the lhs- and rhs-value */
       if ( nrownonz >= 2 )
       {
+         SCIP_Bool lhsredundant;
+         SCIP_Bool rhsredundant;
+         int nchgcoefs;
+
          assert( 0 <= nonzind && nonzind < sdpi->lpnnonz );
-         sdpilplhs[*nsdpilpcons] = lhs;
-         sdpilprhs[*nsdpilpcons] = rhs;
-         sdpilpbeg[*nsdpilpcons] = *sdpilpnnonz;
-         sdpilpidx[*nsdpilpcons] = i;
-         lpsdpiidx[2 * i] = *nsdpilpcons;
-         lpsdpiidx[2 * i + 1] = *nsdpilpcons;
-         *sdpilpnnonz = nlpnonz;
-         ++(*nsdpilpcons);
+
+         SCIP_CALL( tightenRowCoefs(sdpi, sdpilb, sdpiub, &sdpilpval[*nsdpilpcons], &sdpilpind[*nsdpilpcons], &nrownonz, &lhs, &rhs, &lhsredundant, &rhsredundant, &nchgcoefs) );
+
+         if ( ! lhsredundant || ! rhsredundant )
+         {
+            /* possibly correct length */
+            nlpnonz = *sdpilpnnonz + nrownonz;
+
+            sdpilplhs[*nsdpilpcons] = lhs;
+            sdpilprhs[*nsdpilpcons] = rhs;
+            sdpilpbeg[*nsdpilpcons] = *sdpilpnnonz;
+            sdpilpidx[*nsdpilpcons] = i;
+            lpsdpiidx[2 * i] = *nsdpilpcons;
+            lpsdpiidx[2 * i + 1] = *nsdpilpcons;
+            *sdpilpnnonz = nlpnonz;
+            ++(*nsdpilpcons);
+         }
+         else
+         {
+            SCIPdebugMessage("Constraint %d is Redundant.\n", i);
+         }
       }
       else if ( nrownonz == 1 )
       {
@@ -1590,6 +1920,7 @@ SCIP_RETCODE SCIPsdpiCreate(
    (*sdpi)->obj = NULL;
    (*sdpi)->lb = NULL;
    (*sdpi)->ub = NULL;
+   (*sdpi)->isintegral = NULL;
    (*sdpi)->sdpilb = NULL;
    (*sdpi)->sdpiub = NULL;
    (*sdpi)->sdpilbrowidx = NULL;
@@ -1734,6 +2065,7 @@ SCIP_RETCODE SCIPsdpiFree(
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpilb), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpiubrowidx), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->sdpilbrowidx), (*sdpi)->maxnvars);/*lint !e737*/
+   BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->isintegral), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->ub), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->lb), (*sdpi)->maxnvars);/*lint !e737*/
    BMSfreeBlockMemoryArrayNull((*sdpi)->blkmem, &((*sdpi)->obj), (*sdpi)->maxnvars);/*lint !e737*/
@@ -1788,6 +2120,7 @@ SCIP_RETCODE SCIPsdpiClone(
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->obj), oldsdpi->obj, nvars) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->lb), oldsdpi->lb, nvars) );
    BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->ub), oldsdpi->ub, nvars) );
+   BMS_CALL( BMSduplicateBlockMemoryArray(blkmem, &(newsdpi->isintegral), oldsdpi->isintegral, nvars) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpilb), nvars) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpiub), nvars) );
    BMS_CALL( BMSallocBlockMemoryArray(blkmem, &(newsdpi->sdpilbrowidx), nvars) );
@@ -1933,6 +2266,7 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    SCIP_Real*            obj,                /**< objective function values of variables */
    SCIP_Real*            lb,                 /**< lower bounds of variables */
    SCIP_Real*            ub,                 /**< upper bounds of variables */
+   SCIP_Bool*            isintegral,         /**< whether the variables are integral (or NULL) */
    int                   nsdpblocks,         /**< number of SDP-blocks */
    int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int*                  sdpnblockvars,      /**< number of variables in each SDP-block (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
@@ -2052,6 +2386,15 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    BMScopyMemoryArray(sdpi->sdpblocksizes, sdpblocksizes, nsdpblocks);
    BMScopyMemoryArray(sdpi->sdpnblockvars, sdpnblockvars, nsdpblocks);
    BMScopyMemoryArray(sdpi->sdpconstnblocknonz, sdpconstnblocknonz, nsdpblocks);
+
+   if ( isintegral != NULL )
+      BMScopyMemoryArray(sdpi->isintegral, isintegral, nvars);
+   else
+   {
+      int i;
+      for (i = 0; i < nvars; ++i)
+         sdpi->isintegral[i] = FALSE;
+   }
 
    for (b = 0; b < nsdpblocks; ++b)
    {
