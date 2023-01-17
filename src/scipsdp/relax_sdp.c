@@ -43,7 +43,6 @@
 #define SLATERSOLVED_ABSOLUTE /* uncomment this to return the absolute number of nodes for, e.g., solved fast with slater in addition to percentages */
 
 #include "relax_sdp.h"
-#include "scip/dbldblarith.h"
 #include "scip/debug.h"
 
 #include "assert.h"                     /*lint !e451*/
@@ -89,7 +88,6 @@
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
 #define DEFAULT_OBJLIMIT            FALSE    /**< Should an objective limit be given to the SDP-Solver ? */
 #define DEFAULT_RESOLVE             TRUE     /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
-#define DEFAULT_TIGHTENROWS         TRUE     /**< Should we perform coefficient tightening on the LP rows before giving them to the SDP-solver? */
 #define DEFAULT_SDPINFO             FALSE    /**< Should the SDP solver output information to the screen? */
 #define DEFAULT_DISPLAYSTAT         FALSE    /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
 #define DEFAULT_SETTINGSRESETFREQ   -1       /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
@@ -151,7 +149,6 @@ struct SCIP_RelaxData
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
    SCIP_Bool             objlimit;           /**< Should an objective limit be given to the SDP solver? */
    SCIP_Bool             resolve;            /**< Are we allowed to solve the relaxation of a single node multiple times in a row (outside of probing) ? */
-   SCIP_Bool             tightenrows;        /**< Should we perform coefficient tightening on the LP rows before giving them to the SDP-solver? */
    int                   settingsresetfreq;  /**< frequency for resetting parameters in SDP solver and trying again with fastest settings */
    int                   settingsresetofs;   /**< frequency offset for resetting parameters in SDP solver and trying again with fastest settings */
    int                   sdpsolverthreads;   /**< number of threads the SDP solver should use, not supported by all solvers (-1 = number of cores) */
@@ -160,7 +157,6 @@ struct SCIP_RelaxData
    int                   sdpinterfacecalls;  /**< number of times the SDP interfaces was called (used to compute slater statistics) */
    SCIP_Real             sdpopttime;         /**< time used in optimization calls of solver */
    int                   sdpiterations;      /**< saves the total number of sdp-iterations */
-   int                   ntightenedrows;     /**< number of tightened rows */
    int                   solvedfast;         /**< number of SDPs solved with fast settings */
    int                   solvedmedium;       /**< number of SDPs solved with medium settings */
    int                   solvedstable;       /**< number of SDPs solved with stable settings */
@@ -752,324 +748,11 @@ SCIP_RETCODE putSdpDataInInterface(
    return SCIP_OKAY;
 }
 
-/** tightens the coefficients of the given row based on the maximal activity
- *
- *  See cons_linear.c:consdataTightenCoefs() and cuts.c:SCIPcutsTightenCoefficients() for details.
- *  The speed can possibly be improved by sorting the coefficients - see cuts.c:SCIPcutsTightenCoefficients().
- *
- *  Following the dissertation of Achterberg (Algorithm 10.1, page 134), the formulas for tightening a linear constraint
- *  \f$ \underline{\beta} \leq a^T x \leq \overline{\beta} \f$ are as follows:
- *  \f{align*}{
- *      & \text{For all } j \in I \text{ with } a_j > 0,\; \underline{\alpha} + a_j \geq \underline{\beta}, \text{ and } \overline{\alpha} - a_j \leq \overline{\beta}:\\
- *      & a'_j := \max \{ \underline{\beta} - \underline{\alpha},\; \overline{\alpha} - \overline{\beta} \};\\
- *      & \underline{\beta} := \underline{\beta} - (a_j - a'_j) \ell_j,\quad \overline{\beta} := \overline{\beta} - (a_j - a'_j) u_j;\\
- *      & a_j := a'_j.\\[2ex]
- *      & \text{For all } j \in I \text{ with } a_j < 0,\; \underline{\alpha} - a_j \geq \underline{\beta}, \text{ and } \overline{\alpha} + a_j \leq \overline{\beta}: \\
- *      & a'_j := \min \{\underline{\alpha} - \underline{\beta},\; \overline{\beta} - \overline{\alpha} \};\\
- *      & \underline{\beta} := \underline{\beta} - (a_j - a'_j) u_j,\quad \overline{\beta} := \overline{\beta} - (a_j - a'_j) \ell_j;\\
- *      & a_j := a'_j.
- *  \f}
- *  where \f$\underline{\alpha}\f$ and \f$\overline{\alpha}\f$ are the minimal and maximal activities.
- */
-static
-SCIP_RETCODE tightenRowCoefs(
-   SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_Real*            rowvals,            /**< nonzero coefficients in row */
-   SCIP_COL**            rowcols,            /**< columns of row */
-   int*                  rownnonz,           /**< pointer to store the number of nonzero coefficients */
-   SCIP_Real*            rowlhs,             /**< lhs of row */
-   SCIP_Real*            rowrhs,             /**< rhs of row */
-   SCIP_Bool*            lhsredundant,       /**< pointer to store whether lhs of row is redundant */
-   SCIP_Bool*            rhsredundant,       /**< pointer to store whether rhs of row is redundant */
-   int*                  nchgcoefs           /**< pointer to count total number of changed coefficients */
-   )
-{
-   SCIP_Real minact;
-   SCIP_Real maxact;
-   SCIP_Real QUAD(minactquad);
-   SCIP_Real QUAD(maxactquad);
-   SCIP_Bool minactinf = FALSE;
-   SCIP_Bool maxactinf = FALSE;
-   SCIP_Real maxintabsval = 0.0;
-   SCIP_Bool hasintvar = FALSE;
-   int i;
-
-   assert( scip != NULL );
-   assert( rowvals != NULL );
-   assert( rowcols != NULL );
-   assert( rownnonz != NULL );
-   assert( rowlhs != NULL );
-   assert( rowrhs != NULL );
-   assert( lhsredundant != NULL );
-   assert( rhsredundant != NULL );
-   assert( nchgcoefs != NULL );
-
-   *lhsredundant = FALSE;
-   *rhsredundant = FALSE;
-
-   /* do nothing for equations: we do not expect to be able to tighten coefficients */
-   if ( SCIPisEQ(scip, *rowlhs, *rowrhs) )
-      return SCIP_OKAY;
-
-   QUAD_ASSIGN(minactquad, 0.0);
-   QUAD_ASSIGN(maxactquad, 0.0);
-
-   /* compute activities */
-   for (i = 0; i < *rownnonz; ++i)
-   {
-      SCIP_Real lb;
-      SCIP_Real ub;
-
-      lb = SCIPcolGetLb(rowcols[i]);
-      ub = SCIPcolGetUb(rowcols[i]);
-
-      assert( SCIPisEQ(scip, lb, SCIPvarGetLbLocal(SCIPcolGetVar(rowcols[i]))) );
-      assert( SCIPisEQ(scip, ub, SCIPvarGetUbLocal(SCIPcolGetVar(rowcols[i]))) );
-
-      if ( SCIPcolIsIntegral(rowcols[i]) )
-      {
-         maxintabsval = MAX(maxintabsval, REALABS(rowvals[i]));
-         hasintvar = TRUE;
-      }
-
-      /* check sign */
-      if ( rowvals[i] > 0.0 )
-      {
-         /* if upper bound is finite */
-         if ( ! SCIPisInfinity(scip, REALABS(ub)) && ! SCIPisHugeValue(scip, REALABS(rowvals[i] * ub)) )
-            SCIPquadprecSumQD(maxactquad, maxactquad, rowvals[i] * ub);
-         else
-            maxactinf = TRUE;
-
-         /* if lower bound is finite */
-         if ( ! SCIPisInfinity(scip, REALABS(lb)) && ! SCIPisHugeValue(scip, REALABS(rowvals[i] * lb)) )
-            SCIPquadprecSumQD(minactquad, minactquad, rowvals[i] * lb);
-         else
-            minactinf = TRUE;
-      }
-      else
-      {
-         /* if lower bound is finite */
-         if ( ! SCIPisInfinity(scip, REALABS(lb)) && ! SCIPisHugeValue(scip, REALABS(rowvals[i] * lb)) )
-            SCIPquadprecSumQD(maxactquad, maxactquad, rowvals[i] * lb);
-         else
-            maxactinf = TRUE;
-
-         /* if upper bound is finite */
-         if ( ! SCIPisInfinity(scip, REALABS(ub)) && ! SCIPisHugeValue(scip, REALABS(rowvals[i] * ub)) )
-            SCIPquadprecSumQD(minactquad, minactquad, rowvals[i] * ub);
-         else
-            minactinf = TRUE;
-      }
-   }
-
-   /* if the constraint has no integer variable, we cannot tighten the coefficients */
-   if ( ! hasintvar )
-      return SCIP_OKAY;
-
-   /* if both activities are infinity, we cannot do anything */
-   if ( minactinf && maxactinf )
-      return SCIP_OKAY;
-
-   /* init activities */
-   if ( minactinf )
-      minact = - SCIPinfinity(scip);
-   else
-      minact = QUAD_TO_DBL(minactquad);
-
-   if ( maxactinf )
-      maxact = SCIPinfinity(scip);
-   else
-      maxact = QUAD_TO_DBL(maxactquad);
-
-   /* if row is redundant in activity bounds for lhs */
-   if ( SCIPisInfinity(scip, - (*rowlhs)) )
-      *lhsredundant = TRUE;
-   else if ( SCIPisFeasGE(scip, minact, *rowlhs) )
-      *lhsredundant = TRUE;
-
-   /* if row is redundant in activity bounds for rhs */
-   if ( SCIPisInfinity(scip, *rowrhs) )
-      *rhsredundant = TRUE;
-   else if ( SCIPisFeasLE(scip, maxact, *rowrhs) )
-      *rhsredundant = TRUE;
-
-   /* if both sides are redundant, we can exit */
-   if ( *lhsredundant && *rhsredundant )
-      return SCIP_OKAY;
-
-   /* no coefficient tightening can be performed if this check is true, see the tests below */
-   if ( SCIPisLT(scip, minact + maxintabsval, *rowlhs) || SCIPisGT(scip, maxact - maxintabsval, *rowrhs) )
-      return SCIP_OKAY;
-
-   /* loop over the integral variables and try to tighten the coefficients */
-   for (i = 0; i < *rownnonz;)
-   {
-      SCIP_Real QUAD(lhsdeltaquad);
-      SCIP_Real QUAD(rhsdeltaquad);
-      SCIP_Real QUAD(tmpquad);
-      SCIP_Real newvallhs;
-      SCIP_Real newvalrhs;
-      SCIP_Real newval;
-      SCIP_Real newlhs;
-      SCIP_Real newrhs;
-      SCIP_Real lb;
-      SCIP_Real ub;
-
-      /* skip continuous variables */
-      if ( ! SCIPcolIsIntegral(rowcols[i]) )
-      {
-         ++i;
-         continue;
-      }
-
-      assert( SCIPcolIsIntegral(rowcols[i]) );
-
-      lb = SCIPcolGetLb(rowcols[i]);
-      ub = SCIPcolGetUb(rowcols[i]);
-
-      if ( rowvals[i] > 0.0 && SCIPisGE(scip, minact + rowvals[i], *rowlhs) && SCIPisLE(scip, maxact - rowvals[i], *rowrhs) )
-      {
-         newvallhs = *rowlhs - minact;
-         newvalrhs = maxact - *rowrhs;
-         newval = MAX(newvallhs, newvalrhs);
-         assert( SCIPisSumRelLE(scip, newval, rowvals[i]) );
-         assert( ! SCIPisNegative(scip, newval));
-
-         if ( ! SCIPisSumRelEQ(scip, newval, rowvals[i]) )
-         {
-            /* compute new lhs: lhs - (oldval - newval) * lb = lhs + (newval - oldval) * lb */
-            if ( ! SCIPisInfinity(scip, - (*rowlhs) ) )
-            {
-               SCIPquadprecSumDD(lhsdeltaquad, newval, -rowvals[i]);
-               SCIPquadprecProdQD(lhsdeltaquad, lhsdeltaquad, lb);
-               SCIPquadprecSumQD(tmpquad, lhsdeltaquad, *rowlhs);
-               newlhs = QUAD_TO_DBL(tmpquad);
-            }
-            else
-               newlhs = *rowlhs;
-
-            /* compute new rhs: rhs - (oldval - newval) * ub = rhs + (newval - oldval) * ub */
-            if ( ! SCIPisInfinity(scip, *rowrhs) )
-            {
-               SCIPquadprecSumDD(rhsdeltaquad, newval, -rowvals[i]);
-               SCIPquadprecProdQD(rhsdeltaquad, rhsdeltaquad, ub);
-               SCIPquadprecSumQD(tmpquad, rhsdeltaquad, *rowrhs);
-               newrhs = QUAD_TO_DBL(tmpquad);
-            }
-            else
-               newrhs = *rowrhs;
-
-            SCIPdebugPrintf("tightened coefficient from %g to %g; lhs changed from %g to %g; rhs changed from %g to %g; the bounds are [%g,%g]\n",
-               rowvals[i], newval, *rowlhs, newlhs, *rowrhs, newrhs, lb, ub);
-
-            *rowlhs = newlhs;
-            *rowrhs = newrhs;
-
-            ++(*nchgcoefs);
-
-            if ( SCIPisPositive(scip, newval) )
-            {
-               if ( ! SCIPisInfinity(scip, - (*rowlhs)) )
-               {
-                  SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
-                  minact = QUAD_TO_DBL(minactquad);
-               }
-               if ( ! SCIPisInfinity(scip, *rowrhs) )
-               {
-                  SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
-                  maxact = QUAD_TO_DBL(maxactquad);
-               }
-
-               rowvals[i] = newval;
-            }
-            else
-            {
-               --(*rownnonz);
-               rowvals[i] = rowvals[*rownnonz];
-               rowcols[i] = rowcols[*rownnonz];
-               continue;
-            }
-         }
-      }
-      else if ( rowvals[i] < 0.0 && SCIPisGE(scip, minact - rowvals[i], *rowlhs) && SCIPisLE(scip, maxact + rowvals[i], *rowrhs) )
-      {
-         newvallhs = minact - *rowlhs;
-         newvalrhs = *rowrhs - maxact;
-         newval = MIN(newvallhs, newvalrhs);
-         assert( SCIPisSumRelGE(scip, newval, rowvals[i]) );
-         assert( ! SCIPisPositive(scip, newval));
-
-         if ( ! SCIPisSumRelEQ(scip, newval, rowvals[i]) )
-         {
-            /* compute new lhs: lhs - (oldval - newval) * ub = lhs + (newval - oldval) * ub */
-            if ( ! SCIPisInfinity(scip, - (*rowlhs)) )
-            {
-               SCIPquadprecSumDD(lhsdeltaquad, newval, -rowvals[i]);
-               SCIPquadprecProdQD(lhsdeltaquad, lhsdeltaquad, ub);
-               SCIPquadprecSumQD(tmpquad, lhsdeltaquad, *rowlhs);
-               newlhs = QUAD_TO_DBL(tmpquad);
-            }
-            else
-               newlhs = *rowlhs;
-
-            /* compute new rhs: rhs - (oldval - newval) * lb = rhs + (newval - oldval) * lb */
-            if ( ! SCIPisInfinity(scip, *rowrhs) )
-            {
-               SCIPquadprecSumDD(rhsdeltaquad, newval, -rowvals[i]);
-               SCIPquadprecProdQD(rhsdeltaquad, rhsdeltaquad, lb);
-               SCIPquadprecSumQD(tmpquad, rhsdeltaquad, *rowrhs);
-               newrhs = QUAD_TO_DBL(tmpquad);
-            }
-            else
-               newrhs = *rowrhs;
-
-            SCIPdebugPrintf("tightened coefficient from %g to %g; lhs changed from %g to %g; rhs changed from %g to %g; the bounds are [%g,%g]\n",
-               rowvals[i], newval, *rowlhs, newlhs, *rowrhs, newrhs, lb, ub);
-
-            *rowlhs = newlhs;
-            *rowrhs = newrhs;
-
-            ++(*nchgcoefs);
-
-            if ( SCIPisNegative(scip, newval) )
-            {
-               if ( ! SCIPisInfinity(scip, - (*rowlhs)) )
-               {
-                  SCIPquadprecSumQQ(minactquad, minactquad, lhsdeltaquad);
-                  minact = QUAD_TO_DBL(minactquad);
-               }
-               if ( ! SCIPisInfinity(scip, *rowrhs) )
-               {
-                  SCIPquadprecSumQQ(maxactquad, maxactquad, rhsdeltaquad);
-                  maxact = QUAD_TO_DBL(maxactquad);
-               }
-
-               rowvals[i] = newval;
-            }
-            else
-            {
-               --(*rownnonz);
-               rowvals[i] = rowvals[*rownnonz];
-               rowcols[i] = rowcols[*rownnonz];
-               continue;
-            }
-         }
-      }
-
-      ++i;
-   }
-
-   return SCIP_OKAY;
-}
-
 /** inserts all the LP data (including bounds and objective) into the corresponding SDP Interface */
 static
 SCIP_RETCODE putLpDataInInterface(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
-   int*                  nlpcons,            /**< pointer to store the number of added LP rows to the SDPI (or NULL) */
-   SCIP_Bool*            rowisredundant,     /**< array to store which row is redundant and not added to the SDPI (or NULL) */
    SCIP_Bool             primalobj,          /**< Should the primal objective coefficients (lhs/rhs of LP-constraints) be used? */
    SCIP_Bool             dualobj             /**< Should the dual objective coefficients be used? */
    )
@@ -1130,8 +813,6 @@ SCIP_RETCODE putLpDataInInterface(
       SCIP_Real* rowvals;
       SCIP_Real rowlhs;
       SCIP_Real rowrhs;
-      SCIP_Bool lhsredundant = FALSE;
-      SCIP_Bool rhsredundant = FALSE;
       int rownnonz;
 
       row = rows[i];
@@ -1140,75 +821,43 @@ SCIP_RETCODE putLpDataInInterface(
       rownnonz = SCIProwGetNNonz(row);
       rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
       rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+      rowvals = SCIProwGetVals(row);
+      rowcols = SCIProwGetCols(row);
 
-      /* try to tighten cut */
-      if ( relaxdata->tightenrows )
+      beg[nconss] = nnonz;
+      for (j = 0; j < rownnonz; j++)
       {
-         SCIP_CALL( SCIPduplicateBufferArray(scip, &rowvals, SCIProwGetVals(row), rownnonz) );
-         SCIP_CALL( SCIPduplicateBufferArray(scip, &rowcols, SCIProwGetCols(row), rownnonz) );
+         if ( ! SCIPisZero(scip, rowvals[j]) )
+         {
+            assert( SCIPcolGetVar(rowcols[j]) != NULL );
+            ind[nnonz] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[j]));
+            assert( 0 <= ind[nnonz] && ind[nnonz] < nvars );
+            val[nnonz] = rowvals[j];
+            ++nnonz;
+         }
+      }
 
-         SCIP_CALL( tightenRowCoefs(scip, rowvals, rowcols, &rownnonz, &rowlhs, &rowrhs, &lhsredundant, &rhsredundant, &relaxdata->ntightenedrows) );
+      /* for primal objective use original lhs and rhs */
+      if ( primalobj )
+      {
+         lhs[nconss] = rowlhs;
+         rhs[nconss] = rowrhs;
       }
       else
       {
-         rowvals = SCIProwGetVals(row);
-         rowcols = SCIProwGetCols(row);
-      }
-
-      /* if the row is not completely redundant - still use lhs/rhs even if redundant if one side is non-redundant */
-      if ( ! lhsredundant || ! rhsredundant )
-      {
-         beg[nconss] = nnonz;
-         for (j = 0; j < rownnonz; j++)
-         {
-            if ( ! SCIPisZero(scip, rowvals[j]) )
-            {
-               assert( SCIPcolGetVar(rowcols[j]) != NULL );
-               ind[nnonz] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[j]));
-               assert( 0 <= ind[nnonz] && ind[nnonz] < nvars );
-               val[nnonz] = rowvals[j];
-               ++nnonz;
-            }
-         }
-
-         /* for primal objective use original lhs and rhs */
-         if ( primalobj )
-         {
-            lhs[nconss] = rowlhs;
-            rhs[nconss] = rowrhs;
-         }
+         if ( SCIPisInfinity(scip, -rowlhs) )
+            lhs[nconss] = - SCIPinfinity(scip);
          else
-         {
-            if ( SCIPisInfinity(scip, -rowlhs) )
-               lhs[nconss] = - SCIPinfinity(scip);
-            else
-               lhs[nconss] = 0.0;
+            lhs[nconss] = 0.0;
 
-            if ( SCIPisInfinity(scip, rowrhs) )
-               rhs[nconss] = SCIPinfinity(scip);
-            else
-               rhs[nconss] = 0.0;
-         }
-         nconss++;
-         if ( rowisredundant != NULL )
-            rowisredundant[i] = FALSE;
+         if ( SCIPisInfinity(scip, rowrhs) )
+            rhs[nconss] = SCIPinfinity(scip);
+         else
+            rhs[nconss] = 0.0;
       }
-      else
-      {
-         if ( rowisredundant != NULL )
-            rowisredundant[i] = TRUE;
-      }
-
-      if ( relaxdata->tightenrows )
-      {
-         SCIPfreeBufferArray(scip, &rowcols);
-         SCIPfreeBufferArray(scip, &rowvals);
-      }
+      nconss++;
    }
    assert( nnonz <= scipnnonz );  /* <= because rows might be redundant */
-
-   if ( nlpcons != NULL )
-      *nlpcons = nconss;
 
    /* delete the old LP-block from the sdpi */
    SCIP_CALL( SCIPsdpiGetNLPRows(relaxdata->sdpi, &nrowssdpi) );
@@ -1290,7 +939,6 @@ static
 SCIP_RETCODE computeConflictCut(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_SOL*             sol,                /**< relaxation solution */
-   SCIP_Bool             tightenrows,        /**< whether rows should be tightened */
    SCIP_Bool             usecmir,            /**< whether the cut should be strengthened using the CMIR procedure */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
@@ -1450,7 +1098,6 @@ SCIP_RETCODE computeConflictCut(
       SCIP_Real primallhsval;
       SCIP_Real primalrhsval;
       int nactiverows = 0;
-      int ntightenedrows = 0;
       int nlpcons;
       int i;
 
@@ -1468,72 +1115,49 @@ SCIP_RETCODE computeConflictCut(
             SCIP_Real* rowvals;
             SCIP_Real rowlhs;
             SCIP_Real rowrhs;
-            SCIP_Bool lhsredundant = FALSE;
-            SCIP_Bool rhsredundant = FALSE;
             int rownnonz;
             int varidx;
 
             row = rows[i];
             assert( row != 0 );
 
-            rownnonz = SCIProwGetNNonz(row);
-            rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
-            rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
-
-            /* possibly check whether tightened cut is redundant */
-            if ( tightenrows )
+            if ( ! SCIProwIsLocal(row) && ! SCIPisInfinity(scip, REALABS(lhsvals[nactiverows])) && ! SCIPisInfinity(scip, REALABS(rhsvals[nactiverows])) )
             {
-               SCIP_CALL( SCIPduplicateBufferArray(scip, &rowvals, SCIProwGetVals(row), rownnonz) );
-               SCIP_CALL( SCIPduplicateBufferArray(scip, &rowcols, SCIProwGetCols(row), rownnonz) );
+               rownnonz = SCIProwGetNNonz(row);
+               rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
+               rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+               rowvals = SCIProwGetVals(row);
+               rowcols = SCIProwGetCols(row);
 
-               /* The tightened rows are only locally valid, so we use the original data below and only retain whether the row is redundant. */
-               SCIP_CALL( tightenRowCoefs(scip, rowvals, rowcols, &rownnonz, &rowlhs, &rowrhs, &lhsredundant, &rhsredundant, &ntightenedrows) );
+               /* make sure that the primal values are >= 0 */
+               primallhsval = MAX(lhsvals[nactiverows], 0.0);
+               primalrhsval = MAX(rhsvals[nactiverows], 0.0);
+               assert( SCIPisFeasGE(scip, primallhsval, 0.0) );
+               assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
 
-               SCIPfreeBufferArray(scip, &rowcols);
-               SCIPfreeBufferArray(scip, &rowvals);
-            }
+               if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
+                  SCIPquadprecSumQD(cutlhs, cutlhs, rowlhs * primallhsval);
 
-            if ( (! lhsredundant || ! rhsredundant) )
-            {
-               if ( ! SCIProwIsLocal(row) && ! SCIPisInfinity(scip, REALABS(lhsvals[nactiverows])) && ! SCIPisInfinity(scip, REALABS(rhsvals[nactiverows])) )
+               if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
+                  SCIPquadprecSumQD(cutlhs, cutlhs, - rowrhs * primalrhsval);
+
+               for (j = 0; j < rownnonz; j++)
                {
-                  /* (re)init row data */
-                  rownnonz = SCIProwGetNNonz(row);
-                  rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
-                  rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
-                  rowvals = SCIProwGetVals(row);
-                  rowcols = SCIProwGetCols(row);
-
-                  /* make sure that the primal values are >= 0 */
-                  primallhsval = MAX(lhsvals[nactiverows], 0.0);
-                  primalrhsval = MAX(rhsvals[nactiverows], 0.0);
-                  assert( SCIPisFeasGE(scip, primallhsval, 0.0) );
-                  assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
-
-                  if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
-                     SCIPquadprecSumQD(cutlhs, cutlhs, rowlhs * primallhsval);
-
-                  if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
-                     SCIPquadprecSumQD(cutlhs, cutlhs, - rowrhs * primalrhsval);
-
-                  for (j = 0; j < rownnonz; j++)
+                  if ( (! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval)) || ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) ) )
                   {
-                     if ( (! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval)) || ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) ) )
-                     {
-                        assert( SCIPcolGetVar(rowcols[j]) != NULL );
-                        varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
-                        assert( 0 <= varidx && varidx < nvars );
-                        assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
+                     assert( SCIPcolGetVar(rowcols[j]) != NULL );
+                     varidx = SCIPvarGetProbindex(SCIPcolGetVar(rowcols[j]));
+                     assert( 0 <= varidx && varidx < nvars );
+                     assert( vars[varidx] == SCIPcolGetVar(rowcols[j]) );
 
-                        QUAD_ARRAY_LOAD(c, cutcoefs, varidx);
-                        if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
-                           SCIPquadprecSumQD(c, c, rowvals[j] * primallhsval);
+                     QUAD_ARRAY_LOAD(c, cutcoefs, varidx);
+                     if ( ! SCIPisInfinity(scip, -rowlhs) && ! SCIPisFeasZero(scip, primallhsval) )
+                        SCIPquadprecSumQD(c, c, rowvals[j] * primallhsval);
 
-                        if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
-                           SCIPquadprecSumQD(c, c, - rowvals[j] * primalrhsval);
+                     if ( ! SCIPisInfinity(scip, rowrhs) && ! SCIPisFeasZero(scip, primalrhsval) )
+                        SCIPquadprecSumQD(c, c, - rowvals[j] * primalrhsval);
 
-                        QUAD_ARRAY_STORE(cutcoefs, varidx, c);
-                     }
+                     QUAD_ARRAY_STORE(cutcoefs, varidx, c);
                   }
                }
                ++nactiverows;
@@ -1542,7 +1166,7 @@ SCIP_RETCODE computeConflictCut(
          assert( ! SCIPisInfinity(scip, REALABS(QUAD_TO_DBL(cutlhs))) );
 
          SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &nlpcons) );
-         assert( nlpcons == nactiverows );
+         assert( nlpcons >= nactiverows );
 
          /* possibly add objective cut */
          if ( conflictobjcut )
@@ -1747,7 +1371,7 @@ SCIP_RETCODE generateConflictCons(
    assert( vars != NULL );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
-   SCIP_CALL( computeConflictCut(scip, sol, relaxdata->tightenrows, relaxdata->conflictcmir, relaxdata->varmapper,
+   SCIP_CALL( computeConflictCut(scip, sol, relaxdata->conflictcmir, relaxdata->varmapper,
          relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &success) );
 
    /* generate constraint if dual cut is valid */
@@ -2929,8 +2553,6 @@ SCIP_RETCODE fillStartZ(
    SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
    int                   nblocks,            /**< number of blocks */
    SCIP_CONS**           sdpblocks,          /**< SDP blocks */
-   int                   nlpcons,            /**< pointer to store the number of added LP rows to the SDPI (or NULL) */
-   SCIP_Bool*            rowisredundant,     /**< array to store which row is redundant and not added to the SDPI (or NULL) */
    SCIP_SOL*             dualsol,            /**< dual solution already determined */
    SCIP_Real             maxprimalentry,     /**< maximal entry */
    int**                 startZnblocknonz,   /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
@@ -3052,12 +2674,12 @@ SCIP_RETCODE fillStartZ(
    assert( vars != NULL );
 
    /* fill LP-block */
-   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZrow)[nblocks], 2 * nlpcons + 2 * nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZcol)[nblocks], 2 * nlpcons + 2 * nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZval)[nblocks], 2 * nlpcons + 2 * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZrow)[nblocks], 2 * nrows + 2 * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZcol)[nblocks], 2 * nrows + 2 * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startZval)[nblocks], 2 * nrows + 2 * nvars) );
 
    /* to get a positive definite matrix, all the entries need to be strictly positive */
-   (*startZnblocknonz)[nblocks] = 2 * nlpcons + 2 * nvars;
+   (*startZnblocknonz)[nblocks] = 2 * nrows + 2 * nvars;
 
    SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
 
@@ -3068,10 +2690,6 @@ SCIP_RETCODE fillStartZ(
       SCIP_Real rowval = 0.0;
       int rownnonz;
       int i;
-
-      /* skip redundant rows */
-      if ( rowisredundant[r] )
-         continue;
 
       /* compute row value for current solution */
       rownnonz = SCIProwGetNNonz(rows[r]);
@@ -3141,13 +2759,13 @@ SCIP_RETCODE fillStartZ(
       (*startZval)[nblocks][2 * rowcnt + 1] = zval;
       ++rowcnt;
    }
-   assert( rowcnt == nlpcons );
+   assert( rowcnt == nrows );
 
    for (v = 0; v < nvars; v++)
    {
       /* consider lower bound */
-      (*startZrow)[nblocks][2 * nlpcons + 2 * v] = 2 * nlpcons + 2 * v;
-      (*startZcol)[nblocks][2 * nlpcons + 2 * v] = 2 * nlpcons + 2 * v;
+      (*startZrow)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+      (*startZcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
       zval = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartprojminevdual) )
@@ -3162,7 +2780,7 @@ SCIP_RETCODE fillStartZ(
       }
       else if ( relaxdata->warmstartiptype == 2 )
       {
-         zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * nlpcons + 2 * v];
+         zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * nrows + 2 * v];
 
          /* if this is non-positive, we shift it to a strictly positive value */
          if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
@@ -3172,11 +2790,11 @@ SCIP_RETCODE fillStartZ(
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
          zval = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
-      (*startZval)[nblocks][2 * nlpcons + 2 * v] = zval;
+      (*startZval)[nblocks][2 * nrows + 2 * v] = zval;
 
       /* consider upper bound */
-      (*startZrow)[nblocks][2 * nlpcons + 2 * v + 1] = 2 * nlpcons + 2 * v + 1;
-      (*startZcol)[nblocks][2 * nlpcons + 2 * v + 1] = 2 * nlpcons + 2 * v + 1;
+      (*startZrow)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+      (*startZcol)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
       zval = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartprojminevdual) )
@@ -3191,7 +2809,7 @@ SCIP_RETCODE fillStartZ(
       }
       else if ( relaxdata->warmstartiptype == 2 )
       {
-         zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * nlpcons + 2 * v + 1];
+         zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * nrows + 2 * v + 1];
 
          /* if this is non-positive, we shift it to a strictly positive value */
          if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
@@ -3201,7 +2819,7 @@ SCIP_RETCODE fillStartZ(
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
          zval = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
-      (*startZval)[nblocks][2 * nlpcons + 2 * v + 1] = zval;
+      (*startZval)[nblocks][2 * nrows + 2 * v + 1] = zval;
    }
 
    return SCIP_OKAY;
@@ -3215,8 +2833,6 @@ SCIP_RETCODE fillStartX(
    SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
    int                   nblocks,            /**< number of blocks */
    SCIP_CONS**           sdpblocks,          /**< SDP blocks */
-   int                   nlpcons,            /**< pointer to store the number of added LP rows to the SDPI (or NULL) */
-   SCIP_Bool*            rowisredundant,     /**< array to store which row is redundant and not added to the SDPI (or NULL) */
    SCIP_Real             maxprimalentry,     /**< maximal entry */
    int**                 startXnblocknonz,   /**< pointer to primal matrix X as starting point for the solver: number of nonzeros for each block,
                                               *   also length of corresponding row/col/val-arrays */
@@ -3283,19 +2899,15 @@ SCIP_RETCODE fillStartX(
    }
 
    /* treat LP part */
-   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[nblocks], 2 * nlpcons + 2 * nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[nblocks], 2 * nlpcons + 2 * nvars) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nlpcons + 2 * nvars) );
-   (*startXnblocknonz)[nblocks] = 2 * nlpcons + 2 * nvars;
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[nblocks], 2 * nrows + 2 * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[nblocks], 2 * nrows + 2 * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nrows + 2 * nvars) );
+   (*startXnblocknonz)[nblocks] = 2 * nrows + 2 * nvars;
 
    nrows = SCIPgetNLPRows(scip);
 
    for (r = 0; r < nrows; r++)
    {
-      /* skip redundant rows */
-      if ( rowisredundant[r] )
-         continue;
-
       if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
       {
          (*startXrow)[nblocks][2 * rowcnt] = 2 * rowcnt;
@@ -3321,28 +2933,28 @@ SCIP_RETCODE fillStartX(
       }
       ++rowcnt;
    }
-   assert( rowcnt == nlpcons );
+   assert( rowcnt == nrows );
 
    nvars = SCIPgetNVars(scip);
    for (v = 0; v < nvars; ++v)
    {
       if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
       {
-         (*startXrow)[nblocks][2 * nlpcons + 2 * v] = 2 * nlpcons + 2 * v;
-         (*startXcol)[nblocks][2 * nlpcons + 2 * v] = 2 * nlpcons + 2 * v;
-         (*startXval)[nblocks][2 * nlpcons + 2 * v] = maxprimalentry;
-         (*startXrow)[nblocks][2 * nlpcons + 2 * v + 1] = 2 * nlpcons + 2 * v + 1;
-         (*startXcol)[nblocks][2 * nlpcons + 2 * v + 1] = 2 * nlpcons + 2 * v + 1;
-         (*startXval)[nblocks][2 * nlpcons + 2 * v + 1] = maxprimalentry;
+         (*startXrow)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+         (*startXcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+         (*startXval)[nblocks][2 * nrows + 2 * v] = maxprimalentry;
+         (*startXrow)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+         (*startXcol)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+         (*startXval)[nblocks][2 * nrows + 2 * v + 1] = maxprimalentry;
       }
       else if ( relaxdata->warmstartprimaltype == 2 )
       {
-         (*startXrow)[nblocks][2 * nlpcons + 2 * v] = startZrow[nblocks][2 * nlpcons + 2 * v];
-         (*startXcol)[nblocks][2 * nlpcons + 2 * v] = startZcol[nblocks][2 * nlpcons + 2 * v];
-         (*startXval)[nblocks][2 * nlpcons + 2 * v] = 1.0 / startZval[nblocks][2 * nlpcons + 2 * v];
-         (*startXrow)[nblocks][2 * nlpcons + 2 * v + 1] = startZrow[nblocks][2 * nlpcons + 2 * v + 1];
-         (*startXcol)[nblocks][2 * nlpcons + 2 * v + 1] = startZcol[nblocks][2 * nlpcons + 2 * v + 1];
-         (*startXval)[nblocks][2 * nlpcons + 2 * v + 1] = 1.0 / startZval[nblocks][2 * nlpcons + 2 * v + 1];
+         (*startXrow)[nblocks][2 * nrows + 2 * v] = startZrow[nblocks][2 * nrows + 2 * v];
+         (*startXcol)[nblocks][2 * nrows + 2 * v] = startZcol[nblocks][2 * nrows + 2 * v];
+         (*startXval)[nblocks][2 * nrows + 2 * v] = 1.0 / startZval[nblocks][2 * nrows + 2 * v];
+         (*startXrow)[nblocks][2 * nrows + 2 * v + 1] = startZrow[nblocks][2 * nrows + 2 * v + 1];
+         (*startXcol)[nblocks][2 * nrows + 2 * v + 1] = startZcol[nblocks][2 * nrows + 2 * v + 1];
+         (*startXval)[nblocks][2 * nrows + 2 * v + 1] = 1.0 / startZval[nblocks][2 * nrows + 2 * v + 1];
       }
       else if ( relaxdata->warmstartprimaltype != 3 )
       {
@@ -3361,8 +2973,6 @@ SCIP_RETCODE determineWarmStartInformation(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_RELAX*           relax,              /**< relaxator */
    SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
-   int                   nlpcons,            /**< pointer to store the number of added LP rows to the SDPI (or NULL) */
-   SCIP_Bool*            rowisredundant,     /**< array to store which row is redundant and not added to the SDPI (or NULL) */
    SCIP_Real**           starty,             /**< pointer to dual vector y as starting point for the solver */
    int**                 startZnblocknonz,   /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                               *   also length of corresponding row/col/val-arrays */
@@ -3382,12 +2992,11 @@ SCIP_RETCODE determineWarmStartInformation(
    SCIP_CONS** conss;
    int nblocks;
    int nvars;
+   int nrows;
    int v;
    int b;
    int i;
 
-   assert( nlpcons >= 0 );
-   assert( rowisredundant != NULL );
    assert( starty != NULL );
    assert( startZnblocknonz != NULL );
    assert( startZrow != NULL );
@@ -3407,6 +3016,9 @@ SCIP_RETCODE determineWarmStartInformation(
 
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
+
+   nrows = SCIPgetNLPRows(scip);
+   assert( nrows >= 0 );
 
    if ( relaxdata->warmstartprimaltype != 2 && relaxdata->warmstartiptype == 2 && SCIPisEQ(scip, relaxdata->warmstartipfactor, 1.0) )
    {
@@ -3586,7 +3198,7 @@ SCIP_RETCODE determineWarmStartInformation(
          else
          {
             /* first fill Z */
-            SCIP_CALL( fillStartZ(scip, relaxdata, nblocks, sdpblocks, nlpcons, rowisredundant, dualsol, maxprimalentry, startZnblocknonz, startZrow, startZcol, startZval) );
+            SCIP_CALL( fillStartZ(scip, relaxdata, nblocks, sdpblocks, dualsol, maxprimalentry, startZnblocknonz, startZrow, startZcol, startZval) );
 
             /* then fill X */
             if ( relaxdata->warmstartprimaltype == 3 )
@@ -3629,16 +3241,16 @@ SCIP_RETCODE determineWarmStartInformation(
                   }
                }
 
-               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[nblocks], 2 * nlpcons + 2 * nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[nblocks], 2 * nlpcons + 2 * nvars) );
-               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nlpcons + 2 * nvars) );
-               (*startXnblocknonz)[nblocks] = 2 * nlpcons + 2 * nvars;
+               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[nblocks], 2 * nrows + 2 * nvars) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[nblocks], 2 * nrows + 2 * nvars) );
+               SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nrows + 2 * nvars) );
+               (*startXnblocknonz)[nblocks] = 2 * nrows + 2 * nvars;
 
                SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, (*startXnblocknonz), (*startXrow), (*startXcol), (*startXval)) );
             }
             else
             {
-               SCIP_CALL( fillStartX(scip, relaxdata, nblocks, sdpblocks, nlpcons, rowisredundant, maxprimalentry, startXnblocknonz, startXrow, startXcol, startXval,
+               SCIP_CALL( fillStartX(scip, relaxdata, nblocks, sdpblocks, maxprimalentry, startXnblocknonz, startXrow, startXcol, startXval,
                      *startZnblocknonz, *startZrow, *startZcol, *startZval) );
             }
          }
@@ -3883,7 +3495,7 @@ SCIP_RETCODE determineWarmStartInformation(
                /* if some entries are missing, we add them at the end */
                for (j = lastentry + 1; j < (*startXrow)[nblocks][i]; j++)
                {
-                  assert( (*startXnblocknonz)[nblocks] < 2 * nlpcons + 2 * nvars );
+                  assert( (*startXnblocknonz)[nblocks] < 2 * nrows + 2 * nvars );
                   (*startXrow)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                   (*startXcol)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                   (*startXval)[nblocks][(*startXnblocknonz)[nblocks]] = relaxdata->warmstartprojminevprimal;
@@ -3896,9 +3508,9 @@ SCIP_RETCODE determineWarmStartInformation(
             }
 
             /* add missing entries at the end */
-            for (j = lastentry + 1; j < 2 * nlpcons + 2 * nvars; j++)
+            for (j = lastentry + 1; j < 2 * nrows + 2 * nvars; j++)
             {
-               assert( (*startXnblocknonz)[nblocks] < 2 * nlpcons + 2 * nvars );
+               assert( (*startXnblocknonz)[nblocks] < 2 * nrows + 2 * nvars );
                (*startXrow)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                (*startXcol)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                (*startXval)[nblocks][(*startXnblocknonz)[nblocks]] = relaxdata->warmstartprojminevprimal;
@@ -3933,7 +3545,7 @@ SCIP_RETCODE determineWarmStartInformation(
                   /* if some entries are missing, we add them at the end */
                   for (j = lastentry + 1; j < (*startXrow)[nblocks][i]; j++)
                   {
-                     assert( (*startXnblocknonz)[nblocks] < 2 * nlpcons + 2 * nvars );
+                     assert( (*startXnblocknonz)[nblocks] < 2 * nrows + 2 * nvars );
                      (*startXrow)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                      (*startXcol)[nblocks][(*startXnblocknonz)[nblocks]] = j;
 
@@ -3957,9 +3569,9 @@ SCIP_RETCODE determineWarmStartInformation(
                }
 
                /* add missing entries at the end */
-               for (j = lastentry + 1; j < 2 * nlpcons + 2 * nvars; j++)
+               for (j = lastentry + 1; j < 2 * nrows + 2 * nvars; j++)
                {
-                  assert( (*startXnblocknonz)[nblocks] < 2 * nlpcons + 2 * nvars );
+                  assert( (*startXnblocknonz)[nblocks] < 2 * nrows + 2 * nvars );
                   (*startXrow)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                   (*startXcol)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                   (*startXval)[nblocks][(*startXnblocknonz)[nblocks]] = identitydiagonal;
@@ -3982,16 +3594,10 @@ SCIP_RETCODE determineWarmStartInformation(
             /* take the convex combination for the dual (in this case we do not need to check for missing entries since we added all of them ourselves) */
             if ( relaxdata->warmstartiptype == 1 )
             {
-               int nrows;
                int rowcnt = 0;
-
-               nrows = SCIPgetNLPRows(scip);
 
                for (r = 0; r < nrows; r++)
                {
-                  if ( rowisredundant[r] )
-                     continue;
-
                   /* for the project we just set all values smaller than minev to minev */
                   if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[b][2 * rowcnt], relaxdata->warmstartprojminevdual) )
                      (*startZval)[nblocks][2 * rowcnt] = relaxdata->warmstartprojminevdual;
@@ -4021,26 +3627,26 @@ SCIP_RETCODE determineWarmStartInformation(
 
                for (v = 0; v < nvars; v++)
                {
-                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2 * nlpcons + 2*v], relaxdata->warmstartprojminevdual) )
-                     (*startZval)[nblocks][2*nlpcons + 2*v] = relaxdata->warmstartprojminevdual;
-                  else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, (*startZval)[nblocks][2*nlpcons + 2*v], 1.0) || relaxdata->warmstartprojpdsame) )
+                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2 * nrows + 2*v], relaxdata->warmstartprojminevdual) )
+                     (*startZval)[nblocks][2*nrows + 2*v] = relaxdata->warmstartprojminevdual;
+                  else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v], 1.0) || relaxdata->warmstartprojpdsame) )
                   {
                      /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
-                     if ( SCIPisLT(scip, (*startZval)[nblocks][2*nlpcons + 2*v], 0.0) )
-                        (*startZval)[nblocks][2*nlpcons + 2*v] = identitydiagonal;
+                     if ( SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v], 0.0) )
+                        (*startZval)[nblocks][2*nrows + 2*v] = identitydiagonal;
                      else
-                        (*startZval)[nblocks][2*nlpcons + 2*v] = (1 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nlpcons + 2*v] + identitydiagonal;
+                        (*startZval)[nblocks][2*nrows + 2*v] = (1 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v] + identitydiagonal;
                   }
 
-                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*nlpcons + 2*v + 1], relaxdata->warmstartprojminevdual) )
-                     (*startZval)[nblocks][2*nlpcons + 2*v + 1] = relaxdata->warmstartprojminevdual;
-                  else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, (*startZval)[nblocks][2*nlpcons + 2*v + 1], 1.0) || relaxdata->warmstartprojpdsame) )
+                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], relaxdata->warmstartprojminevdual) )
+                     (*startZval)[nblocks][2*nrows + 2*v + 1] = relaxdata->warmstartprojminevdual;
+                  else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], 1.0) || relaxdata->warmstartprojpdsame) )
                   {
                      /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
-                     if ( SCIPisLT(scip, (*startZval)[nblocks][2*nlpcons + 2*v + 1], 0.0) )
-                        (*startZval)[nblocks][2*nlpcons + 2*v + 1] = identitydiagonal;
+                     if ( SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], 0.0) )
+                        (*startZval)[nblocks][2*nrows + 2*v + 1] = identitydiagonal;
                      else
-                        (*startZval)[nblocks][2*nlpcons + 2*v + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nlpcons + 2*v + 1] + identitydiagonal;
+                        (*startZval)[nblocks][2*nrows + 2*v + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v + 1] + identitydiagonal;
                   }
                }
             }
@@ -4283,8 +3889,6 @@ static
 SCIP_RETCODE calcRelax(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_RELAX*           relax,              /**< relaxator */
-   int                   nlpcons,            /**< pointer to store the number of added LP rows to the SDPI (or NULL) */
-   SCIP_Bool*            rowisredundant,     /**< array to store which row is redundant and not added to the SDPI (or NULL) */
    SCIP_RESULT*          result,             /**< pointer to store result of relaxation process */
    SCIP_Real*            lowerbound          /**< pointer to store lowerbound */
    )
@@ -4323,7 +3927,6 @@ SCIP_RETCODE calcRelax(
    assert( relax != NULL );
    assert( result != NULL );
    assert( lowerbound != NULL );
-   assert( rowisredundant != NULL );
 
    /* set time limit */
    SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
@@ -4407,8 +4010,7 @@ SCIP_RETCODE calcRelax(
    if ( ! rootnode && relaxdata->warmstart )
    {
       SCIP_CALL( determineWarmStartInformation(scip, relax, relaxdata,
-            nlpcons, rowisredundant, &starty,
-            &startZnblocknonz, &startZrow, &startZcol, &startZval,
+            &starty, &startZnblocknonz, &startZrow, &startZcol, &startZval,
             &startXnblocknonz, &startXrow, &startXcol, &startXval,
             &startsetting, lowerbound, result) );
 
@@ -4639,11 +4241,8 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    SCIP_RELAXDATA* relaxdata;
    SCIP_VAR** vars;
    SCIP_Bool cutoff;
-   SCIP_Bool* rowisredundant;
-   int nrows;
    int nconss;
    int nvars;
-   int nlpcons;
    int i;
 
    SCIPdebugMsg(scip, "Calling relaxExecSdp.\n");
@@ -4787,12 +4386,9 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
    }
 
    /* update LP Data in Interface */
-   nrows = SCIPgetNLPRows(scip);
-   SCIP_CALL( SCIPallocBufferArray(scip, &rowisredundant, nrows) );
-   SCIP_CALL( putLpDataInInterface(scip, relaxdata, &nlpcons, rowisredundant, TRUE, TRUE) );
+   SCIP_CALL( putLpDataInInterface(scip, relaxdata, TRUE, TRUE) );
 
-   SCIP_CALL( calcRelax(scip, relax, nlpcons, rowisredundant, result, lowerbound));
-   SCIPfreeBufferArray(scip, &rowisredundant);
+   SCIP_CALL( calcRelax(scip, relax, result, lowerbound));
 
    return SCIP_OKAY;
 }
@@ -4838,7 +4434,6 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->sdpinterfacecalls = 0;
    relaxdata->sdpopttime = 0.0;
    relaxdata->sdpiterations = 0;
-   relaxdata->ntightenedrows = 0;
    relaxdata->solvedfast = 0;
    relaxdata->solvedmedium = 0;
    relaxdata->solvedstable = 0;
@@ -5467,8 +5062,6 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
          SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Time spent in rounding problems for warmstarting / detecting infeasibility:\t%f s\n",
             SCIPgetClockTime(scip, relaxdata->roundingprobtime));
       }
-      if ( relaxdata->tightenrows )
-         SCIPverbMessage(scip, SCIP_VERBLEVEL_NORMAL, NULL, "Number of tightened rows: %d.\n", relaxdata->ntightenedrows);
    }
 
    if ( relaxdata->varmapper != NULL )
@@ -5815,10 +5408,6 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          "Should the relaxation be resolved after bound-tightenings were found during propagation (outside of probing)?",
          &(relaxdata->resolve), TRUE, DEFAULT_RESOLVE, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/tightenrows",
-         "Should we perform coefficient tightening on the LP rows before giving them to the SDP-solver?",
-         &(relaxdata->tightenrows), TRUE, DEFAULT_TIGHTENROWS, NULL, NULL) );
-
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/displaystatistics",
          "Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ?",
          &(relaxdata->displaystat), TRUE, DEFAULT_DISPLAYSTAT, NULL, NULL) );
@@ -5921,7 +5510,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )
    {
       SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, TRUE) );
-      SCIP_CALL( putLpDataInInterface(scip, relaxdata, NULL, NULL, FALSE, TRUE) );
+      SCIP_CALL( putLpDataInInterface(scip, relaxdata, FALSE, TRUE) );
 
       /* set time limit */
       SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
@@ -6054,7 +5643,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
    /* set dual objective coefficients to zero to compute analytic center of dual feasible set */
    SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
-   SCIP_CALL( putLpDataInInterface(scip, relaxdata, NULL, NULL, TRUE, FALSE) );
+   SCIP_CALL( putLpDataInInterface(scip, relaxdata, TRUE, FALSE) );
 
    /* set time limit */
    SCIP_CALL( SCIPgetRealParam(scip, "limits/time", &timelimit) );
