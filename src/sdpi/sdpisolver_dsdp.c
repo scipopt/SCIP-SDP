@@ -998,7 +998,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->penaltyworbound = FALSE;
    }
    DSDP_CALLM( DSDPCreateSDPCone(sdpisolver->dsdp, nsdpblocks - nremovedblocks, &(sdpisolver->sdpcone)) );
-   DSDP_CALLM( DSDPCreateLPCone(sdpisolver->dsdp, &(sdpisolver->lpcone)) );
+   if ( nlpcons > 0 )
+      DSDP_CALLM( DSDPCreateLPCone(sdpisolver->dsdp, &(sdpisolver->lpcone)) );
    DSDP_CALLM( DSDPCreateBCone(sdpisolver->dsdp, &(sdpisolver->bcone)) );
 
    /* determine sizes */
