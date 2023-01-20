@@ -2672,6 +2672,8 @@ SCIP_RETCODE fillStartZ(
    assert( nvars >= 0 );
    vars = SCIPgetVars(scip);
    assert( vars != NULL );
+   nrows = SCIPgetNLPRows(scip);
+   assert( nrows >= 0 );
 
    /* fill LP-block */
    SCIP_CALL( SCIPallocBufferArray(scip, &(*startZrow)[nblocks], 2 * nrows + 2 * nvars) );
