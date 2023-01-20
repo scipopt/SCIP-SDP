@@ -82,6 +82,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
@@ -149,6 +150,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
       {
          SCIP_Real lpconsvals = 0.0;
          int nextbeg;
+
+         if ( lpindchanges[i] < 0 )
+            continue;
 
          if ( i == nlpcons - 1 )
             nextbeg = lpnnonz;
@@ -294,6 +298,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
@@ -393,6 +398,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
       {
          SCIP_Real lpconsvals = 0.0;
          int nextbeg;
+
+         if ( lpindchanges[i] < 0 )
+            continue;
 
          if ( i == nlpcons - 1 )
             nextbeg = lpnnonz;
@@ -552,6 +560,7 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
@@ -818,6 +827,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
          for (i = 0; i < nlpcons; ++i)
          {
             int nextbeg;
+
+            if ( lpindchanges[i] < 0 )
+               continue;
 
             if ( i == nlpcons - 1 )
                nextbeg = lpnnonz;

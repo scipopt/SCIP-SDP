@@ -200,9 +200,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
-   int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
-   SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
+   int                   nlpcons,            /**< number LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
+   SCIP_Real*            lplhs,              /**< left-hand sides of LP-constraints after fixings (may be NULL if nlpcons = 0) */
+   SCIP_Real*            lprhs,              /**< right-hand sides of LP-constraints after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
    int*                  lpbeg,              /**< start index of each row in ind- and val-array */
    int*                  lpind,              /**< column-index for each entry in lpval-array */
@@ -224,8 +225,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
                                               *   may be NULL if startXnblocknonz = NULL */
-   int*                  lpsdpiidx,          /**< array with new indices of each original LP row (or -1) */
-   int                   noriglpcons,        /**< number of original LP rows (needed for transfering starting points) */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
@@ -286,9 +285,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
-   int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
-   SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
-   SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
+   int                   nlpcons,            /**< number of LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
+   SCIP_Real*            lplhs,              /**< left-hand sides of LP-constraints after fixings (may be NULL if nlpcons = 0) */
+   SCIP_Real*            lprhs,              /**< right-hand sides of LP-constraints after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
    int*                  lpbeg,              /**< start index of each row in ind- and val-array */
    int*                  lpind,              /**< column-index for each entry in lpval-array */
@@ -310,8 +310,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                                               *   may be NULL if startXnblocknonz = NULL */
    SCIP_Real**           startXval,          /**< primal matrix X as starting point for the solver: values for each block;
                                               *   may be NULL if startXnblocknonz = NULL */
-   int*                  lpsdpiidx,          /**< array with new indices of each original LP row (or -1) */
-   int                   noriglpcons,        /**< number of original LP rows (needed for transfering starting points) */
    SCIP_SDPSOLVERSETTING startsettings,      /**< settings used to start with in SDPA, currently not used for DSDP, set this to
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
@@ -542,6 +540,7 @@ SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    int                   nlpcons,            /**< number of LP rows */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< lhs of LP rows */
    SCIP_Real*            lprhs,              /**< rhs of LP rows */
    SCIP_Real*            lhsvals,            /**< array to store the values of the variables corresponding to LP lhs */

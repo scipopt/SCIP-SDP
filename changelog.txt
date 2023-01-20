@@ -7,9 +7,12 @@ features:
   beginning entries of each row. This saves memory and makes data handling easier.
 - SDPI now tightens rows according to integrality.
 - The tightening of rows in the relaxator has been moved to the SDPI.
+- The SDPIs now take an indicator with removed LP constraints.
 
 API changes:
 - SCIPsdpiLoadSDP() now takes information about integrality of variables.
+- SCIPsdpiSolverLoadAndSolve(), SCIPsdpiSolverLoadAndSolveWithPenalty() now take parameter lpindchanges indicating whether the
+  row has been removed or the number of rows removed before the current one.
 
 Parameters:
 - removed paramter <relaxing/SDP/tightenrows>
