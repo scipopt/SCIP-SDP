@@ -1095,7 +1095,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       else
          sdpisolver->rowmapper[2 * i + 1] = -1;
    }
-   assert( nlpineqs <= 2*nlpcons );
+   assert( nlpineqs <= 2 * nlpcons );
 
    /* compute blockmapper and blockindmapper */
    ind = 0;
