@@ -4552,9 +4552,15 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
                   idx = sdpi->sdpilbrowidx[i];
                   assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
                   if ( idx > 0 )
-                     rhsvals[idx-1] = sdpilbvals[i];
+                  {
+                     assert( sdpi->sdpilpindchanges[idx - 1] < 0 );
+                     rhsvals[idx - 1] = sdpilbvals[i];
+                  }
                   else
-                     lhsvals[-idx-1] = sdpilbvals[i];
+                  {
+                     assert( sdpi->sdpilpindchanges[- idx - 1] < 0 );
+                     lhsvals[- idx - 1] = sdpilbvals[i];
+                  }
                }
 
                if ( sdpi->sdpiubrowidx[i] != 0 )
@@ -4562,17 +4568,26 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
                   idx = sdpi->sdpiubrowidx[i];
                   assert( -sdpi->nlpcons - 1 < idx && idx < sdpi->nlpcons + 1 );
                   if ( idx > 0 )
-                     rhsvals[idx-1] = sdpiubvals[i];
+                  {
+                     assert( sdpi->sdpilpindchanges[idx - 1] < 0 );
+                     rhsvals[idx - 1] = sdpiubvals[i];
+                  }
                   else
-                     lhsvals[-idx-1] = sdpiubvals[i];
+                  {
+                     assert( sdpi->sdpilpindchanges[- idx - 1] < 0 );
+                     lhsvals[- idx - 1] = sdpiubvals[i];
+                  }
                }
             }
 
             /* fill in data */
             for (i = 0; i < sdpi->nlpcons; ++i)
             {
-               lhsvals[i] = sdpilhsvals[i];
-               rhsvals[i] = sdpirhsvals[i];
+               if ( sdpi->sdpilpindchanges[i] >= 0 )
+               {
+                  lhsvals[i] = sdpilhsvals[i];
+                  rhsvals[i] = sdpirhsvals[i];
+               }
             }
             *success = TRUE;
          }
