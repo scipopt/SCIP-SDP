@@ -2788,7 +2788,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
    }
 
    /* get the block of primal solution matrix corresponding to the LP-part from SDPA */
-   lpblockind = (int) sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and sdpa counts from one */
+   lpblockind = (int) sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and SDPA counts from one */
    if ( sdpisolver->sdpa->getBlockType(lpblockind) != SDPA::LP )
    {
       /* if the last block is not an LP-block, no variable bounds existed */
@@ -2811,7 +2811,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
       /* if it is a lower bound */
       if ( sdpisolver->varboundpos[i] < 0 )
       {
-         sdpapos = -sdpisolver->varboundpos[i] - 1;
+         sdpapos = - sdpisolver->varboundpos[i] - 1;
          assert( 0 <= sdpapos && sdpapos < sdpisolver->nactivevars );
          pos = sdpisolver->sdpatoinputmapper[sdpapos];
          assert( 0 <= pos && pos < sdpisolver->nvars );
@@ -2843,8 +2843,55 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
    SCIP_Real*            rhsvals             /**< array to store the values of the variables corresponding to LP rhs */
    )
 {  /*lint --e{715}*/
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   SCIP_Real* X; /* block of primal solution matrix corresponding to the LP-part */
+   SDPA_INT lpblockind;
+   int pos = 0;
+   int i;
+
+   assert( sdpisolver != NULL );
+   assert( sdpisolver->sdpa != NULL );
+   assert( lpindchanges != NULL );
+   assert( lplhs != NULL );
+   assert( lprhs != NULL );
+   assert( lhsvals != NULL );
+   assert( rhsvals != NULL );
+   CHECK_IF_SOLVED( sdpisolver );
+
+   if ( nlpcons <= 0 )
+      return SCIP_OKAY;
+
+   /* get the block of primal solution matrix corresponding to the LP-part from SDPA */
+   lpblockind = (int) sdpisolver->sdpa->getBlockNumber(); /* the LP block is the last one and SDPA counts from one */
+   if ( sdpisolver->sdpa->getBlockType(lpblockind) != SDPA::LP )
+   {
+      /* if the last block is not an LP-block, no variable bounds existed */
+      return SCIP_OKAY;
+   }
+
+   X = sdpisolver->sdpa->getResultYMat(lpblockind);
+
+   /* loop through LP rows */
+   for (i = 0; i < nlpcons; i++)
+   {
+      if ( lpindchanges[i] < 0 )
+      {
+         lhsvals[i] = 0.0;
+         rhsvals[i] = 0.0;
+         continue;
+      }
+
+      if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
+         lhsvals[i] = X[pos++];
+      else
+         lhsvals[i] = 0.0;
+
+      if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
+         rhsvals[i] = X[pos++];
+      else
+         rhsvals[i] = 0.0;
+   }
+
+   return SCIP_OKAY;
 }
 
 /** return number of nonzeros for each block of the primal solution matrix X (including lp block) */
@@ -3094,8 +3141,59 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    SCIP_Real**           primalmatrices      /**< pointer to store values of the primal matrix */
    )
 {  /*lint --e{715}*/
-   SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   int b;
+
+   assert( sdpisolver != NULL );
+   assert( nsdpblocks != sdpisolver->nsdpblocks + 1 );
+
+   /* loop over all SDP blocks */
+   for (b = 0; b < nsdpblocks; b++)
+   {
+      SCIP_Real* X;
+      int blocksize;
+      int redsize;
+      int idx = 0;
+      int sdpablock;
+      int i;
+      int j;
+
+      assert( primalmatrices[b] != NULL );
+
+      blocksize = sdpblocksizes[b];
+
+      /* initialize solution matrix with 0s */
+      for (j = 0; j < blocksize * blocksize; ++j)
+         primalmatrices[b][j] = 0.0;
+
+      /* treat blocks that were not removed */
+      if ( blockindchanges[b] >= 0 )
+      {
+         sdpablock = sdpisolver->inputtoblockmapper[b];
+         assert( sdpablock != -1 );
+         X = sdpisolver->sdpa->getResultYMat(sdpablock);
+         redsize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
+
+         /* fill in matrix */
+         for (i = 0; i < blocksize; ++i)
+         {
+            if ( indchanges[b][i] >= 0 )
+            {
+               assert( 0 <= i - indchanges[b][i] && i - indchanges[b][i] < redsize );
+               for (j = 0; j < blocksize; ++j)
+               {
+                  if ( indchanges[b][j] >= 0 )
+                  {
+                     assert( 0 <= j - indchanges[b][j] && j - indchanges[b][j] < redsize );
+                     assert( 0 <= idx && idx < redsize * redsize );
+                     primalmatrices[b][i * blocksize + j] = X[idx++];
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   return SCIP_OKAY;
 }
 
 /** return the maximum absolute value of the optimal primal matrix */
