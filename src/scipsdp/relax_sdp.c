@@ -2521,25 +2521,25 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          for (i = 0; i < rownnonz; i++)
             rowval += (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]))] * rowvals[i];
 
-         (*startZrow)[b][2*r] = 2*r;
-         (*startZcol)[b][2*r] = 2*r;
+         (*startZrow)[b][2*r] = 2 * r;
+         (*startZcol)[b][2*r] = 2 * r;
          (*startZval)[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
 
-         (*startZrow)[b][2*r + 1] = 2*r + 1;
-         (*startZcol)[b][2*r + 1] = 2*r + 1;
+         (*startZrow)[b][2*r + 1] = 2 * r + 1;
+         (*startZcol)[b][2*r + 1] = 2 * r + 1;
          (*startZval)[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
       }
 
       /* fill varbound block */
       for (v = 0; v < nvars; v++)
       {
-         (*startZrow)[b][2*nrows + 2*v] = 2*nrows + 2*v;
-         (*startZcol)[b][2*nrows + 2*v] = 2*nrows + 2*v;
-         (*startZval)[b][2*nrows + 2*v] = (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] - SCIPvarGetLbLocal(vars[v]);
+         (*startZrow)[b][2*nrows + 2 * v] = 2 * nrows + 2 * v;
+         (*startZcol)[b][2*nrows + 2 * v] = 2 * nrows + 2 * v;
+         (*startZval)[b][2*nrows + 2 * v] = (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] - SCIPvarGetLbLocal(vars[v]);
 
-         (*startZrow)[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-         (*startZcol)[b][2*nrows + 2*v + 1] = 2*nrows + 2*v + 1;
-         (*startZval)[b][2*nrows + 2*v + 1] = SCIPvarGetUbLocal(vars[v]) - (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
+         (*startZrow)[b][2*nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+         (*startZcol)[b][2*nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+         (*startZval)[b][2*nrows + 2 * v + 1] = SCIPvarGetUbLocal(vars[v]) - (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
       }
    }
 
