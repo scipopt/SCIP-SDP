@@ -93,6 +93,11 @@
  * problem is infeasible and the ray defined above is valid for the primal problem.
  *
  * Feasibility of the primal depends on the problem.
+ *
+ * @subsection sdp1d SDP with only one variable
+ *
+ * The interface detects whether the SDP to be solved only has a single variable. In this case it applies a semi-smooth
+ * Newton method to solve it. All solution information is updated accordingly.
  */
 
 #include <assert.h>
