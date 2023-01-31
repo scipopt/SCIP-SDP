@@ -2623,7 +2623,6 @@ SCIP_RETCODE SCIPsdpiDelLPRows(
    for (i = nextbeg; i < sdpi->lpnnonz; ++i)
    {
       sdpi->lpind[i - deletednonz] = sdpi->lpind[i]; /*lint !e679*/
-      sdpi->lpind[i - deletednonz] = sdpi->lpval[i]; /*lint !e679*/
    }
 
    sdpi->nlpcons = sdpi->nlpcons - deletedrows;
