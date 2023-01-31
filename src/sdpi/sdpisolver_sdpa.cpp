@@ -1612,7 +1612,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       /* save preoptimal solution (only if solving succeeded) */
       if ( SCIPsdpiSolverIsAcceptable(sdpisolver) )
       {
-         SCIPdebugMessage("Saving preoptimal solution for warmstarting purposes\n");
+         SCIPdebugMessage("Saving preoptimal solution for warmstarting purposes.\n");
          sdpasol =  sdpisolver->sdpa->getResultXVec();
 
          /* copy dual solution vector */
@@ -2415,9 +2415,9 @@ SCIP_RETCODE SCIPsdpiSolverGetDualSol(
 /** return number of nonzeros for each block of the primal solution matrix X for the preoptimal solution */
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
-   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block
-                                              *   or first entry -1 if no primal solution is available */
+   int                   nblocks,            /**< length of startXnblocknonz */
+   int*                  startXnblocknonz    /**< array to return number of nonzeros for row/col/val-arrays in each block
+                                              *   or first entry equal to -1 if no primal solution is available */
    )
 {
    int b;
@@ -2440,11 +2440,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
       return SCIP_OKAY;
    }
 
-   if ( nblocks != sdpisolver->nsdpblocks + 1 )
-   {
-      SCIPerrorMessage("SCIPsdpiSolverGetPreoptimalPrimalNonzeros expected nblocks = %d but got %d\n", sdpisolver->nsdpblocks + 1, nblocks);
-      return SCIP_LPERROR;
-   }
+   assert( nblocks <= sdpisolver->nsdpblocks + 1 );
+   assert( nblocks == sdpisolver->sdpa->getBlockNumber() );
 
    /* iterate over all SDP-blocks, get the solution and count the nonzeros */
    for (b = 0; b < sdpisolver->nsdpblocks; b++)
@@ -2466,16 +2463,14 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
 
                if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][sdpaind]) > sdpisolver->epsilon )
                   startXnblocknonz[b]++;
-               }
+            }
          }
       }
    }
 
    /* compute the entry for the LP-block */
-   startXnblocknonz[nblocks - 1] = 0;
-   sdpablock = (int) sdpisolver->sdpa->getBlockNumber();
-
-   if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
+   startXnblocknonz[sdpisolver->nsdpblocks] = 0;
+   if ( sdpisolver->sdpa->getBlockType(sdpisolver->nsdpblocks) == SDPA::LP )
    {
       blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 

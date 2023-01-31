@@ -490,9 +490,9 @@ SCIP_RETCODE SCIPsdpiSolverGetDualSol(
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
-   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block
-                                              *   or first entry -1 if no primal solution is available */
+   int                   nblocks,            /**< length of startXnblocknonz */
+   int*                  startXnblocknonz    /**< array to return number of nonzeros for row/col/val-arrays in each block
+                                              *   or first entry equal to -1 if no primal solution is available */
    );
 
 /** gets preoptimal dual solution vector and primal matrix for warmstarting purposes
