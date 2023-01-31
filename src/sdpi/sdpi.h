@@ -575,16 +575,12 @@ SCIP_RETCODE SCIPsdpiGetPreoptimalPrimalNonzeros(
  *
  *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
  *  independent of some lhs/rhs being infinity
- *  @note If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
- *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
  */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiGetPreoptimalSol(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
    SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
    SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength,      /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) or -1 if no primal matrix should be returned */
    int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block (or NULL if nblocks = -1)
                                               *   output: number of nonzeros in each block (or NULL if nblocks = -1) */
