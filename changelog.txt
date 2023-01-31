@@ -6,8 +6,9 @@ features:
 - Revised the internal structure to store LP rows. They are now stored as common in LP-solvers, i.e., with an array that stores the
   beginning entries of each row. This saves memory and makes data handling easier.
 - The tightening of rows in the relaxator has been moved to the SDPI.
-- The SDPI-solvers now use a representation on which LP constraints have been emoved.
-- Implemented several functions return solution data for SDPA.
+- The SDPI-solvers now use a representation on which LP constraints have been removed.
+- Implemented several functions return (primal) solution data for SDPA.
+- Refactored the code for warmstart information.
 
 API changes:
 - SCIPsdpiLoadSDP() now takes information about integrality of variables.
