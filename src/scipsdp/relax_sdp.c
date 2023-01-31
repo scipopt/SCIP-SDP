@@ -2899,12 +2899,13 @@ SCIP_RETCODE fillStartX(
    }
 
    /* treat LP part */
+   nrows = SCIPgetNLPRows(scip);
+   nvars = SCIPgetNVars(scip);
+
    SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[nblocks], 2 * nrows + 2 * nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[nblocks], 2 * nrows + 2 * nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nrows + 2 * nvars) );
    (*startXnblocknonz)[nblocks] = 2 * nrows + 2 * nvars;
-
-   nrows = SCIPgetNLPRows(scip);
 
    for (r = 0; r < nrows; r++)
    {
