@@ -2487,23 +2487,19 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
 
 /** gets preoptimal dual solution vector and primal matrix for warmstarting purposes
  *
- *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
- *  independent of some lhs/rhs being infinity
- *  @note If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
- *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
+ *  @note The last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independent of some lhs/rhs being infinity.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
-   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength,      /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
-   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) or -1 if no primal matrix should be returned */
-   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block (or NULL if nblocks = -1)
+   SCIP_Bool*            success,            /**< Could a preoptimal solution be returned? */
+   SCIP_Real*            dualsol,            /**< array to return the dual solution vector (or NULL) */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks (+ 1)) or -1 if no primal matrix should be returned */
+   int*                  startXnblocknonz,   /**< input: size of row/col/val-arrays in each block (or NULL if nblocks = -1)
                                               *   output: number of nonzeros in each block or first entry -1 if no primal solution is available */
-   int**                 startXrow,          /**< pointer to store row indices of X (or NULL if nblocks = -1) */
-   int**                 startXcol,          /**< pointer to store column indices of X (or NULL if nblocks = -1) */
-   SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
+   int**                 startXrow,          /**< array for returning row indices of X (or NULL if nblocks = -1) */
+   int**                 startXcol,          /**< array for returning column indices of X (or NULL if nblocks = -1) */
+   SCIP_Real**           startXval           /**< array for returning values of X (or NULL if nblocks = -1) */
    )
 {
    int v;
@@ -2513,13 +2509,10 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    int sdpaind;
    int sdpablock;
    int blocksize;
-   SCIP_Bool msgthrown = FALSE;
 
    assert( sdpisolver != NULL );
    assert( success != NULL );
    assert( dualsol != NULL );
-   assert( dualsollength != NULL );
-   assert( *dualsollength >= 0 );
    assert( startXnblocknonz != NULL || nblocks == -1 );
    assert( startXrow != NULL || nblocks == -1 );
    assert( startXcol != NULL || nblocks == -1 );
@@ -2529,14 +2522,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    {
       SCIPdebugMessage("Failed to retrieve preoptimal solution for warmstarting purposes. \n");
       *success = FALSE;
-      return SCIP_OKAY;
-   }
-
-   if ( *dualsollength < sdpisolver->nvars )
-   {
-      SCIPdebugMessage("Insufficient memory in SCIPsdpiSolverGetPreoptimalSol: needed %d, given %d\n", sdpisolver->nvars, *dualsollength);
-      *success = FALSE;
-      *dualsollength = sdpisolver->nvars;
       return SCIP_OKAY;
    }
 
@@ -2553,8 +2538,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
          dualsol[v] = sdpisolver->fixedvarsval[- sdpisolver->inputtosdpamapper[v] - 1]; /*lint !e679*/
       }
    }
-
-   *dualsollength = sdpisolver->nvars;
 
    if ( nblocks > -1 )
    {
