@@ -161,11 +161,12 @@ struct SCIP_SDPiSolver
                                               *   of the corresponding variables, -n means lower bound of variable n, +n means upper bound */
    int*                  inputtovbmapper;    /**< maps lower and upper bounds of input variables to positions in varboundarray: entry 2i gives
                                               *   position of lower bound, entry 2i+1 gives position of upper bound */
-   int                   nsdpalpcons;        /**< number of ranged lp rows in SDPA (not counting varbounds); length of rowtoinputmapper and total number of rows in SDPA is twice than this */
+   int                   nlpcons;            /**< number of LP constraints */
+   int                   maxnlpcons;         /**< maximal number of LP constraints */
+   int                   nlpineqs;           /**< number of inequalities in SDPA */
    int                   nsdpblocks;         /**< number of given sdp blocks; length of inputtoblockmapper */
    int                   maxnsdpblocks;      /**< maximal number of given sdp blocks */
    int*                  maxsdpblocksizes;   /**< array of maximal block sizes */
-   int                   maxnlpcons;         /**< maximal number of LP constraints */
    int*                  rowmapper;          /**< entry 2i gives SDPA-index of left side of ranged row i, 2i+1 index of rhs */
    int*                  rowtoinputmapper;   /**< if rowtoinputmapper[i] = 2j, then i-th SDPA row corresponds to lhs of ranged row j, rhs if 2j + 1*/
    int*                  inputtoblockmapper; /**< entry i gives sdpa-index of i-th sdp-block (or -1 if removed); length is nsdpblocks */
@@ -601,7 +602,8 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    (*sdpisolver)->sdpcounter = 0;
    (*sdpisolver)->niterations = 0;
    (*sdpisolver)->nsdpcalls = 0;
-   (*sdpisolver)->nsdpalpcons = 0;
+   (*sdpisolver)->nlpcons = 0;
+   (*sdpisolver)->nlpineqs = 0;
 
    (*sdpisolver)->epsilon = 1e-9;
    (*sdpisolver)->gaptol = 1e-6;
@@ -1004,7 +1006,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->nvarbounds = 0;
    sdpisolver->preoptimalsolexists = FALSE;
    sdpisolver->nsdpblocks = nsdpblocks;
-   sdpisolver->nsdpalpcons = nlpcons;
+   sdpisolver->nlpcons = nlpcons;
    nsdpablocks = nsdpblocks - nremovedblocks;
    nfixedvars = 0;
 
@@ -1093,6 +1095,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          sdpisolver->rowmapper[2 * i + 1] = -1;
    }
    assert( nlpineqs <= 2 * nlpcons );
+   sdpisolver->nlpineqs = nlpineqs;
 
    /* compute blockmapper and blockindmapper */
    ind = 0;
@@ -2472,12 +2475,12 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    startXnblocknonz[sdpisolver->nsdpblocks] = 0;
    if ( sdpisolver->sdpa->getBlockType(sdpisolver->nsdpblocks) == SDPA::LP )
    {
-      blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
+      blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpisolver->nsdpblocks);
 
       for (i = 0; i < blocksize; i++)
       {
          if ( REALABS(sdpisolver->preoptimalsolxlp[i]) > sdpisolver->epsilon )
-            startXnblocknonz[b]++;
+            startXnblocknonz[sdpisolver->nsdpblocks]++;
       }
    }
 
@@ -2527,15 +2530,16 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
    for (v = 0; v < sdpisolver->nvars; v++)
    {
-      if (sdpisolver->inputtosdpamapper[v] > 0)
+      sdpaind = sdpisolver->inputtosdpamapper[v];
+      if ( sdpaind > 0)
       {
          /* minus one because the array starts at 0 */
-         dualsol[v] = sdpisolver->preoptimalsol[sdpisolver->inputtosdpamapper[v] - 1];
+         dualsol[v] = sdpisolver->preoptimalsol[sdpaind - 1];
       }
       else
       {
          /* this is the value that was saved when inserting, as this variable has lb=ub */
-         dualsol[v] = sdpisolver->fixedvarsval[- sdpisolver->inputtosdpamapper[v] - 1]; /*lint !e679*/
+         dualsol[v] = sdpisolver->fixedvarsval[- sdpaind - 1]; /*lint !e679*/
       }
    }
 
@@ -2547,7 +2551,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
       assert( startXrow != NULL );
       assert( startXcol != NULL );
       assert( startXval != NULL );
-      assert( nblocks == sdpisolver->nsdpblocks + 1 );
+      assert( nblocks <= sdpisolver->nsdpblocks + 1 );
+      assert( nblocks == sdpisolver->sdpa->getBlockNumber() );
 
       /* iterate over all SDP-blocks and get the solution */
       for (b = 0; b < sdpisolver->nsdpblocks; b++)
@@ -2572,21 +2577,11 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
                   if ( REALABS(sdpisolver->preoptimalsolx[sdpablock - 1][sdpaind]) > sdpisolver->epsilon )
                   {
-                     if ( blocknnonz < startXnblocknonz[b] )
-                     {
-                        startXrow[b][blocknnonz] = sdpisolver->blockindmapper[b][c];
-                        startXcol[b][blocknnonz] = sdpisolver->blockindmapper[b][r];
-                        startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][sdpaind]; /* -1 because sdpa starts counting at 1 */
-                        blocknnonz++;
-                     }
-                     else
-                     {
-                        if ( ! msgthrown )
-                        {
-                           SCIPdebugMessage("Insufficient arraylength %d for block %d in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b], b);
-                           msgthrown = TRUE;
-                        }
-                     }
+                     assert( blocknnonz < startXnblocknonz[b] );
+                     startXrow[b][blocknnonz] = sdpisolver->blockindmapper[b][c];
+                     startXcol[b][blocknnonz] = sdpisolver->blockindmapper[b][r];
+                     startXval[b][blocknnonz] = sdpisolver->preoptimalsolx[sdpablock - 1][sdpaind]; /* -1 because sdpa starts counting at 1 */
+                     blocknnonz++;
                   }
                }
             }
@@ -2598,75 +2593,56 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
       }
 
       /* compute entries for the LP-block */
-      blocknnonz = 0;
-
-      /* since we reset the preoptimalsolution for every solve, the number of blocks should have stayed the same */
-      sdpablock = (int) sdpisolver->sdpa->getBlockNumber();
-
-      if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
+      if ( sdpisolver->sdpa->getBlockType(sdpisolver->nsdpblocks) == SDPA::LP )
       {
          int i;
 
          /* since we reset the preoptimalsolution for every solve, the blocksize should have stayed the same */
-         blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
+         blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpisolver->nsdpblocks);
+         assert( blocksize == sdpisolver->nvarbounds + sdpisolver->nlpineqs );
 
          /* iterate over LP constraints */
          assert( b == sdpisolver->nsdpblocks );
-         for (i = 0; i < blocksize - sdpisolver->nvarbounds; i++)
+         blocknnonz = 0;
+         for (i = 0; i < sdpisolver->nlpineqs; i++)
          {
             if ( REALABS(sdpisolver->preoptimalsolxlp[i]) > sdpisolver->epsilon )
             {
-               if ( blocknnonz < startXnblocknonz[b] )
-               {
-                  startXrow[b][blocknnonz] = sdpisolver->rowtoinputmapper[i] - 1;
-                  startXcol[b][blocknnonz] = sdpisolver->rowtoinputmapper[i] - 1;
-                  startXval[b][blocknnonz] = sdpisolver->preoptimalsolxlp[i];
-                  blocknnonz++;
-               }
-               else
-               {
-                  blocknnonz++;
-                  if ( ! msgthrown )
-                  {
-                     SCIPdebugMessage("Unsufficient arraylength %d for LP block in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b]);
-                     msgthrown = TRUE;
-                  }
-               }
+               assert( blocknnonz < startXnblocknonz[b] );
+
+               startXrow[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
+               startXcol[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
+               startXval[b][blocknnonz] = sdpisolver->preoptimalsolxlp[i];
+               assert( 0 <= startXrow[b][blocknnonz] && startXrow[b][blocknnonz] < 2 * sdpisolver->nlpcons );
+               blocknnonz++;
+               assert( blocknnonz <= startXnblocknonz[b] );
             }
          }
 
          /* iterate over varbounds */
-         for (i = blocksize - sdpisolver->nvarbounds; i < blocksize; i++)
+         for (i = 0; i < sdpisolver->nvarbounds; i++)
          {
-            if ( REALABS(sdpisolver->preoptimalsolxlp[i]) > sdpisolver->epsilon )
+            SCIP_Real val;
+
+            val = sdpisolver->preoptimalsolxlp[sdpisolver->nlpineqs + i];
+
+            if ( REALABS(val) > sdpisolver->epsilon )
             {
-               if ( blocknnonz < startXnblocknonz[b] )
-               {
-                  int inputpos;
-                  int vbpos;
+               int inputpos;
+               int vbpos;
 
-                  vbpos = i - (blocksize - sdpisolver->nvarbounds); /* position in varboundpos array */
-
-                  /* inputpos is 2 * nlprows (for lhs and rhs) + 2 * inputvar for lb and 2 * inputvar + 1 for ub */
-                  if ( sdpisolver->varboundpos[vbpos] > 0 ) /* rhs */
-                     inputpos = 2 * sdpisolver->nsdpalpcons + 2 * sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[vbpos] - 1] + 1;
-                  else
-                     inputpos = 2 * sdpisolver->nsdpalpcons + 2 * sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[vbpos] - 1];
-
-                  startXrow[b][blocknnonz] = inputpos;
-                  startXcol[b][blocknnonz] = inputpos;
-                  startXval[b][blocknnonz] = sdpisolver->preoptimalsolxlp[i];
-                  blocknnonz++;
-               }
+               vbpos = sdpisolver->varboundpos[i];
+               if ( vbpos  > 0 ) /* rhs */
+                  inputpos = 2 * sdpisolver->nlpcons + 2 * sdpisolver->sdpatoinputmapper[vbpos - 1] + 1;
                else
-               {
-                  blocknnonz++;
-                  if ( ! msgthrown )
-                  {
-                     SCIPdebugMessage("Insufficient arraylength %d for LP block & varbounds in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b]);
-                     msgthrown = TRUE;
-                  }
-               }
+                  inputpos = 2 * sdpisolver->nlpcons + 2 * sdpisolver->sdpatoinputmapper[- vbpos - 1];
+
+               startXrow[b][blocknnonz] = inputpos;
+               startXcol[b][blocknnonz] = inputpos;
+               startXval[b][blocknnonz] = val;
+               assert( 2 * sdpisolver->nlpcons <= inputpos && inputpos < 2 * sdpisolver->nlpcons + 2 * sdpisolver->nvars );
+               blocknnonz++;
+               assert( blocknnonz <= startXnblocknonz[b] );
             }
          }
          startXnblocknonz[b] = blocknnonz;
@@ -2923,7 +2899,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    int sdpablock;
    int blocksize;
    int blocknnonz;
-   SCIP_Bool msgthrown = FALSE;
 
    assert( sdpisolver != NULL );
    assert( nblocks > 0 );
@@ -2961,21 +2936,11 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
 
                if ( REALABS(X[sdpaind]) > sdpisolver->epsilon )
                {
-                  if ( blocknnonz < startXnblocknonz[b] )
-                  {
-                     startXrow[b][blocknnonz] = sdpisolver->blockindmapper[b][c];
-                     startXcol[b][blocknnonz] = sdpisolver->blockindmapper[b][r];
-                     startXval[b][blocknnonz] = X[sdpaind];
-                     blocknnonz++;
-                  }
-                  else
-                  {
-                     if ( ! msgthrown )
-                     {
-                        SCIPdebugMessage("Insufficient arraylength %d for block %d in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b], b);
-                        msgthrown = TRUE;
-                     }
-                  }
+                  startXrow[b][blocknnonz] = sdpisolver->blockindmapper[b][c];
+                  startXcol[b][blocknnonz] = sdpisolver->blockindmapper[b][r];
+                  startXval[b][blocknnonz] = X[sdpaind];
+                  blocknnonz++;
+                  assert( blocknnonz <= startXnblocknonz[b] );
                }
             }
          }
@@ -2987,71 +2952,54 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    }
 
    /* compute entries for the LP-block */
-   blocknnonz = 0;
-   sdpablock = (int) sdpisolver->sdpa->getBlockNumber();
-
-   if ( sdpisolver->sdpa->getBlockType(sdpablock) == SDPA::LP )
+   if ( sdpisolver->sdpa->getBlockType(sdpisolver->nsdpblocks) == SDPA::LP )
    {
       int i;
 
-      X = sdpisolver->sdpa->getResultYMat(sdpablock);
-      blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
+      X = sdpisolver->sdpa->getResultYMat(sdpisolver->nsdpblocks);
+      blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpisolver->nsdpblocks);
+      assert( blocksize == sdpisolver->nlpineqs + sdpisolver->nvarbounds );
 
       /* iterate over LP constraints */
-      for (i = 0; i < blocksize - sdpisolver->nvarbounds; i++)
+      assert( b == sdpisolver->nsdpblocks );
+      blocknnonz = 0;
+      for (i = 0; i < sdpisolver->nlpineqs; i++)
       {
          if ( REALABS(X[i]) > sdpisolver->epsilon )
          {
-            if ( blocknnonz < startXnblocknonz[b] )
-            {
-               startXrow[b][blocknnonz] = sdpisolver->rowtoinputmapper[i] - 1;
-               startXcol[b][blocknnonz] = sdpisolver->rowtoinputmapper[i] - 1;
-               startXval[b][blocknnonz] = X[i];
-               blocknnonz++;
-            }
-            else
-            {
-               blocknnonz++;
-               if ( ! msgthrown )
-               {
-                  SCIPdebugMessage("Unsufficient arraylength %d for LP block in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b]);
-                  msgthrown = TRUE;
-               }
-            }
+            startXrow[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
+            startXcol[b][blocknnonz] = sdpisolver->rowtoinputmapper[i];
+            startXval[b][blocknnonz] = X[i];
+            assert( 0 <= startXrow[b][blocknnonz] && startXrow[b][blocknnonz] < 2 * sdpisolver->nlpcons );
+            blocknnonz++;
+            assert( blocknnonz <= startXnblocknonz[b] );
          }
       }
 
       /* iterate over varbounds */
-      for (i = blocksize - sdpisolver->nvarbounds; i < blocksize; i++)
+      for (i = 0; i < sdpisolver->nvarbounds; i++)
       {
-         if ( REALABS(X[i]) > sdpisolver->epsilon )
+         SCIP_Real val;
+
+         val = X[sdpisolver->nlpineqs + i];
+
+         if ( REALABS(val) > sdpisolver->epsilon )
          {
-            if ( blocknnonz < startXnblocknonz[b] )
-            {
-               int inputpos;
-               int vbpos;
+            int inputpos;
+            int vbpos;
 
-               vbpos = i - (blocksize - sdpisolver->nvarbounds); /* position in varboundpos array */
-
-               /* inputpos is 2 * nlprows (for lhs and rhs) + 2 * inputvar for lb and 2 * inputvar + 1 for ub */
-               if ( sdpisolver->varboundpos[vbpos] > 0 ) /* rhs */
-                  inputpos = 2 * sdpisolver->nsdpalpcons + 2 * sdpisolver->sdpatoinputmapper[sdpisolver->varboundpos[vbpos] - 1] + 1;
-               else
-                  inputpos = 2 * sdpisolver->nsdpalpcons + 2 * sdpisolver->sdpatoinputmapper[-1 * sdpisolver->varboundpos[vbpos] - 1];
-               startXrow[b][blocknnonz] = inputpos;
-               startXcol[b][blocknnonz] = inputpos;
-               startXval[b][blocknnonz] = X[i];
-               blocknnonz++;
-            }
+            vbpos = sdpisolver->varboundpos[i];
+            if ( vbpos > 0 ) /* rhs */
+               inputpos = 2 * sdpisolver->nlpcons + 2 * sdpisolver->sdpatoinputmapper[vbpos - 1] + 1;
             else
-            {
-               blocknnonz++;
-               if ( ! msgthrown )
-               {
-                  SCIPdebugMessage("Unsufficient arraylength %d for LP block & varbounds in SCIPsdpiSolverGetPrimalMatrix!\n", startXnblocknonz[b]);
-                  msgthrown = TRUE;
-               }
-            }
+               inputpos = 2 * sdpisolver->nlpcons + 2 * sdpisolver->sdpatoinputmapper[- vbpos - 1];
+
+            startXrow[b][blocknnonz] = inputpos;
+            startXcol[b][blocknnonz] = inputpos;
+            startXval[b][blocknnonz] = val;
+            assert( 2 * sdpisolver->nlpcons <= inputpos && inputpos < 2 * sdpisolver->nlpcons + 2 * sdpisolver->nvars );
+            blocknnonz++;
+            assert( blocknnonz <= startXnblocknonz[b] );
          }
       }
       startXnblocknonz[b] = blocknnonz;
