@@ -755,7 +755,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
  *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
- */
+ */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_Real             penaltyparam,       /**< the Gamma above, needs to be >= 0 */
@@ -1997,7 +1997,7 @@ SCIP_Bool SCIPsdpiSolverIsConverged(
    return FALSE;
 }
 
-/** returns TRUE iff the objective limit was reached */
+/** returns TRUE iff the objective limit was reached */ /*lint -e{715}*/
 SCIP_Bool SCIPsdpiSolverIsObjlimExc(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to SDP-solver interface */
    )
@@ -2134,7 +2134,7 @@ SCIP_Bool SCIPsdpiSolverIsAcceptable(
    return SCIPsdpiSolverIsConverged(sdpisolver);
 }
 
-/** tries to reset the internal status of the SDP-solver in order to ignore an instability of the last solving call */
+/** tries to reset the internal status of the SDP-solver in order to ignore an instability of the last solving call */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Bool*            success             /**< pointer to store, whether the instability could be ignored */
@@ -2253,7 +2253,7 @@ SCIP_RETCODE SCIPsdpiSolverGetDualSol(
    return SCIP_OKAY;
 }
 
-/** return number of nonzeros for each block of the primal solution matrix X for the preoptimal solution */
+/** return number of nonzeros for each block of the primal solution matrix X for the preoptimal solution */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz */
@@ -2270,7 +2270,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
  *
  *  @note The last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
  *  independent of some lhs/rhs being infinity.
- */
+ */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Bool*            success,            /**< Could a preoptimal solution be returned? */
@@ -2432,7 +2432,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
    return SCIP_OKAY;
 }
 
-/** return number of nonzeros for each block of the primal solution matrix X (including lp block) */
+/** return number of nonzeros for each block of the primal solution matrix X (including lp block) */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
@@ -2448,7 +2448,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
  *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
  *  independent of some lhs/rhs being infinity
  *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
- */
+ */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
@@ -2542,7 +2542,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    return SCIP_OKAY;
 }
 
-/** return the maximum absolute value of the optimal primal matrix */
+/** return the maximum absolute value of the optimal primal matrix */ /*lint -e{715}*/
 SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
    )
@@ -2628,7 +2628,7 @@ SCIP_RETCODE SCIPsdpiSolverSettingsUsed(
 /**@name Numerical Methods */
 /**@{ */
 
-/** returns value treated as infinity in the SDP-solver */
+/** returns value treated as infinity in the SDP-solver */ /*lint -e{715}*/
 SCIP_Real SCIPsdpiSolverInfinity(
    SCIP_SDPISOLVER*      sdpisolver          /**< pointer to an SDP-solver interface */
    )
@@ -2786,7 +2786,7 @@ SCIP_RETCODE SCIPsdpiSolverSetIntpar(
    return SCIP_OKAY;
 }
 
-/** compute and set lambdastar (only used for SDPA) */
+/** compute and set lambdastar (only used for SDPA) */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverComputeLambdastar(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    SCIP_Real             maxguess            /**< maximum guess for lambda star of all SDP-constraints */
@@ -2878,7 +2878,7 @@ SCIP_RETCODE SCIPsdpiSolverComputeMaxPenaltyparam(
 /**@name File Interface Methods */
 /**@{ */
 
-/** reads SDP from a file */
+/** reads SDP from a file */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverReadSDP(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    const char*           fname               /**< file name */
@@ -2888,7 +2888,7 @@ SCIP_RETCODE SCIPsdpiSolverReadSDP(
    return SCIP_LPERROR;
 }
 
-/** writes SDP to a file */
+/** writes SDP to a file */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverWriteSDP(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    const char*           fname               /**< file name */
