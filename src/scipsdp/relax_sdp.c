@@ -1409,7 +1409,6 @@ SCIP_RETCODE generateConflictCons(
       if ( cnt > 0 )
       {
          SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut && ! SCIPisInfinity(scip, SCIPgetCutoffbound(scip))) );
-         cons = NULL;
       }
       else
 #endif
@@ -1459,7 +1458,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    SCIP_RELAXDATA*       relaxdata,          /**< relaxator data */
    int                   nblocks,            /**< number of blocks */
    SCIP_CONS**           sdpblocks,          /**< SDP blocks */
-   int                   blocksize,          /**< dimension of current block */
    SCIP_CONS*            cons,               /**< solution contraint */
    SCIP_Real             maxprimalentry,     /**< maximal entry */
    SCIP_Real**           starty,             /**< pointer to dual vector y as starting point for the solver */
@@ -1515,6 +1513,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    int* blocksizes;
    int* nblockrownonz;
    int* rowinds;
+   int blocksize;
    int rownnonz;
    int indpos;
    int startpos;
@@ -2554,7 +2553,6 @@ SCIP_RETCODE fillStartZ(
    int                   nblocks,            /**< number of blocks */
    SCIP_CONS**           sdpblocks,          /**< SDP blocks */
    SCIP_SOL*             dualsol,            /**< dual solution already determined */
-   SCIP_Real             maxprimalentry,     /**< maximal entry */
    int**                 startZnblocknonz,   /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                               *   also length of corresponding row/col/val-arrays */
    int***                startZrow,          /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block */
@@ -3193,14 +3191,14 @@ SCIP_RETCODE determineWarmStartInformation(
          if ( relaxdata->warmstartproject == 4 )
          {
             /* solve primal rounding problem */
-            SCIP_CALL( solvePrimalRoundingProblem(scip, relax, relaxdata, nblocks, sdpblocks, blocksize, conss[parentconsind], maxprimalentry,
+            SCIP_CALL( solvePrimalRoundingProblem(scip, relax, relaxdata, nblocks, sdpblocks, conss[parentconsind], maxprimalentry,
                   starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval,
                   lowerbound, result) );
          }
          else
          {
             /* first fill Z */
-            SCIP_CALL( fillStartZ(scip, relaxdata, nblocks, sdpblocks, dualsol, maxprimalentry, startZnblocknonz, startZrow, startZcol, startZval) );
+            SCIP_CALL( fillStartZ(scip, relaxdata, nblocks, sdpblocks, dualsol, startZnblocknonz, startZrow, startZcol, startZval) );
 
             /* then fill X */
             if ( relaxdata->warmstartprimaltype == 3 )
@@ -5913,7 +5911,7 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
    return SCIP_OKAY;
 }
 
-/** returns values of all variables in the solution of the current SDP-relaxation if the last SDP-relaxation was successfully solved */
+/** returns values of all variables in the solution of the current SDP-relaxation if the last SDP-relaxation was successfully solved */ /*lint -e{715}*/
 SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_RELAX*           relax,              /**< SDP-relaxator to get solution for */
