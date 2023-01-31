@@ -3738,10 +3738,8 @@ SCIP_RETCODE saveWarmstartInfo(
       if ( strcmp(SCIPsdpiGetSolverName(), "DSDP") == 0 || strcmp(SCIPsdpiGetSolverName(), "SDPA") == 0 )
       {
          SCIP_Real* preoptimalvec;
-         int nvarsgiven;
 
          SCIP_CALL( SCIPallocBufferArray(scip, &preoptimalvec, nvars) );
-         nvarsgiven = nvars;
 
          if ( SCIPsdpiDoesWarmstartNeedPrimal() )
          {
@@ -3770,7 +3768,7 @@ SCIP_RETCODE saveWarmstartInfo(
                      SCIP_CALL( SCIPallocBufferArray(scip, &startXval[b], startXnblocknonz[b]) );
                   }
 
-                  SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven,
+                  SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec,
                         nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
                }
             }
@@ -3781,14 +3779,11 @@ SCIP_RETCODE saveWarmstartInfo(
          }
          else
          {
-            SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, &nvarsgiven,
-                  -1, NULL, NULL, NULL, NULL) );
+            SCIP_CALL( SCIPsdpiGetPreoptimalSol(relaxdata->sdpi, &preoptimalsolsuccess, preoptimalvec, -1, NULL, NULL, NULL, NULL) );
          }
 
          if ( preoptimalsolsuccess )
          {
-            assert( nvarsgiven == nvars ); /* length of solution should be nvars */
-
             /* create SCIP solution */
             SCIP_CALL( SCIPcreateSol(scip, &preoptimalsol, NULL) );
             SCIP_CALL( SCIPsetSolVals(scip, preoptimalsol, nvars, vars, preoptimalvec) );
