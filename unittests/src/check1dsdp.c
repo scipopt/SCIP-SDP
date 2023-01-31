@@ -162,7 +162,7 @@ Test(checksdpi, test1)
    cr_assert( dualfeasible );
 
    /* get solution */
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, &dualsol, &ncols) );
+   SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, &dualsol) );
    cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
 
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.0);
@@ -228,7 +228,7 @@ Test(checksdpi, test2)
    cr_assert( dualfeasible );
 
    /* get solution */
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, &dualsol, &ncols) );
+   SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, &dualsol) );
    cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
 
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.0);
@@ -293,7 +293,7 @@ Test(checksdpi, test3)
    cr_assert( ! dualfeasible );
 
    /* get solution */
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, &dualsol, &ncols) );
+   SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, &dualsol) );
 
    cr_assert( SCIPsdpiIsDualInfeasible(sdpi) );
 
@@ -374,7 +374,6 @@ Test(checksdpi, test5)
    SCIP_Bool dualfeasible;
    SCIP_Real objval;
    SCIP_Real dualsol;
-   int ncols = 1;
 
    sdpconstrows = (int*) sdpconstrow;
    sdpconstcols = (int*) sdpconstcol;
@@ -403,7 +402,7 @@ Test(checksdpi, test5)
    cr_assert( dualfeasible );
 
    /* get solution */
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, &dualsol, &ncols) );
+   SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, &dualsol) );
    cr_assert_float_eq(dualsol, 1.541381, EPS, "Violation of dual solution: %g != %g\n", dualsol,  1.541381);
 
    /* directly solve problem */

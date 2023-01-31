@@ -279,7 +279,7 @@ SCIP_RETCODE solveTest(
    if ( exp_dualfeas == SCIPfeas )
    {
       /* get solution */
-      SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, dualsol, &ncols) );
+      SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, dualsol) );
 
       for (j = 0; j < ncols; ++j)
       {

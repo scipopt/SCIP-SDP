@@ -554,16 +554,12 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
    SCIP_Real*            objlb               /**< pointer to store the lower bound on the objective value */
    );
 
-/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return the needed length and
- *  a debug message
- */
+/** gets dual solution vector for feasible SDPs */
 SCIP_EXPORT
-SCIP_RETCODE SCIPsdpiGetSol(
+SCIP_RETCODE SCIPsdpiGetDualSol(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
-   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dualsol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a debug-message will be thrown and this is set to the needed value */
+   SCIP_Real*            objval,             /**< pointer to store the objective value (or NULL) */
+   SCIP_Real*            dualsol             /**< array of length nvars to store the dual solution vector (or NULL) */
    );
 
 /** return number of nonzeros for each block of the primal solution matrix X for the preoptimal solution */

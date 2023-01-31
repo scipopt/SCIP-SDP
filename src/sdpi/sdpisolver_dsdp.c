@@ -1532,13 +1532,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       SCIP_Bool infeasible;
       SCIP_Bool solveagain = FALSE;
       int newiterations;
-      int nvarspointer;
 
       /* get current solution */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
-      nvarspointer = nvars;
-      SCIP_CALL( SCIPsdpiSolverGetSol(sdpisolver, NULL, solvector, &nvarspointer) );
-      assert( nvarspointer == nvars );
+      SCIP_CALL( SCIPsdpiSolverGetDualSol(sdpisolver, NULL, solvector) );
 
       /* check the solution for feasibility with regards to our tolerance */
       SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
@@ -2153,28 +2150,26 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    SCIP_Real*            objval              /**< pointer to store the objective value */
    )
 {
-   SCIP_Real* dsdpsol;
-   int dsdpnvars;
-
    assert( sdpisolver != NULL );
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
-
-   if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ))
+   if ( sdpisolver->penalty && ! sdpisolver->feasorig )
    {
       /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
        * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
       DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
-      *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
+      *objval = - (*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
    }
    else
    {
+      SCIP_Real* dsdpsol;
+      int dsdpnvars;
       int v;
 
       /* since the objective value given by DSDP sometimes differs slightly from the correct value for the given solution,
        * we get the solution from DSDP and compute the correct objective value */
+      dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
       BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars) );
       DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, dsdpnvars) ); /* last entry needs to be the number of variables, will return an error otherwise */
 
@@ -2182,67 +2177,48 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       *objval = 0.0;
       for (v = 0; v < sdpisolver->nactivevars; v++)
          *objval += sdpisolver->objcoefs[v] * dsdpsol[v];
+
+      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
    }
 
    /* as we didn't add the fixed (lb = ub) variables to dsdp, we have to add their contributions to the objective as well */
    *objval += sdpisolver->fixedvarsobjcontr;
 
-   if ( ( ! sdpisolver->penalty ) || sdpisolver->feasorig )
-   {
-      BMSfreeBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars);/*lint !e737 */
-   }
-
    return SCIP_OKAY;
 }
 
-/** gets dual solution vector for feasible SDPs
- *
- *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
- */
-SCIP_RETCODE SCIPsdpiSolverGetSol(
+/** gets dual solution vector for feasible SDPs */
+SCIP_RETCODE SCIPsdpiSolverGetDualSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   SCIP_Real*            objval,             /**< pointer to store the objective value (or NULL) */
+   SCIP_Real*            dualsol             /**< array of length nvars to store the dual solution vector (or NULL) */
    )
 {
-   SCIP_Real* dsdpsol;
-   int v;
-   int dsdpnvars;
-
    assert( sdpisolver != NULL );
-   assert( dualsollength != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
-
-   if ( *dualsollength > 0 )
+   if ( dualsol != NULL )
    {
-      assert( dualsol != NULL );
-      if ( *dualsollength < sdpisolver->nvars )
-      {
-         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed.\n", *dualsollength, sdpisolver->nvars);
-         *dualsollength = sdpisolver->nvars;
+      SCIP_Real* dsdpsol;
+      int dsdpnvars;
+      int v;
 
-         return SCIP_OKAY;
-      }
-
+      dsdpnvars = sdpisolver->penaltyworbound ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars; /* in the first case we added r as an explicit var */
       BMS_CALL( BMSallocBlockMemoryArray(sdpisolver->blkmem, &dsdpsol, dsdpnvars) );
       DSDP_CALL( DSDPGetY(sdpisolver->dsdp, dsdpsol, dsdpnvars) ); /* last entry needs to be the number of variables, will return an error otherwise */
 
-      /* insert the entries into dualsol, for non-fixed vars we copy those from dsdp, the rest are the saved entries from inserting (they equal lb=ub) */
+      /* insert the entries into dualsol, for non-fixed vars we copy those from DSDP */
       for (v = 0; v < sdpisolver->nvars; v++)
       {
          if ( sdpisolver->inputtodsdpmapper[v] > -1 )
          {
-            /* minus one because the inputtodsdpmapper gives the dsdp indices which start at one, but the array starts at 0 */
+            /* minus one because the inputtosdpamapper starts at 1, but the array starts at 0 */
             dualsol[v] = dsdpsol[sdpisolver->inputtodsdpmapper[v] - 1];
          }
          else
          {
-            /* this is the value that was saved when inserting, as this variable has lb=ub */
-            dualsol[v] = sdpisolver->fixedvarsval[(-1 * sdpisolver->inputtodsdpmapper[v]) - 1]; /*lint !e679*/
+            /* the fixed value was saved at the beginning */
+            dualsol[v] = sdpisolver->fixedvarsval[- sdpisolver->inputtodsdpmapper[v] - 1]; /*lint !e679*/
          }
       }
 
@@ -2253,7 +2229,7 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
             /* in this case we cannot really trust the solution given by DSDP, since changes in the value of r much less than epsilon can
              * cause huge changes in the objective, so using the objective value given by DSDP is numerically more stable */
             DSDP_CALL( DSDPGetDObjective(sdpisolver->dsdp, objval) );
-            *objval = -1*(*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
+            *objval = - (*objval); /*DSDP maximizes instead of minimizing, so the objective values were multiplied by -1 when inserted */
          }
          else
          {

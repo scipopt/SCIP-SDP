@@ -419,13 +419,10 @@ SCIP_RETCODE checkFeastolAndResolve(
       SCIP_Real dualobj;
       SCIP_Bool infeasible;
       SCIP_Bool solveagain = FALSE;
-      int nvarspointer;
 
       /* get current solution */
       BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) ); /*lint !e530*/
-      nvarspointer = nvars;
-      SCIP_CALL( SCIPsdpiSolverGetSol(sdpisolver, NULL, solvector, &nvarspointer) );
-      assert( nvarspointer == nvars );
+      SCIP_CALL( SCIPsdpiSolverGetDualSol(sdpisolver, NULL, solvector) );
 
       /* check the solution for feasibility with regards to our tolerance */
       SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
@@ -2331,16 +2328,16 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    assert( objval != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
-   if ( sdpisolver->penalty && ( ! sdpisolver->feasorig ) )
+   if ( sdpisolver->penalty && ! sdpisolver->feasorig )
    {
       *objval = sdpisolver->sdpa->getPrimalObj();
 
 #ifndef NDEBUG
       SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
-      SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
+      SCIP_Real gap = REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval))); /* duality gap used in SDPA */
       if ( gap > sdpisolver->gaptol )
       {
-         SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetSol, "
+         SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %g in SCIPsdpiSolverGetSol, "
             "but primal objective is %g with duality gap %g!\n", *objval, primalval, gap );
       }
 #endif
@@ -2353,7 +2350,8 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
       /* since the objective value given by SDPA sometimes differs slightly from the correct value for the given solution,
        * we get the solution from SDPA and compute the correct objective value */
       assert( (sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) || /*lint !e776*/
-               sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
+         sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
+
       sdpasol = sdpisolver->sdpa->getResultXVec();
 
       *objval = 0.0;
@@ -2361,95 +2359,52 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
          *objval += sdpasol[v] * sdpisolver->objcoefs[v];
    }
 
-   /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */
+   /* add contribution of fixed variables */
    *objval += sdpisolver->fixedvarsobjcontr;
 
    return SCIP_OKAY;
 }
 
-/** gets dual solution vector for feasible SDPs
- *
- *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
- */
-SCIP_RETCODE SCIPsdpiSolverGetSol(
+/** gets dual solution vector for feasible SDPs */
+SCIP_RETCODE SCIPsdpiSolverGetDualSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+   SCIP_Real*            objval,             /**< pointer to store the objective value (or NULL) */
+   SCIP_Real*            dualsol             /**< array of length nvars to store the dual solution vector (or NULL) */
    )
 {/*lint !e1784*/
-   SCIP_Real* sdpasol;
-   int v;
-
    assert( sdpisolver != NULL );
    assert( sdpisolver->sdpa != NULL );
-   assert( dualsollength != NULL );
    CHECK_IF_SOLVED( sdpisolver );
 
    if ( objval != NULL )
    {
-      if ( sdpisolver->penalty && ! sdpisolver->feasorig )
-      {
-         *objval = sdpisolver->sdpa->getPrimalObj();
-
-#ifndef NDEBUG
-         SCIP_Real primalval = sdpisolver->sdpa->getDualObj();
-         SCIP_Real gap = (REALABS(*objval - primalval) / (0.5 * (REALABS(primalval) + REALABS(*objval)))); /* duality gap used in SDPA */
-         if ( gap > sdpisolver->gaptol )
-         {
-            SCIPdebugMessage("Attention: got objective value (before adding values of fixed variables) of %f in SCIPsdpiSolverGetSol, "
-               "but primal objective is %f with duality gap %f!\n", *objval, primalval, gap );
-         }
-#endif
-      }
-      else
-      {
-         /* since the objective value given by SDPA sometimes differs slightly from the correct value for the given solution,
-          * we get the solution from SDPA and compute the correct objective value */
-         assert( (sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) || /*lint !e776*/
-            sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
-         sdpasol = sdpisolver->sdpa->getResultXVec();
-
-         *objval = 0.0;
-         for (v = 0; v < sdpisolver->nactivevars; v++)
-            *objval += sdpasol[v] * sdpisolver->objcoefs[v];
-      }
-
-      /* as we didn't add the fixed (lb = ub) variables to sdpa, we have to add their contributions to the objective by hand */
-      *objval += sdpisolver->fixedvarsobjcontr;
+      SCIP_CALL( SCIPsdpiSolverGetObjval(sdpisolver, objval) );
    }
 
-   if ( *dualsollength > 0 )
+   if ( dualsol != NULL )
    {
-      assert( dualsol != NULL );
-      if ( *dualsollength < sdpisolver->nvars )
-      {
-         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed", *dualsollength, sdpisolver->nvars);
-         *dualsollength = sdpisolver->nvars;
-
-         return SCIP_OKAY;
-      }
+      SCIP_Real* sdpasol;
+      int v;
 
       /* get the solution from sdpa */
       assert( (sdpisolver->penalty && sdpisolver->nactivevars + 1 == sdpisolver->sdpa->getConstraintNumber()) || /*lint !e776*/
-               sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
+         sdpisolver->nactivevars == sdpisolver->sdpa->getConstraintNumber() ); /* in the second case we have r as an additional variable */
 
       sdpasol = sdpisolver->sdpa->getResultXVec();
 
-      /* insert the entries into dualsol, for non-fixed vars we copy those from sdpa, the rest are the saved entries from inserting (they equal lb=ub) */
+      /* insert the entries into dualsol, for non-fixed vars we copy those from SDPA */
       for (v = 0; v < sdpisolver->nvars; v++)
       {
          if ( sdpisolver->inputtosdpamapper[v] > 0 )
          {
-            /* minus one because the inputtosdpamapper gives the sdpa indices which start at one, but the array starts at 0 */
+            /* minus one because the inputtosdpamapper starts at 1, but the array starts at 0 */
             dualsol[v] = sdpasol[sdpisolver->inputtosdpamapper[v] - 1];
          }
          else
          {
-            /* this is the value that was saved when inserting, as this variable has lb=ub */
-            assert( -sdpisolver->inputtosdpamapper[v] <= sdpisolver->nvars - sdpisolver->nactivevars );
-            dualsol[v] = sdpisolver->fixedvarsval[(-1 * sdpisolver->inputtosdpamapper[v]) - 1]; /*lint !e679*/
+            /* the fixed value was saved at the beginning */
+            assert( - sdpisolver->inputtosdpamapper[v] <= sdpisolver->nvars - sdpisolver->nactivevars );
+            dualsol[v] = sdpisolver->fixedvarsval[- sdpisolver->inputtosdpamapper[v] - 1]; /*lint !e679*/
          }
       }
    }

@@ -13,6 +13,9 @@ API changes:
 - SCIPsdpiLoadSDP() now takes information about integrality of variables.
 - SCIPsdpiSolverLoadAndSolve(), SCIPsdpiSolverLoadAndSolveWithPenalty() now take parameter lpindchanges indicating whether the
   row has been removed or the number of rows removed before the current one.
+- removed parameters success and sollength from SCIPrelaxSdpGetRelaxSol()
+- renamed SCIPspdiGetSol() to SCIPsdpiGetDualSol() and remove parameter dualsollength
+- renamed SCIPsdpiSolverGetSol() to SCIPsdpiSolverGetDualSol() and remove parameter dualsollength
 
 Parameters:
 - removed paramter <relaxing/SDP/tightenrows>

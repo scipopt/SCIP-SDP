@@ -4095,14 +4095,8 @@ SCIP_RETCODE calcRelax(
    {
 #ifdef SCIP_MORE_DEBUG /* print the optimal solution */
       {
-         int sollength;
-
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-         sollength = nvars;
-         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &sollength) ); /* get both the objective and the solution from the SDP solver */
-
-         assert( sollength == nvars ); /* If this isn't true any longer, the getSol-call was unsuccessfull, because the given array wasn't long enough,
-                                        * but this can't happen, because the array has enough space for all SDP variables. */
+         SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objforscip, solforscip) ); /* get both the objective and the solution from the SDP solver */
 
          if ( SCIPsdpiFeasibilityKnown(sdpi) )
          {
@@ -4155,15 +4149,10 @@ SCIP_RETCODE calcRelax(
       else if ( SCIPsdpiIsPrimalFeasible(sdpi) && SCIPsdpiIsDualFeasible(sdpi) )
       {
          SCIP_SOL* scipsol;
-         int slength;
 
          /* get solution w.r.t. SCIP variables */
          SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-         slength = nvars;
-         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objforscip, solforscip, &slength) ); /* get both the objective and the solution from the SDP solver */
-
-         assert( slength == nvars ); /* If this isn't true any longer, the getSol-call was unsuccessfull, because the given array wasn't long enough,
-                                      * but this can't happen, because the array has enough space for all sdp variables. */
+         SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objforscip, solforscip) ); /* get both the objective and the solution from the SDP solver */
 
          if ( SCIPsdpiIsOptimal(sdpi) )
             SCIPdebugMsg(scip, "Relaxation is solved optimally (objective: %g).\n", objforscip);
@@ -4259,7 +4248,6 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       SCIP_SOL* scipsol;
       SCIP_COL** cols;
       int ncols;
-      int slength;
 
       SCIPdebugMsg(scip, "Already solved SDP-relaxation for node %" SCIP_LONGINT_FORMAT ", returning with SCIP_SUCCESS so that no other relaxator is called.\n",
          SCIPrelaxGetData(relax)->lastsdpnode);
@@ -4276,11 +4264,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       vars = SCIPgetVars(scip);
       nvars = SCIPgetNVars(scip);
       SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-      slength = nvars;
-      SCIP_CALL( SCIPsdpiGetSol(relaxdata->sdpi, &objforscip, solforscip, &slength) ); /* get both the objective and the solution from the SDP solver */
-
-      assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessful, because the given array wasn't long enough,
-                                   * but this can't happen, because the array has enough space for all SDP variables. */
+      SCIP_CALL( SCIPsdpiGetDualSol(relaxdata->sdpi, &objforscip, solforscip) ); /* get both the objective and the solution from the SDP solver */
 
       /* create SCIP solution */
       SCIP_CALL( SCIPcreateSol(scip, &scipsol, NULL) );
@@ -5455,7 +5439,6 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    SCIP_Real* rowvals;
    SCIP_Real timelimit;
    SCIP_Real rowval;
-   int slength;
    int arraylength;
    int nrows;
    int rownnonz;
@@ -5682,12 +5665,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
       /* get solution w.r.t. SCIP variables */
       SCIP_CALL( SCIPallocBufferArray(scip, &solforscip, nvars) );
-      slength = nvars;
-
-      SCIP_CALL( SCIPsdpiGetSol(relaxdata->sdpi, NULL, solforscip, &slength) ); /* get the solution from the SDP solver */
-
-      assert( slength == nvars ); /* If this isn't true any longer, the getSol-Call was unsuccessfull, because the given array wasn't long enough,
-                                   * but this can't happen, because the array has enough space for all sdp variables. */
+      SCIP_CALL( SCIPsdpiGetDualSol(relaxdata->sdpi, NULL, solforscip) ); /* get the solution from the SDP solver */
 
       /* create SCIP solution */
       SCIP_CALL( SCIPcreateSol(scip, &relaxdata->ipy, NULL) );
@@ -5939,31 +5917,18 @@ SCIP_RETCODE SCIPrelaxSdpRelaxVal(
 SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_RELAX*           relax,              /**< SDP-relaxator to get solution for */
-   SCIP_Bool*            success,            /**< pointer to store whether the last SDP-relaxation was solved successfully */
-   SCIP_Real*            solarray,           /**< pointer to store the solution, this has to be at least length nvars */
-   int*                  sollength           /**< length of the solarray */
+   SCIP_Real*            solarray            /**< pointer to store the solution, this has to be at least length nvars */
    )
 {
    SCIP_RELAXDATA* relaxdata;
 
    assert( relax != NULL );
-   assert( success != NULL );
    assert( solarray != NULL );
 
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
 
-   *success = relaxdata->origsolved;
-
-   if ( *sollength >= SCIPgetNVars(scip) )
-   {
-      SCIP_CALL( SCIPsdpiGetSol(relaxdata->sdpi, NULL, solarray, sollength) );
-   }
-   else
-   {
-      SCIPdebugMsg(scip, "Called SCIPrelaxSdpGetRelaxSol with an array that wasn't big enough, needed length %d, given %d!\n", SCIPgetNVars(scip), *sollength);
-      *sollength = SCIPgetNVars(scip);
-   }
+   SCIP_CALL( SCIPsdpiGetDualSol(relaxdata->sdpi, NULL, solarray) );
 
    return SCIP_OKAY;
 }

@@ -3381,13 +3381,11 @@ SCIP_RETCODE SCIPsdpiSolve(
       {
          SCIP_Real objval;
          SCIP_Real* dualsol;
-         int dualsollength;
 
-         dualsollength = sdpi->nvars;
-         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &dualsol, dualsollength) );
-         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, dualsol, &dualsollength) );
+         BMS_CALL( BMSallocBlockMemoryArray(sdpi->blkmem, &dualsol, sdpi->nvars) );
+         SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, dualsol) );
          printf("dual sol: %.15g\n", dualsol[activevaridx]);
-         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &dualsol, dualsollength);
+         BMSfreeBlockMemoryArrayNull(sdpi->blkmem, &dualsol, sdpi->nvars);
 
          /* SCIP_CALL( SCIPsdpiSolverGetObjval(sdpi->sdpisolver, &objval) ); */
          assert( REALABS(objval - solveonevarsdpobjval)/MAX3(1.0, REALABS(objval), REALABS(solveonevarsdpobjval)) <= 2.0 * sdpi->gaptol );
@@ -4149,20 +4147,14 @@ SCIP_RETCODE SCIPsdpiGetLowerObjbound(
    return SCIP_OKAY;
 }
 
-/** gets dual solution vector for feasible SDPs, if dualsollength isn't equal to the number of variables this will return the needed length and
- *  a debug message
- */
-SCIP_RETCODE SCIPsdpiGetSol(
+/** gets dual solution vector for feasible SDPs */
+SCIP_RETCODE SCIPsdpiGetDualSol(
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
-   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dualsol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a debug-message will be thrown and this is set to the needed value */
+   SCIP_Real*            objval,             /**< pointer to store the objective value (or NULL) */
+   SCIP_Real*            dualsol             /**< array of length nvars to store the dual solution vector (or NULL) */
    )
 {
    assert( sdpi != NULL );
-   assert( dualsollength != NULL );
-   assert( *dualsollength == 0 || dualsol != NULL );
    CHECK_IF_SOLVED(sdpi);
 
    if ( sdpi->infeasible )
@@ -4172,61 +4164,37 @@ SCIP_RETCODE SCIPsdpiGetSol(
    }
    else if ( sdpi->allfixed )
    {
+      int v;
+
       if ( objval != NULL )
       {
          SCIP_CALL( SCIPsdpiGetObjval(sdpi, objval) );
       }
 
-      if ( *dualsollength > 0 )
-      {
-         int v;
-
-         assert( dualsol != NULL );
-         if ( *dualsollength < sdpi->nvars )
-         {
-            SCIPdebugMessage("The given array in SCIPsdpiGetSol only had length %d, but %d was needed", *dualsollength, sdpi->nvars);
-            *dualsollength = sdpi->nvars;
-
-            return SCIP_OKAY;
-         }
-
-         /* we give the fixed values as the solution */
-         for (v = 0; v < sdpi->nvars; v++)
-            dualsol[v] = sdpi->sdpilb[v];
-      }
+      /* we give the fixed values as the solution */
+      for (v = 0; v < sdpi->nvars; v++)
+         dualsol[v] = sdpi->sdpilb[v];
    }
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
+      int v;
+
       if ( objval != NULL )
       {
          SCIP_CALL( SCIPsdpiGetObjval(sdpi, objval) );
       }
 
-      if ( *dualsollength > 0 )
-      {
-         int v;
+      /* we give the fixed values as the solution */
+      for (v = 0; v < sdpi->nvars; v++)
+         dualsol[v] = sdpi->sdpilb[v];
 
-         assert( dualsol != NULL );
-         if ( *dualsollength < sdpi->nvars )
-         {
-            SCIPdebugMessage("The given array in SCIPsdpiGetSol only had length %d, but %d was needed", *dualsollength, sdpi->nvars);
-            *dualsollength = sdpi->nvars;
-
-            return SCIP_OKAY;
-         }
-
-         /* we give the fixed values as the solution */
-         for (v = 0; v < sdpi->nvars; v++)
-            dualsol[v] = sdpi->sdpilb[v];
-
-         /* fill in value for one variable */
-         assert( 0 <= sdpi->onevarsdpidx && sdpi->onevarsdpidx < sdpi->nvars );
-         dualsol[sdpi->onevarsdpidx] = sdpi->onevarsdpoptval;
-      }
+      /* fill in value for one variable */
+      assert( 0 <= sdpi->onevarsdpidx && sdpi->onevarsdpidx < sdpi->nvars );
+      dualsol[sdpi->onevarsdpidx] = sdpi->onevarsdpoptval;
    }
    else
    {
-      SCIP_CALL( SCIPsdpiSolverGetSol(sdpi->sdpisolver, objval, dualsol, dualsollength) );
+      SCIP_CALL( SCIPsdpiSolverGetDualSol(sdpi->sdpisolver, objval, dualsol) );
    }
 
    return SCIP_OKAY;

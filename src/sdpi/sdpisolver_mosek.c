@@ -1507,14 +1507,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          SCIP_Bool infeasible;
          SCIP_Bool solveagain = FALSE;
          SCIP_Real opttime;
-         int nvarspointer;
          int newiterations;
 
          /* get current solution */
          BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
-         nvarspointer = nvars;
-         SCIP_CALL( SCIPsdpiSolverGetSol(sdpisolver, NULL, solvector, &nvarspointer) );
-         assert( nvarspointer == nvars );
+         SCIP_CALL( SCIPsdpiSolverGetDualSol(sdpisolver, NULL, solvector) );
 
          /* check the solution for feasibility with regards to our tolerance */
          SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
@@ -2283,35 +2280,20 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    return SCIP_OKAY;
 }
 
-/** gets dual solution vector for feasible SDPs
- *
- *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
- */
-SCIP_RETCODE SCIPsdpiSolverGetSol(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+/** gets dual solution vector for feasible SDPs */
+SCIP_RETCODE SCIPsdpiSolverGetDualSol(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   SCIP_Real*            objval,             /**< pointer to store the objective value (or NULL) */
+   SCIP_Real*            dualsol             /**< array of length nvars to store the dual solution vector (or NULL) */
    )
 {
-   int v;
-   SCIP_Real* moseksol;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-   assert( dualsollength != NULL );
 
-   if ( *dualsollength > 0 )
+   if ( dualsol != NULL )
    {
-      assert( dualsol != NULL );
-      if ( *dualsollength < sdpisolver->nvars )
-      {
-         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed", *dualsollength, sdpisolver->nvars);
-         *dualsollength = sdpisolver->nvars;
-
-         return SCIP_OKAY;
-      }
+      SCIP_Real* moseksol;
+      int v;
 
       BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->penalty ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars);
 
