@@ -3547,7 +3547,7 @@ SCIP_RETCODE determineWarmStartInformation(
                   /* if some entries are missing, we add them at the end */
                   for (j = lastentry + 1; j < (*startXrow)[nblocks][i]; j++)
                   {
-                     assert( (*startXnblocknonz)[nblocks] < 2 * nrows + 2 * nvars );
+                     assert( (*startXnblocknonz)[nblocks] <= 2 * nrows + 2 * nvars );
                      (*startXrow)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                      (*startXcol)[nblocks][(*startXnblocknonz)[nblocks]] = j;
 
