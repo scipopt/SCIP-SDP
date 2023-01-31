@@ -2288,8 +2288,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    assert( sdpisolver != NULL );
    assert( success != NULL );
    assert( dualsol != NULL );
-   assert( dualsollength != NULL );
-   assert( *dualsollength >= 0 );
 
    /* we do not want to return a primal matrix, since it is not used by DSDP for warmstarting purposes */
    assert( nblocks == -1 );
@@ -2298,14 +2296,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    {
       SCIPdebugMessage("Failed to retrieve preoptimal solution for warmstarting purposes. \n");
       *success = FALSE;
-      return SCIP_OKAY;
-   }
-
-   if ( *dualsollength < sdpisolver->nvars )
-   {
-      SCIPdebugMessage("Insufficient memory in SCIPsdpiSolverGetPreoptimalSol: needed %d, given %d\n", sdpisolver->nvars, *dualsollength);
-      *success = FALSE;
-      *dualsollength = sdpisolver->nvars;
       return SCIP_OKAY;
    }
 
@@ -2323,8 +2313,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
       }
    }
 
-
-   *dualsollength = sdpisolver->nvars;
    *success = TRUE;
 
    return SCIP_OKAY;
