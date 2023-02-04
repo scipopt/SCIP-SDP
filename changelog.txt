@@ -23,9 +23,6 @@ API changes:
 Parameters:
 - removed paramter <relaxing/SDP/tightenrows>
 - value 2 for <relaxing/SDP/warmstartprimaltype> has been removed (i.e., taking the dual, because this does not produce a feasible point)
-- remove unused parameter <relaxing/SDP/warmstartprminevpri>
-- remove unused parameter <relaxing/SDP/warmstartprminevdu>
-
 
 fixed bugs:
 - fixed bug in the access to the primal solution matrix with DSDP
