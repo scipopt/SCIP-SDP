@@ -31,6 +31,7 @@
  * @author Sonja Mars
  * @author Lars Schewe
  * @author Tristan Gally
+ * @author Marc Pfetsch
  */
 
 #ifndef __SCIP_CONS_SAVEDSDPSOL_H_
@@ -48,65 +49,59 @@ SCIP_RETCODE SCIPincludeConshdlrSavesdpsol(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
-/** create a Savesdpsol-Cons, i.e. save the current optimal solution for the SDP-relaxation of this node */
+/** create a Savesdpsol constraint, i.e., save solution for the SDP-relaxation */
 SCIP_EXPORT
 SCIP_RETCODE createConsSavesdpsol(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
    SCIP_Longint          node,               /**< index of the node the solution belongs to */
-   SCIP_SOL*             sol,                /**< optimal solution for SDP-relaxation of this node */
-   SCIP_Real             maxprimalentry,     /**< maximum absolute value of primal matrix */
+   SCIP_SOL*             sol,                /**< solution for SDP-relaxation */
+   SCIP_Real             maxprimalentry,     /**< maximal absolute value of primal matrix */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
-   int*                  startXnblocknonz,   /**< primal matrix X as starting point for the solver: number of nonzeros for each block,
-                                               *  also length of corresponding row/col/val-arrays; or NULL if nblocks = 0 */
-   int**                 startXrow,          /**< primal matrix X as starting point for the solver: row indices for each block;
-                                               *  or NULL if nblocks = 0 */
-   int**                 startXcol,          /**< primal matrix X as starting point for the solver: column indices for each block;
-                                               *  or NULL if nblocks = 0 */
-   SCIP_Real**           startXval          /**< primal matrix X as starting point for the solver: values for each block;
-                                               *  or NULL if nblocks = 0 */
+   int*                  startXnblocknonz,   /**< starting point primal matrix X: number of nonzeros for each block (or NULL if nblocks == 0) */
+   int**                 startXrow,          /**< starting point primal matrix X: row indices for each block (or NULL if nblocks = 0) */
+   int**                 startXcol,          /**< starting point primal matrix X: column indices for each block (or NULL if nblocks = 0) */
+   SCIP_Real**           startXval           /**< starting point primal matrix X: values for each block (or NULL if nblocks = 0) */
    );
 
-/** for the given cons of type Savesdpsol returns the node the information belongs to */
+/** for the given Savesdpsol constraint returns the node the information belongs to */
 SCIP_EXPORT
 SCIP_Longint SCIPconsSavesdpsolGetNodeIndex(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< constraint to get starting point for */
+   SCIP_CONS*            cons                /**< Savesdpsol constraint */
    );
 
-/** for the given cons of type Savesdpsol returns the previous dual solution vector y */
+/** for the given Savesdpsol constraint returns the previous dual solution y */
 SCIP_EXPORT
-SCIP_SOL* SCIPconsSavesdpsolGetDualVector(
+SCIP_SOL* SCIPconsSavesdpsolGetDualSolution(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< constraint to get starting point for */
+   SCIP_CONS*            cons                /**< Savesdpsol constraint */
    );
 
-/** for the given cons of type Savesdpsol returns the maximum entry of primal solution X */
+/** for the given Savesdpsol constraint returns the maximal entry of primal solution X */
 SCIP_EXPORT
 SCIP_Real SCIPconsSavesdpsolGetMaxPrimalEntry(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons                /**< constraint to get maximum primal entry for */
+   SCIP_CONS*            cons                /**< Savesdpsol constraint */
    );
 
-/** for the given cons of type Savesdpsol returns the number of nonzeros for each block of previous primal solution X */
+/** for the given Savesdpsol constraint returns the number of nonzeros for each block of previous primal solution X */
 SCIP_EXPORT
 SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrixNonzeros(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< constraint to get maximum primal entry for */
+   SCIP_CONS*            cons,               /**< Savesdpsol constraint */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
-   int*                  startXnblocknonz    /**< input: allocated memory for startXrow/col/val
-                                               *  output: length of startXrow/col/val */
+   int*                  startXnblocknonz    /**< input: allocated memory for startXrow/col/val; output: length of startXrow/col/val */
    );
 
-/** for the given cons of type Savesdpsol returns the previous primal solution X */
+/** for the given Savesdpsol constraint returns the previous primal solution X */
 SCIP_EXPORT
 SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrix(
    SCIP*                 scip,               /**< SCIP data structure */
-   SCIP_CONS*            cons,               /**< constraint to get maximum primal entry for */
+   SCIP_CONS*            cons,               /**< Savesdpsol constraint */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
-   int*                  startXnblocknonz,   /**< input: allocated memory for startXrow/col/val
-                                               *  output: length of startXrow/col/val */
+   int*                  startXnblocknonz,   /**< input: allocated memory for startXrow/col/val; output: length of startXrow/col/val */
    int**                 startXrow,          /**< pointer to store pointer to row indices of X */
    int**                 startXcol,          /**< pointer to store pointer to column indices of X */
    SCIP_Real**           startXval           /**< pointer to store pointer to values of X */

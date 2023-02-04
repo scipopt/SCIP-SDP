@@ -3105,7 +3105,7 @@ SCIP_RETCODE determineWarmStartInformation(
       SCIPdebugMsg(scip, "Using warmstartinformation from node %" SCIP_LONGINT_FORMAT ".\n", parentnodenumber);
 
       /* get solution */
-      dualsol = SCIPconsSavesdpsolGetDualVector(scip, conss[parentconsind]);
+      dualsol = SCIPconsSavesdpsolGetDualSolution(scip, conss[parentconsind]);
 
       /* allocate memory */
       SCIP_CALL( SCIPallocBufferArray(scip, starty, nvars) );
@@ -3209,7 +3209,7 @@ SCIP_RETCODE determineWarmStartInformation(
             if ( relaxdata->warmstartprimaltype == 3 )
             {
                /* if we saved the whole primal solution before, we can set it at once */
-               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrixNonzeros(scip, conss[parentconsind], nblocks + 1, (*startXnblocknonz)) );
+               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrixNonzeros(scip, conss[parentconsind], nblocks + 1, *startXnblocknonz) );
 
                /* allocate sufficient memory; we allocate an extra blocksize for adding the diagonal matrix or analytic center */
                if ( relaxdata->warmstartproject == 3 )
@@ -3251,7 +3251,7 @@ SCIP_RETCODE determineWarmStartInformation(
                SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nrows + 2 * nvars) );
                (*startXnblocknonz)[nblocks] = 2 * nrows + 2 * nvars;
 
-               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, (*startXnblocknonz), (*startXrow), (*startXcol), (*startXval)) );
+               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, *startXnblocknonz, *startXrow, *startXcol, *startXval) );
             }
             else
             {
