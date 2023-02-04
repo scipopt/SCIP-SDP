@@ -209,19 +209,18 @@ struct SCIP_RelaxData
    SCIP_Real             warmstartpreoptgap; /**< In case a preoptimal solution should be used for warmstarts, this gives the gap where the solution should be saved (currently only implemented fo DSDP) */
    SCIP_Bool             warmstartroundonlyinf; /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4) */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
-   SCIP_Bool             ipXexists;          /**< has an interior point for primal matrix X been successfully computed */
-   int*                  ipXnblocknonz;      /**< interior point for primal matrix X for convex combination for warmstarts: number of nonzeros for each block
-                                              *   if computation of analytic center failed, first entry will be -1 */
-   int**                 ipXrow;             /**< interior point for primal matrix X for convex combination for warmstarts: row indices */
-   int**                 ipXcol;             /**< interior point for primal matrix X for convex combination for warmstarts: column indices */
-   SCIP_Real**           ipXval;             /**< interior point for primal matrix X for convex combination for warmstarts: values */
-   SCIP_Bool             ipZexists;          /**< has an interior point for dual matrix Z (and corresponding vector y) been successfully computed */
-   SCIP_SOL*             ipy;                /**< interior point for dual vector y for convex combination for warmstarts */
-   int*                  ipZnblocknonz;      /**< interior point for dual matrix Z for convex combination for warmstarts: number of nonzeros for each block
-                                               *   if computation of analytic center failed, first entry will be -1 */
-   int**                 ipZrow;             /**< interior point for dual matrix Z for convex combination for warmstarts: row indices */
-   int**                 ipZcol;             /**< interior point for dual matrix Z for convex combination for warmstarts: column indices */
-   SCIP_Real**           ipZval;             /**< interior point for dual matrix Z for convex combination for warmstarts: values */
+   SCIP_Bool             ipXexists;          /**< Has an interior point for primal matrix X been successfully computed? */
+   int                   ipnlpcons;          /**< number of LP-constraints for which the interior point was computed */
+   int*                  ipXnblocknonz;      /**< interior point for primal matrix X: number of nonzeros for each block */
+   int**                 ipXrow;             /**< interior point for primal matrix X: row indices */
+   int**                 ipXcol;             /**< interior point for primal matrix X: column indices */
+   SCIP_Real**           ipXval;             /**< interior point for primal matrix X: values */
+   SCIP_Bool             ipZexists;          /**< Has an interior point for dual matrix Z (and corresponding vector y) been successfully computed? */
+   SCIP_SOL*             ipy;                /**< interior point for dual vector y */
+   int*                  ipZnblocknonz;      /**< interior point for dual matrix Z: number of nonzeros for each block */
+   int**                 ipZrow;             /**< interior point for dual matrix Z: row indices */
+   int**                 ipZcol;             /**< interior point for dual matrix Z: column indices */
+   SCIP_Real**           ipZval;             /**< interior point for dual matrix Z: values */
 
    SCIP_CONSHDLR*        sdpconshdlr;        /**< SDP constraint handler */
    SCIP_CONSHDLR*        sdprank1conshdlr;   /**< SDP rank 1 constraint handler */
@@ -2548,7 +2547,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    return SCIP_OKAY;
 }
 
-/** fill Z matrices for warm start */
+/** fill dual matrices Z for warmstart */
 static
 SCIP_RETCODE fillStartZ(
    SCIP*                 scip,               /**< SCIP pointer */
@@ -2566,6 +2565,7 @@ SCIP_RETCODE fillStartZ(
    SCIP_Real zval;
    SCIP_ROW** rows;
    SCIP_VAR** vars;
+   SCIP_Bool ipapplicable = TRUE;
    int rowcnt = 0;
    int blocksize;
    int nrows;
@@ -2669,6 +2669,7 @@ SCIP_RETCODE fillStartZ(
       }
    }
 
+   /* fill LP-block */
    nvars = SCIPgetNVars(scip);
    assert( nvars >= 0 );
    vars = SCIPgetVars(scip);
@@ -2676,7 +2677,13 @@ SCIP_RETCODE fillStartZ(
    nrows = SCIPgetNLPRows(scip);
    assert( nrows >= 0 );
 
-   /* fill LP-block */
+   /* determine whether the interior point is applicable, i.e., it is based on the same number of rows */
+   if ( relaxdata->warmstartiptype == 2 )
+   {
+      if ( relaxdata->ipnlpcons != nrows )
+         ipapplicable = FALSE;
+   }
+
    SCIP_CALL( SCIPallocBufferArray(scip, &(*startZrow)[nblocks], 2 * nrows + 2 * nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &(*startZcol)[nblocks], 2 * nrows + 2 * nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &(*startZval)[nblocks], 2 * nrows + 2 * nvars) );
@@ -2708,7 +2715,7 @@ SCIP_RETCODE fillStartZ(
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartprojminevdual) )
          zval = relaxdata->warmstartprojminevdual;
-      /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
+      /* we only take the convex combination if the value is less than 1, since the maxblockentry is equal to the value
        * otherwise, so taking the convex combination doesn't change anything in that case */
       else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, zval, 1.0) )
       {
@@ -2720,11 +2727,14 @@ SCIP_RETCODE fillStartZ(
       }
       else if ( relaxdata->warmstartiptype == 2 )
       {
-         zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * rowcnt];
+         if ( ipapplicable )
+         {
+            zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * rowcnt];
 
-         /* if this is non-positive, we shift it to a strictly positive value */
-         if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
-            zval = WARMSTART_MINVAL;
+            /* if this is non-positive, we shift it to a strictly positive value */
+            if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
+               zval = WARMSTART_MINVAL;
+         }
       }
 
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
@@ -2749,11 +2759,14 @@ SCIP_RETCODE fillStartZ(
       }
       else if ( relaxdata->warmstartiptype == 2 )
       {
-         zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * rowcnt + 1];
+         if ( ipapplicable )
+         {
+            zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * rowcnt + 1];
 
-         /* if this is non-positive, we shift it to a strictly positive value */
-         if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
-            zval = WARMSTART_MINVAL;
+            /* if this is non-positive, we shift it to a strictly positive value */
+            if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
+               zval = WARMSTART_MINVAL;
+         }
       }
 
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
@@ -2783,11 +2796,14 @@ SCIP_RETCODE fillStartZ(
       }
       else if ( relaxdata->warmstartiptype == 2 )
       {
-         zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * nrows + 2 * v];
+         if ( ipapplicable )
+         {
+            zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * nrows + 2 * v];
 
-         /* if this is non-positive, we shift it to a strictly positive value */
-         if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
-            zval = WARMSTART_MINVAL;
+            /* if this is non-positive, we shift it to a strictly positive value */
+            if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
+               zval = WARMSTART_MINVAL;
+         }
       }
 
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
@@ -2812,11 +2828,14 @@ SCIP_RETCODE fillStartZ(
       }
       else if ( relaxdata->warmstartiptype == 2 )
       {
-         zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * nrows + 2 * v + 1];
+         if ( ipapplicable )
+         {
+            zval = (1.0 - relaxdata->warmstartipfactor) * zval + relaxdata->warmstartipfactor * relaxdata->ipZval[nblocks][2 * nrows + 2 * v + 1];
 
-         /* if this is non-positive, we shift it to a strictly positive value */
-         if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
-            zval = WARMSTART_MINVAL;
+            /* if this is non-positive, we shift it to a strictly positive value */
+            if ( SCIPisLT(scip, zval, WARMSTART_MINVAL) )
+               zval = WARMSTART_MINVAL;
+         }
       }
 
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
@@ -2829,7 +2848,7 @@ SCIP_RETCODE fillStartZ(
 }
 
 
-/** fill X matrices for warm start */
+/** fill primal matrices X for warmstart */
 static
 SCIP_RETCODE fillStartX(
    SCIP*                 scip,               /**< SCIP pointer */
@@ -4419,6 +4438,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    relaxdata->unsolved = 0;
    relaxdata->feasible = FALSE;
 
+   relaxdata->ipnlpcons = 0;
    relaxdata->ipXnblocknonz = NULL;
    relaxdata->ipXrow = NULL;
    relaxdata->ipXcol = NULL;
@@ -5043,6 +5063,9 @@ SCIP_DECL_RELAXEXITSOL(relaxExitSolSdp)
       SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZrow, relaxdata->nblocks);
       SCIPfreeBlockMemoryArrayNull(scip, &relaxdata->ipZnblocknonz, relaxdata->nblocks);
       SCIP_CALL( SCIPfreeSol(scip, &relaxdata->ipy) );
+      relaxdata->ipnlpcons = 0;
+      relaxdata->ipZexists = FALSE;
+      relaxdata->ipXexists = FALSE;
    }
 
    relaxdata->objval = 0.0;
@@ -5207,6 +5230,9 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    relaxdata->roundingprobtime = NULL;
    relaxdata->sdpconshdlr = NULL;
    relaxdata->sdprank1conshdlr = NULL;
+   relaxdata->ipXexists = FALSE;
+   relaxdata->ipZexists = FALSE;
+   relaxdata->ipnlpcons = 0;
    relaxdata->ipXnblocknonz = NULL;
    relaxdata->ipXrow = NULL;
    relaxdata->ipXcol = NULL;
@@ -5804,6 +5830,9 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
       SCIPverbMessage(scip, SCIP_VERBLEVEL_FULL, NULL, "Failed to compute analytic center of dual feasible set, using scaled identity instead.\n");
       SCIPfreeBufferArray(scip, &sdpblocks);
    }
+
+   if ( relaxdata->ipXexists || relaxdata->ipZexists )
+      relaxdata->ipnlpcons = SCIPgetNLPRows(scip);
 
    return SCIP_OKAY;
 }
