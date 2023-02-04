@@ -3035,6 +3035,7 @@ SCIP_RETCODE determineWarmStartInformation(
       SCIP_CONS** sdpblocks = NULL;
       SCIP_VAR* var;
       SCIP_Longint parentnodenumber;
+      SCIP_CONS* savesdpsolcons;
       int parentconsind;
 
       /* find starting solution as optimal solution of parent node */
@@ -3056,18 +3057,25 @@ SCIP_RETCODE determineWarmStartInformation(
       while ( parentconsind >= 0 && SCIPconsSavesdpsolGetNodeIndex(scip, conss[parentconsind]) != parentnodenumber )
          parentconsind--;
 
-      /* If there are no savesdpsol constraints (e.g. because the parent node couldn't be solved successfully), solve
-       * without warmstart. */
+      /* If there are no savesdpsol constraints (e.g. because the parent node could not be solved successfully), solve without warmstart. */
       if ( parentconsind < 0 )
       {
-         SCIPdebugMsg(scip, "Starting SDP-Solving from scratch since no warmstart information available for node %" SCIP_LONGINT_FORMAT "\n", parentnodenumber);
+         SCIPdebugMsg(scip, "Starting SDP-Solving from scratch, since no warmstart information available for node %" SCIP_LONGINT_FORMAT "\n", parentnodenumber);
+         return SCIP_OKAY;
+      }
+
+      /* If the number of LP constraints is not the same, solve without warmstart. */
+      savesdpsolcons = conss[parentconsind];
+      if ( SCIPconsSavesdpsolGetNLPcons(scip, savesdpsolcons) != nrows )
+      {
+         SCIPdebugMsg(scip, "Starting SDP-Solving from scratch, since number of LP constraints of stored solution is not the same.\n");
          return SCIP_OKAY;
       }
 
       SCIPdebugMsg(scip, "Using warmstartinformation from node %" SCIP_LONGINT_FORMAT ".\n", parentnodenumber);
 
       /* get solution */
-      dualsol = SCIPconsSavesdpsolGetDualSolution(scip, conss[parentconsind]);
+      dualsol = SCIPconsSavesdpsolGetDualSolution(scip, savesdpsolcons);
 
       /* allocate memory */
       SCIP_CALL( SCIPallocBufferArray(scip, starty, nvars) );
@@ -3150,7 +3158,7 @@ SCIP_RETCODE determineWarmStartInformation(
          /* compute the scaling factor for the dual identity matrix (for numerical stability, this should be at least 1) */
          if ( relaxdata->warmstartiptype == 1 )
          {
-            maxprimalentry = SCIPconsSavesdpsolGetMaxPrimalEntry(scip, conss[0]);
+            maxprimalentry = SCIPconsSavesdpsolGetMaxPrimalEntry(scip, savesdpsolcons);
             if ( SCIPisLT(scip, maxprimalentry, 1.0) )
                maxprimalentry = 1.0;
          }
@@ -3158,7 +3166,7 @@ SCIP_RETCODE determineWarmStartInformation(
          if ( relaxdata->warmstartproject == 4 )
          {
             /* solve primal rounding problem */
-            SCIP_CALL( solvePrimalRoundingProblem(scip, relax, relaxdata, nblocks, sdpblocks, conss[parentconsind], maxprimalentry,
+            SCIP_CALL( solvePrimalRoundingProblem(scip, relax, relaxdata, nblocks, sdpblocks, savesdpsolcons, maxprimalentry,
                   starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval,
                   lowerbound, result) );
          }
@@ -3171,7 +3179,7 @@ SCIP_RETCODE determineWarmStartInformation(
             if ( relaxdata->warmstartprimaltype == 3 )
             {
                /* if we saved the whole primal solution before, we can set it at once */
-               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrixNonzeros(scip, conss[parentconsind], nblocks + 1, *startXnblocknonz) );
+               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrixNonzeros(scip, savesdpsolcons, nblocks + 1, *startXnblocknonz) );
 
                /* allocate sufficient memory; we allocate an extra blocksize for adding the diagonal matrix or analytic center */
                if ( relaxdata->warmstartproject == 3 )
@@ -3213,7 +3221,7 @@ SCIP_RETCODE determineWarmStartInformation(
                SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[nblocks], 2 * nrows + 2 * nvars) );
                (*startXnblocknonz)[nblocks] = 2 * nrows + 2 * nvars;
 
-               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, conss[parentconsind], nblocks + 1, *startXnblocknonz, *startXrow, *startXcol, *startXval) );
+               SCIP_CALL( SCIPconsSavesdpsolGetPrimalMatrix(scip, savesdpsolcons, nblocks + 1, *startXnblocknonz, *startXrow, *startXcol, *startXval) );
             }
             else
             {
