@@ -75,14 +75,13 @@
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 
 #define DEFAULT_WARMSTART           FALSE    /**< Should the SDP solver try to use warmstarts? */
-#define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< type of warmstarting the primal problem: 1: scaled identity, 2: deprecated, 3: saved primal sol */
+#define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< type of warmstarting the primal problem: 1: scaled identity/analytic center, 2: deprecated, 3: saved primal sol */
 #define DEFAULT_WARMSTARTIPTYPE     1        /**< type of interior point for convex combination for warmstarts: 1: scaled identity, 2: analytic center */
 #define DEFAULT_WARMSTARTIPFACTOR   0.50     /**< factor for interior point in convex combination of IP and parent solution, if warmstarts are enabled */
-#define DEFAULT_WARMSTARTPROJECT    2        /**< Projection type of dual matrix: 1: old bounds, 2: new bounds, 3: new bounds and project on psd cone, 4: new bounds and solve rounding problem */
-#define DEFAULT_WARMSTARTPROJMINEV  -1.0     /**< minimal eigenvector to allow when projecting onto the positive (semi-)definite cone */
-#define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Should one shared minimum eigenvalue be computed for primal and dual problem instead of different ones if warmstartpmevpar = -1 ? */
-#define DEFAULT_WARMSTARTPREOPTSOL  FALSE    /**< Should a preoptimal solution (with larger gap) be used for warmstarts instead of optimal solution (currently only implemented fo DSDP) */
-#define DEFAULT_WARMSTARTPREOPTGAP  1e-2     /**< If warmstartpreoptimalsol is TRUE, this is the gap where the preoptimal solution is saved (currently only implemented fo DSDP) */
+#define DEFAULT_WARMSTARTPROJECT    2        /**< warmstart dual matrix: 1: old bounds, 2: new bounds, 3: new bounds and project on PSD cone, 4: new bounds and solve rounding problem */
+#define DEFAULT_WARMSTARTPROJPDSAME TRUE     /**< Compute shared minimal eigenvalue/maximal entry for primal/dual problem instead of different ones? */
+#define DEFAULT_WARMSTARTPREOPTSOL  FALSE    /**< Use preoptimal solution instead of the optimal solution for warmstarts? */
+#define DEFAULT_WARMSTARTPREOPTGAP  1e-2     /**< Gap for which preoptimal solution should be taken (if warmstartpreoptsol is true) */
 #define DEFAULT_WARMSTARTROUNDONLYINF FALSE  /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4)? */
 
 #define DEFAULT_SLATERCHECK         0        /**< Should the Slater condition be checked ? */
@@ -196,17 +195,15 @@ struct SCIP_RelaxData
    int                   roundingcutoff;     /**< number of instances that could be cut off through bounding by the rounding problem */
    SCIP_CLOCK*           roundingprobtime;   /**< total time spent in rounding problems for warmstarting/infeasibility detection */
    SCIP_Bool             warmstart;          /**< Should the SDP solver try to use warmstarts? */
-   SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
-   int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity/analytic center, 2: deprecated, 3: saved primal sol */
-   int                   warmstartproject;   /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
-   SCIP_Real             warmstartpmevprimalpar; /**< SCIP parameter for min eigenvalue when projecting primal onto positive definite cone; -1 for automatic computation */
-   SCIP_Real             warmstartpmevdualpar; /**< SCIP parameter for min eigenvalue when projecting dual onto positive definite cone; -1 for automatic computation */
-   SCIP_Real             warmstartprojminevprimal; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone in the primal */
-   SCIP_Real             warmstartprojminevdual; /**< minimum eigenvalue to allow when projecting onto the positive (semi-)definite cone in the dual */
-   SCIP_Bool             warmstartprojpdsame;/**< Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead of different ones for primal and dual and each block for projection or convex combination ? */
-   int                   warmstartiptype;    /**< which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center */
-   SCIP_Bool             warmstartpreoptsol; /**< Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts (currently only implemented fo DSDP) */
-   SCIP_Real             warmstartpreoptgap; /**< In case a preoptimal solution should be used for warmstarts, this gives the gap where the solution should be saved (currently only implemented fo DSDP) */
+   SCIP_Real             warmstartipfactor;  /**< factor for interior point in convex combination of IP and parent solution, if warmstarts are enabled */
+   int                   warmstartprimaltype;/**< type of warmstarting the primal problem: 1: scaled identity/analytic center, 2: deprecated, 3: saved primal sol */
+   int                   warmstartproject;   /**< warmstart dual matrix: 1: old bounds, 2: new bounds, 3: new bounds and project on PSD cone, 4: new bounds and solve rounding problem */
+   SCIP_Real             warmstartminevprimal; /**< minimal eigenvalue for projecting onto the positive (semi-)definite cone in the primal */
+   SCIP_Real             warmstartminevdual; /**< minimal eigenvalue for projecting onto the positive (semi-)definite cone in the dual */
+   SCIP_Bool             warmstartprojpdsame;/**< Compute shared minimal eigenvalue/maximal entry for primal/dual problem instead of different ones? */
+   int                   warmstartiptype;    /**< type of interior point for convex combination for warmstarts: 1: scaled identity, 2: analytic center */
+   SCIP_Bool             warmstartpreoptsol; /**< Use preoptimal solution instead of the optimal solution for warmstarts? */
+   SCIP_Real             warmstartpreoptgap; /**< Gap for which preoptimal solution should be taken (if warmstartpreoptsol is true) */
    SCIP_Bool             warmstartroundonlyinf; /**< Only use solution of roundingproblem to detect infeasibility (only has an effect for warmstartproject = 4) */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
    SCIP_Bool             ipXexists;          /**< Has an interior point for primal matrix X been successfully computed? */
@@ -2633,8 +2630,8 @@ SCIP_RETCODE fillStartZ(
          SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, eigenvectors, matrixsize) );
 
          /* set all negative eigenvalues to zero (using the property that LAPACK returns them in ascending order) */
-         for (i = 0; i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartprojminevdual); ++i)
-            eigenvalues[i] = relaxdata->warmstartprojminevdual;
+         for (i = 0; i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartminevdual); ++i)
+            eigenvalues[i] = relaxdata->warmstartminevdual;
 
          /* compute diag(lambda_i_+) * U^T */
          SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, eigenvalues) );
@@ -2713,8 +2710,8 @@ SCIP_RETCODE fillStartZ(
       (*startZcol)[nblocks][2 * rowcnt] = 2 * rowcnt;
       zval = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
 
-      if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartprojminevdual) )
-         zval = relaxdata->warmstartprojminevdual;
+      if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartminevdual) )
+         zval = relaxdata->warmstartminevdual;
       /* we only take the convex combination if the value is less than 1, since the maxblockentry is equal to the value
        * otherwise, so taking the convex combination doesn't change anything in that case */
       else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, zval, 1.0) )
@@ -2747,8 +2744,8 @@ SCIP_RETCODE fillStartZ(
       (*startZcol)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
       zval = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
 
-      if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartprojminevdual) )
-         zval = relaxdata->warmstartprojminevdual;
+      if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartminevdual) )
+         zval = relaxdata->warmstartminevdual;
       else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, zval, 1.0) )
       {
          /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
@@ -2784,8 +2781,8 @@ SCIP_RETCODE fillStartZ(
       (*startZcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
       zval = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
 
-      if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartprojminevdual) )
-         zval = relaxdata->warmstartprojminevdual;
+      if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartminevdual) )
+         zval = relaxdata->warmstartminevdual;
       else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, zval, 1.0) )
       {
          /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
@@ -2816,8 +2813,8 @@ SCIP_RETCODE fillStartZ(
       (*startZcol)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
       zval = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
 
-      if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartprojminevdual) )
-         zval = relaxdata->warmstartprojminevdual;
+      if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartminevdual) )
+         zval = relaxdata->warmstartminevdual;
       else if ( relaxdata->warmstartiptype == 1 && SCIPisLT(scip, zval, 1.0) )
       {
          /* since we want the value to be strictly positive, if the original entry is negative we just set it to warmstartipfactor */
@@ -3282,9 +3279,9 @@ SCIP_RETCODE determineWarmStartInformation(
 
                /* set all negative eigenvalues to zero (using the property that LAPACK returns them in ascending order) */
                i = 0;
-               while (i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartprojminevprimal) )
+               while (i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartminevprimal) )
                {
-                  eigenvalues[i] = relaxdata->warmstartprojminevprimal;
+                  eigenvalues[i] = relaxdata->warmstartminevprimal;
                   i++;
                }
 
@@ -3325,11 +3322,11 @@ SCIP_RETCODE determineWarmStartInformation(
             {
                if ( relaxdata->warmstartiptype == 1 )
                {
-                  /* compute maxprimalentry (should be at least one or warmstartprojminevprimal) */
+                  /* compute maxprimalentry (should be at least one or warmstartpminevprimal) */
                   if ( ! relaxdata->warmstartprojpdsame )
                   {
                      if ( relaxdata->warmstartproject == 3 )
-                        maxprimalentry = relaxdata->warmstartprojminevprimal;
+                        maxprimalentry = relaxdata->warmstartminevprimal;
                      else
                         maxprimalentry = 1.0;
                      for (i = 0; i < (*startXnblocknonz)[b]; i++)
@@ -3472,11 +3469,11 @@ SCIP_RETCODE determineWarmStartInformation(
                   assert( (*startXnblocknonz)[nblocks] < 2 * nrows + 2 * nvars );
                   (*startXrow)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                   (*startXcol)[nblocks][(*startXnblocknonz)[nblocks]] = j;
-                  (*startXval)[nblocks][(*startXnblocknonz)[nblocks]] = relaxdata->warmstartprojminevprimal;
+                  (*startXval)[nblocks][(*startXnblocknonz)[nblocks]] = relaxdata->warmstartminevprimal;
                   (*startXnblocknonz)[nblocks]++;
                }
                if ( SCIPisLT(scip, (*startXval)[b][i], 1.0) )
-                  (*startXval)[b][i] = relaxdata->warmstartprojminevprimal;
+                  (*startXval)[b][i] = relaxdata->warmstartminevprimal;
 
                lastentry = (*startXrow)[nblocks][i];
             }
@@ -3487,7 +3484,7 @@ SCIP_RETCODE determineWarmStartInformation(
                assert( (*startXnblocknonz)[nblocks] < 2 * nrows + 2 * nvars );
                (*startXrow)[nblocks][(*startXnblocknonz)[nblocks]] = j;
                (*startXcol)[nblocks][(*startXnblocknonz)[nblocks]] = j;
-               (*startXval)[nblocks][(*startXnblocknonz)[nblocks]] = relaxdata->warmstartprojminevprimal;
+               (*startXval)[nblocks][(*startXnblocknonz)[nblocks]] = relaxdata->warmstartminevprimal;
                (*startXnblocknonz)[nblocks]++;
             }
          }
@@ -3573,8 +3570,8 @@ SCIP_RETCODE determineWarmStartInformation(
                for (r = 0; r < nrows; r++)
                {
                   /* for the project we just set all values smaller than minev to minev */
-                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[b][2 * rowcnt], relaxdata->warmstartprojminevdual) )
-                     (*startZval)[nblocks][2 * rowcnt] = relaxdata->warmstartprojminevdual;
+                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[b][2 * rowcnt], relaxdata->warmstartminevdual) )
+                     (*startZval)[nblocks][2 * rowcnt] = relaxdata->warmstartminevdual;
                   /* we only take the convex combination if the value is less than one, since the maxblockentry is equal to the value
                    * otherwise, so taking the convex combination doesn't change anything in that case (unless projpdsame)
                    */
@@ -3587,8 +3584,8 @@ SCIP_RETCODE determineWarmStartInformation(
                         (*startZval)[nblocks][2 * rowcnt] = (1 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2 * rowcnt] + identitydiagonal;
                   }
 
-                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2 * rowcnt + 1], relaxdata->warmstartprojminevdual) )
-                     (*startZval)[nblocks][2 * rowcnt + 1] = relaxdata->warmstartprojminevdual;
+                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2 * rowcnt + 1], relaxdata->warmstartminevdual) )
+                     (*startZval)[nblocks][2 * rowcnt + 1] = relaxdata->warmstartminevdual;
                   else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, (*startZval)[nblocks][2 * rowcnt + 1], 1.0) || relaxdata->warmstartprojpdsame) )
                   {
                      /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
@@ -3601,8 +3598,8 @@ SCIP_RETCODE determineWarmStartInformation(
 
                for (v = 0; v < nvars; v++)
                {
-                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2 * nrows + 2*v], relaxdata->warmstartprojminevdual) )
-                     (*startZval)[nblocks][2*nrows + 2*v] = relaxdata->warmstartprojminevdual;
+                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2 * nrows + 2*v], relaxdata->warmstartminevdual) )
+                     (*startZval)[nblocks][2*nrows + 2*v] = relaxdata->warmstartminevdual;
                   else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v], 1.0) || relaxdata->warmstartprojpdsame) )
                   {
                      /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
@@ -3612,8 +3609,8 @@ SCIP_RETCODE determineWarmStartInformation(
                         (*startZval)[nblocks][2*nrows + 2*v] = (1 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v] + identitydiagonal;
                   }
 
-                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], relaxdata->warmstartprojminevdual) )
-                     (*startZval)[nblocks][2*nrows + 2*v + 1] = relaxdata->warmstartprojminevdual;
+                  if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], relaxdata->warmstartminevdual) )
+                     (*startZval)[nblocks][2*nrows + 2*v + 1] = relaxdata->warmstartminevdual;
                   else if ( relaxdata->warmstartiptype == 1 && (SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], 1.0) || relaxdata->warmstartprojpdsame) )
                   {
                      /* since we want the value to be strictly positive, if the original entry is negative we just set it to identitydiagonal */
@@ -4719,18 +4716,18 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
    if ( SCIPisGE(scip, projminevprimal, 0.0) && SCIPisGE(scip, projminevdual, 0.0) ) /* TODO: maybe only do these computations if warmstart = TRUE? */
    {
-      relaxdata->warmstartprojminevprimal = projminevprimal;
-      relaxdata->warmstartprojminevdual = projminevdual;
+      relaxdata->warmstartminevprimal = projminevprimal;
+      relaxdata->warmstartminevdual = projminevdual;
    }
    else if ( SCIPisGE(scip, projminevprimal, 0.0) && relaxdata->warmstartprojpdsame )
    {
-      relaxdata->warmstartprojminevprimal = projminevprimal;
-      relaxdata->warmstartprojminevdual = projminevprimal;
+      relaxdata->warmstartminevprimal = projminevprimal;
+      relaxdata->warmstartminevdual = projminevprimal;
    }
    else if ( SCIPisGE(scip, projminevdual, 0.0) && relaxdata->warmstartprojpdsame )
    {
-      relaxdata->warmstartprojminevprimal = projminevdual;
-      relaxdata->warmstartprojminevdual = projminevdual;
+      relaxdata->warmstartminevprimal = projminevdual;
+      relaxdata->warmstartminevdual = projminevdual;
    }
    else
    {
@@ -4800,25 +4797,25 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
          maxval = SCIPisGT(scip, maxsdprhs, maxobj) ? maxsdprhs : maxobj;
          maxval = SCIPisGT(scip, maxsdpcoef, maxval) ? maxsdpcoef : maxval;
 
-         relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR * maxval;
-         relaxdata->warmstartprojminevdual = WARMSTART_PROJ_FACTOR * maxval;
+         relaxdata->warmstartminevprimal = WARMSTART_PROJ_FACTOR * maxval;
+         relaxdata->warmstartminevdual = WARMSTART_PROJ_FACTOR * maxval;
 
-         SCIPdebugMsg(scip, "Setting warmstartprojminev to %f\n", relaxdata->warmstartprojminevdual);
+         SCIPdebugMsg(scip, "Setting warmstartprojminev to %f\n", relaxdata->warmstartminevdual);
       }
       else
       {
          if ( ! SCIPisGE(scip, projminevprimal, 0.0) )
          {
-            relaxdata->warmstartprojminevprimal = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxobj, maxsdpcoef) ? maxobj : maxsdpcoef);
+            relaxdata->warmstartminevprimal = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxobj, maxsdpcoef) ? maxobj : maxsdpcoef);
 
-            SCIPdebugMsg(scip, "Setting warmstartprojminevprimal to %f\n", relaxdata->warmstartprojminevprimal);
+            SCIPdebugMsg(scip, "Setting warmstartminevprimal to %f\n", relaxdata->warmstartminevprimal);
          }
 
          if ( ! SCIPisGE(scip, projminevdual, 0.0) )
          {
-            relaxdata->warmstartprojminevdual = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxsdprhs, maxsdpcoef) ? maxsdprhs : maxsdpcoef);
+            relaxdata->warmstartminevdual = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxsdprhs, maxsdpcoef) ? maxsdprhs : maxsdpcoef);
 
-            SCIPdebugMsg(scip, "Setting warmstartprojminevdual to %f\n", relaxdata->warmstartprojminevdual);
+            SCIPdebugMsg(scip, "Setting warmstartminevdual to %f\n", relaxdata->warmstartminevdual);
          }
       }
       SCIPfreeBufferArray(scip, &sdpblocks);
@@ -5325,40 +5322,31 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->conflictcmir), TRUE, DEFAULT_CONFLICTCMIR, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
-         "factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled",
+         "factor for interior point in convex combination of IP and parent solution, if warmstarts are enabled",
          &(relaxdata->warmstartipfactor), TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
-         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: deprecated, 3: saved primal sol",
+         "type of warmstarting the primal problem: 1: scaled identity/analytic center, 2: deprecated, 3: saved primal sol",
          &(relaxdata->warmstartprimaltype), TRUE, DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartiptype",
-         "which interior point to use for convex combination for warmstarts? 1: scaled identity, 2: analytic center",
+         "type of interior point for convex combination for warmstarts: 1: scaled identity, 2: analytic center",
          &(relaxdata->warmstartiptype), TRUE, DEFAULT_WARMSTARTIPTYPE, 1, 2, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartproject",
-         "how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem",
+         "warmstart dual matrix: 1: old bounds, 2: new bounds, 3: new bounds and project on PSD cone, 4: new bounds and solve rounding problem",
          &(relaxdata->warmstartproject), TRUE, DEFAULT_WARMSTARTPROJECT, 1, 4, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartprminevpri",
-         "minimum eigenvalue to allow when projecting primal matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically",
-         &(relaxdata->warmstartpmevprimalpar), TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartprminevdu",
-         "minimum eigenvalue to allow when projecting dual matrices onto the positive (semi-)definite cone for warmstarting; -1 to compute automatically",
-         &(relaxdata->warmstartpmevdualpar), TRUE, DEFAULT_WARMSTARTPROJMINEV, -1.0, 1e+20, NULL, NULL) );
-
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartprojpdsame",
-         "Should one shared minimum eigenvalue respectively maximum entry be computed for primal and dual problem instead "
-         "of different ones for primal and dual and each block for projection or convex combination ?",
+         "Compute shared minimal eigenvalue/maximal entry for primal/dual problem instead of different ones?",
          &(relaxdata->warmstartprojpdsame), TRUE, DEFAULT_WARMSTARTPROJPDSAME, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartpreoptsol",
-         "Should a preoptimal solution (with larger gap) instead of the optimal solution be used for warmstarts",
+         "Use preoptimal solution instead of the optimal solution for warmstarts?",
          &(relaxdata->warmstartpreoptsol), TRUE, DEFAULT_WARMSTARTPREOPTSOL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartpreoptgap",
-         "If warmstartpreoptsol is TRUE, this is the gap where the preoptimal solution will be saved",
+         "Gap for which preoptimal solution should be taken (if warmstartpreoptsol is true)",
          &(relaxdata->warmstartpreoptgap), TRUE, DEFAULT_WARMSTARTPREOPTGAP, 0.0, 1e+20, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/warmstartroundonlyinf",
