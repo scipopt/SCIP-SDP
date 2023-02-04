@@ -46,19 +46,6 @@
 #define PROP_DELAY                FALSE /**< should propagation method be delayed, if other propagators found reductions? */
 #define PROP_TIMING             SCIP_PROPTIMING_AFTERLPLOOP/**< propagation timing mask */
 
-
-/*
- * Data structures
- */
-
-
-/*
- * Local methods
- */
-
-/* put your local methods here, and declare them static */
-
-
 /*
  * Callback methods of propagator
  */
@@ -87,18 +74,14 @@ SCIP_RETCODE SCIPincludePropCompAnalCent(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
-   SCIP_PROPDATA* propdata;
-   SCIP_PROP* prop;
-
-   /* create xyz propagator data */
-   propdata = NULL;
-   prop = NULL;
+   SCIP_PROPDATA* propdata = NULL;
+   SCIP_PROP* prop = NULL;
 
    /* include propagator */
    SCIP_CALL( SCIPincludePropBasic(scip, &prop, PROP_NAME, PROP_DESC, PROP_PRIORITY, PROP_FREQ, PROP_DELAY, PROP_TIMING,
          propExecCompAnalCent, propdata) );
 
-   assert(prop != NULL);
+   assert( prop != NULL );
 
    return SCIP_OKAY;
 }
