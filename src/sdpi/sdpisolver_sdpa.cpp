@@ -1502,6 +1502,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             {
                if ( indchanges[b][startZrow[b][i]] > -1 && indchanges[b][startZcol[b][i]] > -1 ) /* the row/col may have been fixed to zero in the meantime */
                {
+                  assert( ! SCIPsdpiSolverIsInfinity(sdpisolver, startZval[b][i]) );
                   sdpisolver->sdpa->inputInitXMat((SDPA_INT) b + 1 - blockindchanges[b], (SDPA_INT) startZrow[b][i] + 1 - indchanges[b][startZrow[b][i]],
                      (SDPA_INT) startZcol[b][i] + 1 - indchanges[b][startZcol[b][i]], startZval[b][i]);
                }
@@ -1524,7 +1525,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
             sdpaind = sdpisolver->rowmapper[rowidx];
             if ( sdpaind >= 0 )
+            {
+               assert( ! SCIPsdpiSolverIsInfinity(sdpisolver, startZval[nsdpblocks][i]) );
                sdpisolver->sdpa->inputInitXMat((SDPA_INT) nsdpblocks + 1, sdpaind, sdpaind, startZval[nsdpblocks][i]);
+            }
          }
          else /* varbound */
          {
@@ -1535,6 +1539,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             varboundind = sdpisolver->inputtovbmapper[varidx];
             if ( varboundind > -1 ) /* rhs */
             {
+               assert( ! SCIPsdpiSolverIsInfinity(sdpisolver, startZval[nsdpblocks][i]) );
                sdpisolver->sdpa->inputInitXMat((SDPA_INT) nsdpblocks + 1, nlpineqs + varboundind + 1,
                   nlpineqs + varboundind + 1, startZval[nsdpblocks][i]);
             }
