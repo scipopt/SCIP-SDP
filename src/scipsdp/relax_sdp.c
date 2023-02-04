@@ -2397,7 +2397,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
 #else
             (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
 #endif
-            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), scipsol,
+            SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), SCIPgetNLPRows(scip), scipsol,
                   maxprimalentry, nblocks + 1, (*startXnblocknonz), (*startXrow), (*startXcol), (*startXval)) );
 
             SCIP_CALL( SCIPaddCons(scip, savedcons) );
@@ -3845,7 +3845,7 @@ SCIP_RETCODE saveWarmstartInfo(
    if ( savesol != NULL && startXnblocknonz[0] >= 0 )
    {
       (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-      SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), savesol,
+      SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), SCIPgetNLPRows(scip), savesol,
             maxprimalentry, nblocks, startXnblocknonz, startXrow, startXcol, startXval) );
 
       SCIP_CALL( SCIPaddCons(scip, savedcons) );

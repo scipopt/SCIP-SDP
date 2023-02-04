@@ -56,6 +56,7 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
    SCIP_Longint          node,               /**< index of the node the solution belongs to */
+   int                   nlpcons,            /**< number of LP constraints of solution */
    SCIP_SOL*             sol,                /**< solution for SDP-relaxation */
    SCIP_Real             maxprimalentry,     /**< maximal absolute value of primal matrix */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
@@ -93,6 +94,13 @@ SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrixNonzeros(
    SCIP_CONS*            cons,               /**< Savesdpsol constraint */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
    int*                  startXnblocknonz    /**< input: allocated memory for startXrow/col/val; output: length of startXrow/col/val */
+   );
+
+/** for the given Savesdpsol constraint returns the number of LP constraints */
+SCIP_EXPORT
+int SCIPconsSavesdpsolGetNLPcons(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< Savesdpsol constraint */
    );
 
 /** for the given Savesdpsol constraint returns the previous primal solution X */

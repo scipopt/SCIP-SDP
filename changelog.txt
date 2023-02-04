@@ -18,6 +18,7 @@ API changes:
 - renamed SCIPspdiGetSol() to SCIPsdpiGetDualSol() and remove parameter dualsollength
 - renamed SCIPsdpiSolverGetSol() to SCIPsdpiSolverGetDualSol() and remove parameter dualsollength
 - remove dualsollength from SCIPsdpiGetPreoptimalSol()
+- createConsSavesdpsol() has a new parameter nlpcons
 
 Parameters:
 - removed paramter <relaxing/SDP/tightenrows>

@@ -55,6 +55,7 @@ struct SCIP_ConsData
    SCIP_Longint          node;               /**< index of the node the solution belongs to */
    SCIP_SOL*             sol;                /**< optimal solution for SDP-relaxation of this node; TODO: change to array*/
    SCIP_Real             maxprimalentry;     /**< maximal absolute value of primal matrix */
+   int                   nlpcons;            /**< number of LP constraints of solution */
    int                   nblocks;            /**< number of blocks INCLUDING lp-block */
    int*                  startXnblocknonz;   /**< starting point primal matrix X: number of nonzeros for each block (or NULL if nblocks == 0) */
    int**                 startXrow;          /**< starting point primal matrix X: row indices for each block (or NULL if nblocks = 0) */
@@ -237,6 +238,7 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP_CONS**           cons,               /**< pointer to hold the created constraint */
    const char*           name,               /**< name of constraint */
    SCIP_Longint          node,               /**< index of the node the solution belongs to */
+   int                   nlpcons,            /**< number of LP constraints of solution */
    SCIP_SOL*             sol,                /**< optimal solution for SDP-relaxation of this node */
    SCIP_Real             maxprimalentry,     /**< maximal absolute value of primal matrix */
    int                   nblocks,            /**< number of blocks INCLUDING lp-block */
@@ -273,6 +275,8 @@ SCIP_RETCODE createConsSavesdpsol(
    SCIP_CALL( SCIPallocBlockMemory(scip, &consdata) );
 
    consdata->node = node;
+   consdata->nlpcons = nlpcons;
+
    SCIP_CALL( SCIPcreateSolCopy(scip, &consdata->sol, sol) );
    SCIP_CALL( SCIPunlinkSol(scip, consdata->sol) );
    consdata->maxprimalentry = maxprimalentry;
@@ -357,10 +361,26 @@ SCIP_Real SCIPconsSavesdpsolGetMaxPrimalEntry(
    assert( cons != NULL );
 
    consdata = SCIPconsGetData(cons);
-
    assert( consdata != NULL );
 
    return consdata->maxprimalentry;
+}
+
+/** for the given Savesdpsol constraint returns the number of LP constraints */
+int SCIPconsSavesdpsolGetNLPcons(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons                /**< Savesdpsol constraint */
+   )
+{
+   SCIP_CONSDATA* consdata;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   return consdata->nlpcons;
 }
 
 /** for the given cons of type Savesdpsol returns the number of nonzeros for each block of previous primal solution X */
@@ -378,7 +398,6 @@ SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrixNonzeros(
    assert( cons != NULL );
 
    consdata = SCIPconsGetData(cons);
-
    assert( consdata != NULL );
 
    if ( nblocks != consdata->nblocks )
@@ -412,7 +431,6 @@ SCIP_RETCODE SCIPconsSavesdpsolGetPrimalMatrix(
    assert( cons != NULL );
 
    consdata = SCIPconsGetData(cons);
-
    assert( consdata != NULL );
 
    if ( nblocks != consdata->nblocks )
