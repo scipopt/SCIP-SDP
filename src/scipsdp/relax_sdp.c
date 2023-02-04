@@ -75,7 +75,7 @@
 #define DEFAULT_MAXPENALTYPARAM     -1.0     /**< the penalty parameter Gamma used for the penalty formulation if the SDP solver didn't converge */
 
 #define DEFAULT_WARMSTART           FALSE    /**< Should the SDP solver try to use warmstarts? */
-#define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< type of warmstarting the primal problem: 1: scaled identity, 2: elementwise reciprocal, 3: saved primal sol */
+#define DEFAULT_WARMSTARTPRIMALTYPE 3        /**< type of warmstarting the primal problem: 1: scaled identity, 2: deprecated, 3: saved primal sol */
 #define DEFAULT_WARMSTARTIPTYPE     1        /**< type of interior point for convex combination for warmstarts: 1: scaled identity, 2: analytic center */
 #define DEFAULT_WARMSTARTIPFACTOR   0.50     /**< factor for interior point in convex combination of IP and parent solution, if warmstarts are enabled */
 #define DEFAULT_WARMSTARTPROJECT    2        /**< Projection type of dual matrix: 1: old bounds, 2: new bounds, 3: new bounds and project on psd cone, 4: new bounds and solve rounding problem */
@@ -197,8 +197,7 @@ struct SCIP_RelaxData
    SCIP_CLOCK*           roundingprobtime;   /**< total time spent in rounding problems for warmstarting/infeasibility detection */
    SCIP_Bool             warmstart;          /**< Should the SDP solver try to use warmstarts? */
    SCIP_Real             warmstartipfactor;  /**< factor for interior point in convexcombination of IP and parent solution, if warmstarts are enabled */
-   int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol
-                                              *   TODO: should probably remove elementwise reciprocal, since this doesn't work from a theoretical point of view */
+   int                   warmstartprimaltype;/**< how to warmstart the primal problem? 1: scaled identity/analytic center, 2: deprecated, 3: saved primal sol */
    int                   warmstartproject;   /**< how to update dual matrix for new bounds? 1: use old bounds, 2: use new bounds, 3: use new bounds and project on psd cone, 4: use new bounds and solve rounding problem */
    SCIP_Real             warmstartpmevprimalpar; /**< SCIP parameter for min eigenvalue when projecting primal onto positive definite cone; -1 for automatic computation */
    SCIP_Real             warmstartpmevdualpar; /**< SCIP parameter for min eigenvalue when projecting dual onto positive definite cone; -1 for automatic computation */
@@ -2865,8 +2864,9 @@ SCIP_RETCODE fillStartX(
       /* allocate memory for SDP blocks */
       blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
 
-      if ( relaxdata->warmstartprimaltype == 1 )
+      switch ( relaxdata->warmstartprimaltype )
       {
+      case 1:
          /* we set X to maxprimalentry times the identity matrix */
          if ( relaxdata->warmstartiptype == 1 )
          {
@@ -2881,9 +2881,14 @@ SCIP_RETCODE fillStartX(
                (*startXval)[b][i] = maxprimalentry;
             }
          }
-      }
-      else if ( relaxdata->warmstartprimaltype == 2 )
-      {
+         break;
+
+      case 2:
+         SCIPerrorMessage("Type 2 of warmstartprimaltype has been deprecated.\n");
+         SCIPABORT();
+         break;
+
+      case 3:
          (*startXnblocknonz)[b] = startZnblocknonz[b];
          SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], (*startXnblocknonz)[b]) );
          SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], (*startXnblocknonz)[b]) );
@@ -2894,9 +2899,9 @@ SCIP_RETCODE fillStartX(
             (*startXcol)[b][i] = startZcol[b][i];
             (*startXval)[b][i] = 1.0 / startZval[b][i];
          }
-      }
-      else if ( relaxdata->warmstartprimaltype != 3 )
-      {
+         break;
+
+      default:
          SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
          SCIPABORT();
       }
@@ -2924,12 +2929,8 @@ SCIP_RETCODE fillStartX(
       }
       else if ( relaxdata->warmstartprimaltype == 2 )
       {
-         (*startXrow)[nblocks][2 * rowcnt] = startZrow[nblocks][2 * rowcnt];
-         (*startXcol)[nblocks][2 * rowcnt] = startZcol[nblocks][2 * rowcnt];
-         (*startXval)[nblocks][2 * rowcnt] = 1.0 / startZval[nblocks][2 * rowcnt];
-         (*startXrow)[nblocks][2 * rowcnt + 1] = startZrow[nblocks][2 * rowcnt + 1];
-         (*startXcol)[nblocks][2 * rowcnt + 1] = startZcol[nblocks][2 * rowcnt + 1];
-         (*startXval)[nblocks][2 * rowcnt + 1] = 1.0 / startZval[nblocks][2 * rowcnt + 1];
+         SCIPerrorMessage("Type 2 armstartprimaltype has been deprecated.\n");
+         SCIPABORT();
       }
       else if ( relaxdata->warmstartprimaltype != 3 )
       {
@@ -2954,12 +2955,8 @@ SCIP_RETCODE fillStartX(
       }
       else if ( relaxdata->warmstartprimaltype == 2 )
       {
-         (*startXrow)[nblocks][2 * nrows + 2 * v] = startZrow[nblocks][2 * nrows + 2 * v];
-         (*startXcol)[nblocks][2 * nrows + 2 * v] = startZcol[nblocks][2 * nrows + 2 * v];
-         (*startXval)[nblocks][2 * nrows + 2 * v] = 1.0 / startZval[nblocks][2 * nrows + 2 * v];
-         (*startXrow)[nblocks][2 * nrows + 2 * v + 1] = startZrow[nblocks][2 * nrows + 2 * v + 1];
-         (*startXcol)[nblocks][2 * nrows + 2 * v + 1] = startZcol[nblocks][2 * nrows + 2 * v + 1];
-         (*startXval)[nblocks][2 * nrows + 2 * v + 1] = 1.0 / startZval[nblocks][2 * nrows + 2 * v + 1];
+         SCIPerrorMessage("Type 2 armstartprimaltype has been deprecated.\n");
+         SCIPABORT();
       }
       else if ( relaxdata->warmstartprimaltype != 3 )
       {
@@ -5346,7 +5343,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
          &(relaxdata->warmstartipfactor), TRUE, DEFAULT_WARMSTARTIPFACTOR, 0.0, 1.0, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartprimaltype",
-         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: elementwise reciprocal, 3: saved primal sol",
+         "how to warmstart the primal problem? 1: scaled identity/analytic center, 2: deprecated, 3: saved primal sol",
          &(relaxdata->warmstartprimaltype), TRUE, DEFAULT_WARMSTARTPRIMALTYPE, 1, 3, NULL, NULL) );
 
    SCIP_CALL( SCIPaddIntParam(scip, "relaxing/SDP/warmstartiptype",
@@ -5513,7 +5510,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    SCIPsdpiClockSetType(relaxdata->sdpi, clocktype);
 
    /* first solve SDP with primal objective (dual constant part) set to zero to compute analytic center of primal feasible set */
-   if ( relaxdata->warmstartprimaltype != 2 && SCIPsdpiDoesWarmstartNeedPrimal() )
+   if ( SCIPsdpiDoesWarmstartNeedPrimal() )
    {
       SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, TRUE) );
       SCIP_CALL( putLpDataInInterface(scip, relaxdata, FALSE, TRUE) );
