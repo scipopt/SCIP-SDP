@@ -2841,12 +2841,7 @@ SCIP_RETCODE fillStartX(
                                               *   also length of corresponding row/col/val-arrays */
    int***                startXrow,          /**< pointer to primal matrix X as starting point for the solver: row indices for each block */
    int***                startXcol,          /**< pointer to primal matrix X as starting point for the solver: column indices for each block */
-   SCIP_Real***          startXval,          /**< pointer to primal matrix X as starting point for the solver: values for each block */
-   int*                  startZnblocknonz,   /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
-                                              *   also length of corresponding row/col/val-arrays */
-   int**                 startZrow,          /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: row indices for each block */
-   int**                 startZcol,          /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: column indices for each block */
-   SCIP_Real**           startZval           /**< pointer to dual matrix Z = sum Ai yi as starting point for the solver: values for each block */
+   SCIP_Real***          startXval           /**< pointer to primal matrix X as starting point for the solver: values for each block */
    )
 {
    int blocksize;
@@ -2858,52 +2853,29 @@ SCIP_RETCODE fillStartX(
    int v;
    int i;
 
+   assert( 0 <= relaxdata->warmstartprimaltype && relaxdata->warmstartprimaltype <= 3 );
+   assert( relaxdata->warmstartprimaltype != 2 );
+
+   /* do nothing for the other cases */
+   if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
+      return SCIP_OKAY;
+
    /* treat SDP blocks */
    for (b = 0; b < nblocks; b++)
    {
       /* allocate memory for SDP blocks */
       blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
 
-      switch ( relaxdata->warmstartprimaltype )
+      /* we set X to maxprimalentry times the scaled identity matrix */
+      (*startXnblocknonz)[b] = blocksize;
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], (*startXnblocknonz)[b]) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], (*startXnblocknonz)[b]) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[b], (*startXnblocknonz)[b]) );
+      for (i = 0; i < (*startXnblocknonz)[b]; i++)
       {
-      case 1:
-         /* we set X to maxprimalentry times the identity matrix */
-         if ( relaxdata->warmstartiptype == 1 )
-         {
-            (*startXnblocknonz)[b] = blocksize;
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], (*startXnblocknonz)[b]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], (*startXnblocknonz)[b]) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[b], (*startXnblocknonz)[b]) );
-            for (i = 0; i < (*startXnblocknonz)[b]; i++)
-            {
-               (*startXrow)[b][i] = i;
-               (*startXcol)[b][i] = i;
-               (*startXval)[b][i] = maxprimalentry;
-            }
-         }
-         break;
-
-      case 2:
-         SCIPerrorMessage("Type 2 of warmstartprimaltype has been deprecated.\n");
-         SCIPABORT();
-         break;
-
-      case 3:
-         (*startXnblocknonz)[b] = startZnblocknonz[b];
-         SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], (*startXnblocknonz)[b]) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], (*startXnblocknonz)[b]) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[b], (*startXnblocknonz)[b]) );
-         for (i = 0; i < startZnblocknonz[b]; i++)
-         {
-            (*startXrow)[b][i] = startZrow[b][i];
-            (*startXcol)[b][i] = startZcol[b][i];
-            (*startXval)[b][i] = 1.0 / startZval[b][i];
-         }
-         break;
-
-      default:
-         SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
-         SCIPABORT();
+         (*startXrow)[b][i] = i;
+         (*startXcol)[b][i] = i;
+         (*startXval)[b][i] = maxprimalentry;
       }
    }
 
@@ -2918,25 +2890,12 @@ SCIP_RETCODE fillStartX(
 
    for (r = 0; r < nrows; r++)
    {
-      if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
-      {
-         (*startXrow)[nblocks][2 * rowcnt] = 2 * rowcnt;
-         (*startXcol)[nblocks][2 * rowcnt] = 2 * rowcnt;
-         (*startXval)[nblocks][2 * rowcnt] = maxprimalentry;
-         (*startXrow)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
-         (*startXcol)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
-         (*startXval)[nblocks][2 * rowcnt + 1] = maxprimalentry;
-      }
-      else if ( relaxdata->warmstartprimaltype == 2 )
-      {
-         SCIPerrorMessage("Type 2 armstartprimaltype has been deprecated.\n");
-         SCIPABORT();
-      }
-      else if ( relaxdata->warmstartprimaltype != 3 )
-      {
-         SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
-         SCIPABORT();
-      }
+      (*startXrow)[nblocks][2 * rowcnt] = 2 * rowcnt;
+      (*startXcol)[nblocks][2 * rowcnt] = 2 * rowcnt;
+      (*startXval)[nblocks][2 * rowcnt] = maxprimalentry;
+      (*startXrow)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
+      (*startXcol)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
+      (*startXval)[nblocks][2 * rowcnt + 1] = maxprimalentry;
       ++rowcnt;
    }
    assert( rowcnt == nrows );
@@ -2944,25 +2903,12 @@ SCIP_RETCODE fillStartX(
    nvars = SCIPgetNVars(scip);
    for (v = 0; v < nvars; ++v)
    {
-      if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
-      {
-         (*startXrow)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
-         (*startXcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
-         (*startXval)[nblocks][2 * nrows + 2 * v] = maxprimalentry;
-         (*startXrow)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
-         (*startXcol)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
-         (*startXval)[nblocks][2 * nrows + 2 * v + 1] = maxprimalentry;
-      }
-      else if ( relaxdata->warmstartprimaltype == 2 )
-      {
-         SCIPerrorMessage("Type 2 armstartprimaltype has been deprecated.\n");
-         SCIPABORT();
-      }
-      else if ( relaxdata->warmstartprimaltype != 3 )
-      {
-         SCIPerrorMessage("Unknown value %d for warmstartprimaltype.\n", relaxdata->warmstartprimaltype);
-         SCIPABORT();
-      }
+      (*startXrow)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+      (*startXcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+      (*startXval)[nblocks][2 * nrows + 2 * v] = maxprimalentry;
+      (*startXrow)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+      (*startXcol)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+      (*startXval)[nblocks][2 * nrows + 2 * v + 1] = maxprimalentry;
    }
 
    return SCIP_OKAY;
@@ -3252,8 +3198,7 @@ SCIP_RETCODE determineWarmStartInformation(
             }
             else
             {
-               SCIP_CALL( fillStartX(scip, relaxdata, nblocks, sdpblocks, maxprimalentry, startXnblocknonz, startXrow, startXcol, startXval,
-                     *startZnblocknonz, *startZrow, *startZcol, *startZval) );
+               SCIP_CALL( fillStartX(scip, relaxdata, nblocks, sdpblocks, maxprimalentry, startXnblocknonz, startXrow, startXcol, startXval) );
             }
          }
 
@@ -4407,6 +4352,13 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
+
+   /* check paramters */
+   if ( relaxdata->warmstartprimaltype == 2 )
+   {
+      SCIPerrorMessage("Value 2 for paramter <relaxing/sdp/warmstartprimaltype> is deprecated.\n");
+      return SCIP_PARAMETERWRONGVAL;
+   }
 
    relaxdata->objval = 0.0;
    relaxdata->origsolved = FALSE;
