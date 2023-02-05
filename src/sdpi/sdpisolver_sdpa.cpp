@@ -2552,8 +2552,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
    if ( nblocks > -1 )
    {
-      int blocknnonz = 0;
-
       assert( startXnblocknonz != NULL );
       assert( startXrow != NULL );
       assert( startXcol != NULL );
@@ -2572,6 +2570,8 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
          if ( sdpablock >= 0 )
          {
+            int blocknnonz = 0;
+
             /* since we reset the preoptimalsolution for every solve, the blocksize should have stayed the same */
             blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
 
@@ -2602,6 +2602,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
       /* compute entries for the LP-block */
       if ( sdpisolver->sdpa->getBlockType(sdpisolver->nsdpblocks) == SDPA::LP )
       {
+         int blocknnonz = 0;
          int i;
 
          /* since we reset the preoptimalsolution for every solve, the blocksize should have stayed the same */
@@ -2610,7 +2611,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
 
          /* iterate over LP constraints */
          assert( b == sdpisolver->nsdpblocks );
-         blocknnonz = 0;
          for (i = 0; i < sdpisolver->nlpineqs; i++)
          {
             if ( REALABS(sdpisolver->preoptimalsolxlp[i]) > sdpisolver->epsilon )
@@ -2905,7 +2905,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    int sdpaind;
    int sdpablock;
    int blocksize;
-   int blocknnonz;
 
    assert( sdpisolver != NULL );
    assert( nblocks > 0 );
@@ -2926,13 +2925,12 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    {
       sdpablock = sdpisolver->inputtoblockmapper[b];
 
-      blocknnonz = 0;
-
       if ( sdpablock != -1 )
       {
+         int blocknnonz = 0;
+
          X = sdpisolver->sdpa->getResultYMat(sdpablock);
          blocksize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
-         blocknnonz = 0;
 
          /* iterate once over the upper triangular part of the matrix (saving the corresponding entries in the lower triangular part for the SDPI) */
          for (r = 0; r < blocksize; r++)
@@ -2961,6 +2959,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    /* compute entries for the LP-block */
    if ( sdpisolver->sdpa->getBlockType(sdpisolver->nsdpblocks) == SDPA::LP )
    {
+      int blocknnonz = 0;
       int i;
 
       X = sdpisolver->sdpa->getResultYMat(sdpisolver->nsdpblocks);
@@ -2969,7 +2968,6 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
 
       /* iterate over LP constraints */
       assert( b == sdpisolver->nsdpblocks );
-      blocknnonz = 0;
       for (i = 0; i < sdpisolver->nlpineqs; i++)
       {
          if ( REALABS(X[i]) > sdpisolver->epsilon )
