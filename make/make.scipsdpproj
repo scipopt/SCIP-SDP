@@ -132,7 +132,7 @@ override ZIMPLOPT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZIMPLOPT=\([^@]
 override ZLIB		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZLIB=\([^@]*\).*/\1/')
 include $(SCIPDIR)/make/make.project
 
-override DEBUGTOOL   =   none
+# override DEBUGTOOL   =   none
 
 
 
