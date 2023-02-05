@@ -2197,14 +2197,11 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       SCIP_CALL( SCIPallocBufferArray(scip, &blockconstcol, blockconstnnonz) );
       SCIP_CALL( SCIPallocBufferArray(scip, &blockconstrow, blockconstnnonz) );
       SCIP_CALL( SCIPallocBufferArray(scip, &blockconstval, blockconstnnonz) );
+
       blocksize = blocksizes[2 + b];
       matrixsize = blocksize * blocksize;
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &fullZmatrix, matrixsize) );
-
-      SCIP_CALL( expandSparseMatrix((*startZnblocknonz)[b], blocksize, (*startZrow)[b], (*startZcol)[b], (*startZval)[b], fullZmatrix) );
-
-      SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullZmatrix, blockeigenvalues[b], blockeigenvectors[b]) );
+      assert( blockeigenvectors[b] != NULL );
 
       arraylength = nvars;
       SCIP_CALL( SCIPconsSdpGetData(scip, sdpblocks[b], &blocknvars, &blocknnonz, &blocksize, &arraylength, blocknvarnonz,

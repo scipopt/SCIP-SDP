@@ -30,6 +30,7 @@ fixed bugs:
 - The interface to DSDP now allocated memory once and reallocates it as needed, because DSDP needs it throughout the solution
   process and for accessing solutions.
 - fix handling of interior point in warmstart if number of LP constraints has changed
+- fixed bug in solving rounding problem with handling matrices
 
 SCIP-SDP version 4.1.0
 ======================
