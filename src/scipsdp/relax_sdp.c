@@ -2602,8 +2602,11 @@ SCIP_RETCODE fillStartZ(
          {
             if ( relaxdata->warmstartiptype == 1 )
                (*startZnblocknonz)[b] += blocksize;
-            else if ( relaxdata->warmstartiptype == 2 )
+            else
+            {
+               assert( relaxdata->warmstartiptype == 2 );
                (*startZnblocknonz)[b] += relaxdata->ipZnblocknonz[b];
+            }
          }
       }
 
@@ -2623,6 +2626,7 @@ SCIP_RETCODE fillStartZ(
          SCIP_Real* scaledeigenvectors;
          int matrixsize;
          int matrixpos;
+         int pos = 0;
          int c;
          int i;
 
@@ -2651,7 +2655,6 @@ SCIP_RETCODE fillStartZ(
                FALSE, fullZmatrix) );
 
          /* extract sparse matrix from projection */
-         (*startZnblocknonz)[b] = 0;
          for (r = 0; r < blocksize; r++)
          {
             for (c = r; c < blocksize; c++)
@@ -2659,13 +2662,14 @@ SCIP_RETCODE fillStartZ(
                matrixpos = r * blocksize + c;
                if ( ! SCIPisZero(scip, fullZmatrix[matrixpos]) )
                {
-                  (*startZrow)[b][(*startZnblocknonz)[b]] = r;
-                  (*startZcol)[b][(*startZnblocknonz)[b]] = c;
-                  (*startZval)[b][(*startZnblocknonz)[b]] = fullZmatrix[matrixpos];
-                  (*startZnblocknonz)[b]++;
+                  (*startZrow)[b][pos] = r;
+                  (*startZcol)[b][pos] = c;
+                  (*startZval)[b][pos] = fullZmatrix[matrixpos];
+                  ++pos;
                }
             }
          }
+         (*startZnblocknonz)[b] = pos;
 
          /* free memory */
          SCIPfreeBufferArray(scip, &scaledeigenvectors);
@@ -2882,6 +2886,7 @@ SCIP_RETCODE fillStartX(
 
    assert( 0 <= relaxdata->warmstartprimaltype && relaxdata->warmstartprimaltype <= 3 );
    assert( relaxdata->warmstartprimaltype != 2 );
+   assert( maxprimalentry > 0.0 );
 
    /* do nothing for the other cases */
    if ( relaxdata->warmstartprimaltype == 1 && relaxdata->warmstartiptype == 1 )
@@ -2900,10 +2905,10 @@ SCIP_RETCODE fillStartX(
 
       /* we set X to maxprimalentry times the scaled identity matrix */
       (*startXnblocknonz)[b] = blocksize;
-      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], (*startXnblocknonz)[b]) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], (*startXnblocknonz)[b]) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[b], (*startXnblocknonz)[b]) );
-      for (i = 0; i < (*startXnblocknonz)[b]; i++)
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXrow)[b], blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXcol)[b], blocksize) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &(*startXval)[b], blocksize) );
+      for (i = 0; i < blocksize; i++)
       {
          (*startXrow)[b][i] = i;
          (*startXcol)[b][i] = i;
