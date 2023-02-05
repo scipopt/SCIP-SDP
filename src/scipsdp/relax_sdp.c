@@ -1494,7 +1494,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    SCIP_Real* blockconstval;
    SCIP_Real* scaledeigenvectors;
    SCIP_Real* fullZmatrix;
-   SCIP_Real epsilon;
    SCIP_Real primalroundobj;
    SCIP_Real dualroundobj;
    int** blockcol;
@@ -1860,7 +1859,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          beg[i] = beg[i] - nremovedentries;
          for (v = 0; v < nvars; v++)
          {
-            if ( REALABS(val[i * nvars + v]) < SCIPepsilon(scip) )
+            if ( SCIPisZero(scip, val[i * nvars + v]) )
                nremovedentries++;
             else
             {
@@ -2090,14 +2089,13 @@ SCIP_RETCODE solvePrimalRoundingProblem(
                scaledeigenvectors, FALSE, fullXmatrix) );
 
          /* extract sparse matrix */
-         epsilon = SCIPepsilon(scip);
          pos = 0;
          for (r = 0; r < blocksize; r++)
          {
             for (c = r; c < blocksize; c++)
             {
                matrixpos = r * blocksize + c;
-               if ( REALABS(fullXmatrix[matrixpos]) > epsilon )
+               if ( ! SCIPisZero(scip, fullXmatrix[matrixpos]) )
                {
                   (*startXrow)[b][pos] = r;
                   (*startXcol)[b][pos] = c;
@@ -2475,13 +2473,12 @@ SCIP_RETCODE solvePrimalRoundingProblem(
 
          /* extract sparse matrix */
          pos = 0;
-         epsilon = SCIPepsilon(scip);
          for (r = 0; r < blocksize; r++)
          {
             for (c = r; c < blocksize; c++)
             {
                matrixpos = r * blocksize + c;
-               if ( REALABS(fullZmatrix[matrixpos]) > epsilon )
+               if ( ! SCIPisZero(scip, fullZmatrix[matrixpos]) )
                {
                   (*startZrow)[b][pos] = r;
                   (*startZcol)[b][pos] = c;
@@ -2624,7 +2621,6 @@ SCIP_RETCODE fillStartZ(
          SCIP_Real* eigenvalues;
          SCIP_Real* eigenvectors;
          SCIP_Real* scaledeigenvectors;
-         SCIP_Real epsilon;
          int matrixsize;
          int matrixpos;
          int c;
@@ -2656,13 +2652,12 @@ SCIP_RETCODE fillStartZ(
 
          /* extract sparse matrix from projection */
          (*startZnblocknonz)[b] = 0;
-         epsilon = SCIPepsilon(scip);
          for (r = 0; r < blocksize; r++)
          {
             for (c = r; c < blocksize; c++)
             {
                matrixpos = r * blocksize + c;
-               if ( REALABS(fullZmatrix[matrixpos]) > epsilon )
+               if ( ! SCIPisZero(scip, fullZmatrix[matrixpos]) )
                {
                   (*startZrow)[b][(*startZnblocknonz)[b]] = r;
                   (*startZcol)[b][(*startZnblocknonz)[b]] = c;
@@ -3307,7 +3302,6 @@ SCIP_RETCODE determineWarmStartInformation(
                SCIP_Real* eigenvalues;
                SCIP_Real* eigenvectors;
                SCIP_Real* scaledeigenvectors;
-               SCIP_Real epsilon;
                int matrixsize;
                int matrixpos;
                int c;
@@ -3343,13 +3337,12 @@ SCIP_RETCODE determineWarmStartInformation(
 
                /* extract sparse matrix from projection */
                (*startXnblocknonz)[b] = 0;
-               epsilon = SCIPepsilon(scip);
                for (r = 0; r < blocksize; r++)
                {
                   for (c = r; c < blocksize; c++)
                   {
                      matrixpos = r * blocksize + c;
-                     if ( REALABS(fullXmatrix[matrixpos]) > epsilon )
+                     if ( ! SCIPisZero(scip, fullXmatrix[matrixpos]) )
                      {
                         (*startXrow)[b][(*startXnblocknonz)[b]] = r;
                         (*startXcol)[b][(*startXnblocknonz)[b]] = c;
