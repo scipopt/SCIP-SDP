@@ -3300,7 +3300,7 @@ SCIP_RETCODE determineWarmStartInformation(
 
          for (b = 0; b < nblocks; b++)
          {
-            /* compute projection onto psd cone (computed as U * diag(lambda_i_+) * U^T where U consists of the eigenvectors of the matrix) */
+            /* compute projection of X onto psd cone (computed as U * diag(lambda_i_+) * U^T where U consists of the eigenvectors of the matrix) */
             if ( relaxdata->warmstartproject == 3 )
             {
                SCIP_Real* fullXmatrix;
@@ -3309,6 +3309,7 @@ SCIP_RETCODE determineWarmStartInformation(
                SCIP_Real* scaledeigenvectors;
                int matrixsize;
                int matrixpos;
+               int pos = 0;
                int c;
 
                blocksize = SCIPconsSdpGetBlocksize(scip, sdpblocks[b]);
@@ -3338,7 +3339,6 @@ SCIP_RETCODE determineWarmStartInformation(
                      FALSE, fullXmatrix) );
 
                /* extract sparse matrix from projection */
-               (*startXnblocknonz)[b] = 0;
                for (r = 0; r < blocksize; r++)
                {
                   for (c = r; c < blocksize; c++)
@@ -3346,13 +3346,14 @@ SCIP_RETCODE determineWarmStartInformation(
                      matrixpos = r * blocksize + c;
                      if ( ! SCIPisZero(scip, fullXmatrix[matrixpos]) )
                      {
-                        (*startXrow)[b][(*startXnblocknonz)[b]] = r;
-                        (*startXcol)[b][(*startXnblocknonz)[b]] = c;
-                        (*startXval)[b][(*startXnblocknonz)[b]] = fullXmatrix[matrixpos];
-                        (*startXnblocknonz)[b]++;
+                        (*startXrow)[b][pos] = r;
+                        (*startXcol)[b][pos] = c;
+                        (*startXval)[b][pos] = fullXmatrix[matrixpos];
+                        ++pos;
                      }
                   }
                }
+               (*startXnblocknonz)[b] = pos;
 
                /* free memory */
                SCIPfreeBufferArray(scip, &scaledeigenvectors);
@@ -3373,6 +3374,7 @@ SCIP_RETCODE determineWarmStartInformation(
                         maxprimalentry = relaxdata->warmstartmevprimal;
                      else
                         maxprimalentry = 1.0;
+
                      for (i = 0; i < (*startXnblocknonz)[b]; i++)
                      {
                         if ( REALABS((*startXval)[b][i]) > maxprimalentry )
@@ -3390,12 +3392,12 @@ SCIP_RETCODE determineWarmStartInformation(
                   {
                      if ( (*startXrow)[b][i] == (*startXcol)[b][i] )
                      {
-                        (*startXval)[b][i] = (*startXval)[b][i] * (1 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
+                        (*startXval)[b][i] = (*startXval)[b][i] * (1.0 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
                         assert( (*startXval)[b][i] >= 0.0 ); /* since the original matrix should have been positive semidefinite, diagonal entries should be >= 0 */
                         diagentryexists[(*startXrow)[b][i]] = TRUE;
                      }
                      else
-                        (*startXval)[b][i] *= (1 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
+                        (*startXval)[b][i] *= (1.0 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
                   }
 
                   /* if a diagonal entry was missing (because we had a zero row before), we have to add it to the end */
@@ -3413,9 +3415,14 @@ SCIP_RETCODE determineWarmStartInformation(
                }
                else if ( relaxdata->warmstartiptype == 2 )
                {
+                  assert( relaxdata->ipXrow != NULL );
+                  assert( relaxdata->ipXcol != NULL );
+                  assert( relaxdata->ipXval != NULL );
+                  assert( relaxdata->ipXnblocknonz != NULL );
+
                   /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
                   for (i = 0; i < (*startXnblocknonz)[b]; i++)
-                     (*startXval)[b][i] *= 1 - relaxdata->warmstartipfactor;
+                     (*startXval)[b][i] *= 1.0 - relaxdata->warmstartipfactor;
 
                   /* merge the scaled interior point array into the warmstart array */
                   SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipXrow[b], relaxdata->ipXcol[b],
@@ -3453,12 +3460,12 @@ SCIP_RETCODE determineWarmStartInformation(
                   {
                      if ( (*startZrow)[b][i] == (*startZcol)[b][i] )
                      {
-                        (*startZval)[b][i] = (*startZval)[b][i] * (1 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
+                        (*startZval)[b][i] = (*startZval)[b][i] * (1.0 - relaxdata->warmstartipfactor) + identitydiagonal; /* add identity for diagonal entries */
                         assert( (*startZval)[b][i] >= 0 ); /* since the original matrix should have been positive semidefinite, diagonal entries should be >= 0 */
                         diagentryexists[(*startZrow)[b][i]] = TRUE;
                      }
                      else
-                        (*startZval)[b][i] *= (1 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
+                        (*startZval)[b][i] *= (1.0 - relaxdata->warmstartipfactor); /* since this is an off-diagonal entry, we scale towards zero */
                   }
 
                   /* if a diagonal entry was missing (because we had a zero row before), we have to add it to the end */
@@ -3479,7 +3486,7 @@ SCIP_RETCODE determineWarmStartInformation(
                {
                   /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
                   for (i = 0; i < (*startZnblocknonz)[b]; i++)
-                     (*startZval)[b][i] *= 1 - relaxdata->warmstartipfactor;
+                     (*startZval)[b][i] *= 1.0 - relaxdata->warmstartipfactor;
 
                   /* merge the scaled interior point array into the warmstart array */
                   SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipZrow[b],
@@ -3576,9 +3583,9 @@ SCIP_RETCODE determineWarmStartInformation(
                    * otherwise, so taking the convex combination doesn't change anything in that case (unless warmstarprojpdsame)
                    */
                   if ( relaxdata->warmstartprojpdsame )
-                     (*startXval)[b][i] = (1 - relaxdata->warmstartipfactor) * (*startXval)[b][i] + identitydiagonal;
+                     (*startXval)[b][i] = (1.0 - relaxdata->warmstartipfactor) * (*startXval)[b][i] + identitydiagonal;
                   else if ( SCIPisLT(scip, (*startXval)[b][i], 1.0) )
-                     (*startXval)[b][i] = (1 - relaxdata->warmstartipfactor) * (*startXval)[b][i] + relaxdata->warmstartipfactor;
+                     (*startXval)[b][i] = (1.0 - relaxdata->warmstartipfactor) * (*startXval)[b][i] + relaxdata->warmstartipfactor;
 
                   lastentry = (*startXrow)[nblocks][i];
                }
@@ -3595,9 +3602,14 @@ SCIP_RETCODE determineWarmStartInformation(
             }
             else if ( relaxdata->warmstartiptype == 2 )
             {
+               assert( relaxdata->ipXrow != NULL );
+               assert( relaxdata->ipXcol != NULL );
+               assert( relaxdata->ipXval != NULL );
+               assert( relaxdata->ipXnblocknonz != NULL );
+
                /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
                for (i = 0; i < (*startXnblocknonz)[nblocks]; i++)
-                  (*startXval)[nblocks][i] *= 1 - relaxdata->warmstartipfactor;
+                  (*startXval)[nblocks][i] *= 1.0 - relaxdata->warmstartipfactor;
 
                /* merge the scaled interior point array into the warmstart array */
                SCIP_CALL( SCIPsdpVarfixerMergeArrays(SCIPblkmem(scip), SCIPepsilon(scip), relaxdata->ipXrow[nblocks],
@@ -3625,7 +3637,7 @@ SCIP_RETCODE determineWarmStartInformation(
                      if ( SCIPisLT(scip, (*startZval)[nblocks][2 * rowcnt], 0.0) )
                         (*startZval)[nblocks][2 * rowcnt] = identitydiagonal;
                      else
-                        (*startZval)[nblocks][2 * rowcnt] = (1 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2 * rowcnt] + identitydiagonal;
+                        (*startZval)[nblocks][2 * rowcnt] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2 * rowcnt] + identitydiagonal;
                   }
 
                   if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2 * rowcnt + 1], relaxdata->warmstartmevdual) )
@@ -3636,7 +3648,7 @@ SCIP_RETCODE determineWarmStartInformation(
                      if ( SCIPisLT(scip, (*startZval)[nblocks][2 * rowcnt + 1], 0.0) )
                         (*startZval)[nblocks][2 * rowcnt + 1] = identitydiagonal;
                      else
-                        (*startZval)[nblocks][2 * rowcnt + 1] = (1 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2 * rowcnt + 1] + identitydiagonal;
+                        (*startZval)[nblocks][2 * rowcnt + 1] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2 * rowcnt + 1] + identitydiagonal;
                   }
                }
 
@@ -3650,7 +3662,7 @@ SCIP_RETCODE determineWarmStartInformation(
                      if ( SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v], 0.0) )
                         (*startZval)[nblocks][2*nrows + 2*v] = identitydiagonal;
                      else
-                        (*startZval)[nblocks][2*nrows + 2*v] = (1 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v] + identitydiagonal;
+                        (*startZval)[nblocks][2*nrows + 2*v] = (1.0 - relaxdata->warmstartipfactor) * (*startZval)[nblocks][2*nrows + 2*v] + identitydiagonal;
                   }
 
                   if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, (*startZval)[nblocks][2*nrows + 2*v + 1], relaxdata->warmstartmevdual) )
@@ -3667,6 +3679,11 @@ SCIP_RETCODE determineWarmStartInformation(
             }
             else if ( relaxdata->warmstartiptype == 2 )
             {
+               assert( relaxdata->ipXrow != NULL );
+               assert( relaxdata->ipXcol != NULL );
+               assert( relaxdata->ipXval != NULL );
+               assert( relaxdata->ipXnblocknonz != NULL );
+
                /* iterate once over all entries to multiply them with (1 - warmstartipfactor) */
                for (i = 0; i < (*startZnblocknonz)[nblocks]; i++)
                   (*startZval)[nblocks][i] *= 1.0 - relaxdata->warmstartipfactor;
