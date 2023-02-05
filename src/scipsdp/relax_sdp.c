@@ -103,11 +103,11 @@
 #define DEFAULT_CONFLICTINFEAS      TRUE     /**< whether conflict constraints should be generated for infeasible subproblems */
 #define DEFAULT_CONFLICTCMIR        FALSE    /**< whether conflict constraints should be strengthened by the CMIR procedure */
 
-#define WARMSTART_MINVAL            0.01     /**< if we get a value less than this when warmstarting (currently only for the linear part when combining with analytic center), the value is set to this */
-#define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimum value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
-#define WARMSTART_PROJ_FACTOR       0.1      /**< factor to multiply maximum rhs/obj/coef with when computing minimum eigenvalue for warmstart-projection */
-#define WARMSTART_PROJ_FACTOR_LHS   10       /**< factor to multiply maximum SDP coefficient with before applying WARMSTART_PROJ_FACTOr (to account for summation of lhs entries) */
-#define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximum obj with when computing minimum eigenvalue for warmstart-projection in the primal */
+#define WARMSTART_MINVAL            0.01     /**< minimal value for warmstarting (currently only for the linear part when combining with analytic center) */
+#define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimal value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
+#define WARMSTART_PROJ_FACTOR       0.1      /**< factor to multiply maximal rhs/obj/coef with when computing minimum eigenvalue for warmstart-projection */
+#define WARMSTART_PROJ_FACTOR_LHS   10       /**< factor to multiply maximal SDP coefficient with before applying WARMSTART_PROJ_FACTOR (to account for summation of lhs entries) */
+#define WARMSTART_PROJ_FACTOR_PRIMAL 0.1     /**< factor to multiply maximal obj with when computing minimum eigenvalue for warmstart-projection in the primal */
 #define WARMSTART_PREOPT_MIN_Z_LPVAL 0.01    /**< minimal (diagonal) entry for LP block of dual matrix for preoptimal warmstarts */
 
 
