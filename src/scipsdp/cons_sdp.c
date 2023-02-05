@@ -9640,7 +9640,7 @@ SCIP_Real SCIPconsSdpGetMaxSdpCoef(
  *  Upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$.
  */
 int SCIPconsSdpComputeUbSparseSdpMatrixLength(
-   SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
+   SCIP_CONS*            cons                /**< the constraint for which the matrix should be assembled */
    )
 {  /*lint --e{715}*/
    SCIP_CONSDATA* consdata;
