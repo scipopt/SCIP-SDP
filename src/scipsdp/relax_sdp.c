@@ -1842,8 +1842,8 @@ SCIP_RETCODE solvePrimalRoundingProblem(
                SCIP_Real evrow;
                SCIP_Real evcol;
 
-               evrow = blockeigenvectors[b][evind * blocksize + blockconstrow[i]];
-               evcol = blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
+               evrow = blockeigenvectors[b][evind * blocksize + blockrow[v][i]];
+               evcol = blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
                if ( blockrow[v][i] == blockcol[v][i] )
                   val[evind * nvars + varind] += blockval[v][i] * evrow * evcol;
                else
