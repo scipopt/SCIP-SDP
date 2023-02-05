@@ -2593,17 +2593,17 @@ SCIP_RETCODE fillStartZ(
       else
       {
          (*startZnblocknonz)[b] = SCIPconsSdpComputeUbSparseSdpMatrixLength(sdpblocks[b]);
+      }
 
-         /* since we take a convex combination with either the identity matrix or the analytic center, we have to allocate memory for that as well */
-         if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+      /* since we take a convex combination with either the identity matrix or the analytic center, we have to allocate memory for that as well */
+      if ( SCIPisGT(scip, relaxdata->warmstartipfactor, 0.0) )
+      {
+         if ( relaxdata->warmstartiptype == 1 )
+            (*startZnblocknonz)[b] += blocksize;
+         else
          {
-            if ( relaxdata->warmstartiptype == 1 )
-               (*startZnblocknonz)[b] += blocksize;
-            else
-            {
-               assert( relaxdata->warmstartiptype == 2 );
-               (*startZnblocknonz)[b] += relaxdata->ipZnblocknonz[b];
-            }
+            assert( relaxdata->warmstartiptype == 2 );
+            (*startZnblocknonz)[b] += relaxdata->ipZnblocknonz[b];
          }
       }
 
