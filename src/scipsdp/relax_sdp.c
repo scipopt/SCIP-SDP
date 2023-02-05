@@ -1099,7 +1099,6 @@ SCIP_RETCODE computeConflictCut(
       SCIP_Real* rhsvals;
       SCIP_Real primallhsval;
       SCIP_Real primalrhsval;
-      int nactiverows = 0;
       int nlpcons;
       int i;
 
@@ -1123,7 +1122,7 @@ SCIP_RETCODE computeConflictCut(
             row = rows[i];
             assert( row != 0 );
 
-            if ( ! SCIProwIsLocal(row) && ! SCIPisInfinity(scip, REALABS(lhsvals[nactiverows])) && ! SCIPisInfinity(scip, REALABS(rhsvals[nactiverows])) )
+            if ( ! SCIProwIsLocal(row) && ! SCIPisInfinity(scip, REALABS(lhsvals[i])) && ! SCIPisInfinity(scip, REALABS(rhsvals[i])) )
             {
                rownnonz = SCIProwGetNNonz(row);
                rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
@@ -1132,8 +1131,8 @@ SCIP_RETCODE computeConflictCut(
                rowcols = SCIProwGetCols(row);
 
                /* make sure that the primal values are >= 0 */
-               primallhsval = MAX(lhsvals[nactiverows], 0.0);
-               primalrhsval = MAX(rhsvals[nactiverows], 0.0);
+               primallhsval = MAX(lhsvals[i], 0.0);
+               primalrhsval = MAX(rhsvals[i], 0.0);
                assert( SCIPisFeasGE(scip, primallhsval, 0.0) );
                assert( SCIPisFeasGE(scip, primalrhsval, 0.0) );
 
@@ -1162,13 +1161,11 @@ SCIP_RETCODE computeConflictCut(
                      QUAD_ARRAY_STORE(cutcoefs, varidx, c);
                   }
                }
-               ++nactiverows;
             }
          }
          assert( ! SCIPisInfinity(scip, REALABS(QUAD_TO_DBL(cutlhs))) );
 
          SCIP_CALL( SCIPsdpiGetNLPRows(sdpi, &nlpcons) );
-         assert( nlpcons >= nactiverows );
 
          /* possibly add objective cut */
          if ( conflictobjcut )
