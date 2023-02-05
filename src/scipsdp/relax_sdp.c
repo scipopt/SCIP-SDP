@@ -1480,9 +1480,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    SCIP_VAR** blockvars;
    SCIP_LPI* lpi;
    SCIP_ROW** rows;
-   SCIP_ROW* row;
    SCIP_VAR** vars;
-   SCIP_COL** rowcols;
    SCIP_Real** blockval;
    SCIP_Real** blockeigenvalues;
    SCIP_Real** blockeigenvectors;
@@ -1496,9 +1494,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    SCIP_Real* blockconstval;
    SCIP_Real* scaledeigenvectors;
    SCIP_Real* fullZmatrix;
-   SCIP_Real* rowvals;
-   SCIP_Real rowlhs;
-   SCIP_Real rowrhs;
    SCIP_Real epsilon;
    SCIP_Real primalroundobj;
    SCIP_Real dualroundobj;
@@ -1514,7 +1509,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    int* nblockrownonz;
    int* rowinds;
    int blocksize;
-   int rownnonz;
    int indpos;
    int startpos;
    int blocknvars;
@@ -1699,6 +1693,13 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    indpos = 0;
    for (r = 0; r < nrows; r++)
    {
+      SCIP_COL** rowcols;
+      SCIP_Real* rowvals;
+      SCIP_Real rowlhs;
+      SCIP_Real rowrhs;
+      SCIP_ROW* row;
+      int rownnonz;
+
       row = rows[r];
       assert( row != 0 );
 
@@ -1816,6 +1817,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
           * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
          for (evind = 0; evind < blocksize; evind++)
          {
+
             if ( blockconstrow[i] == blockconstcol[i] )
                obj[evind] += blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
             else
@@ -2003,6 +2005,10 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       evpos = blocksizes[0];
       for (r = 0; r < nrows; r++)
       {
+         SCIP_ROW* row;
+         SCIP_Real rowlhs;
+         SCIP_Real rowrhs;
+
          row = rows[r];
 
          rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
@@ -2150,6 +2156,13 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    pos = 0;
    for (r = 0; r < nrows; r++)
    {
+      SCIP_COL** rowcols;
+      SCIP_Real* rowvals;
+      SCIP_Real rowlhs;
+      SCIP_Real rowrhs;
+      SCIP_ROW* row;
+      int rownnonz;
+
       row = rows[r];
       assert( row != NULL );
 
@@ -2481,23 +2494,28 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       assert( b == nblocks );
       for (r = 0; r < nrows; r++)
       {
+         SCIP_COL** rowcols;
+         SCIP_Real* rowvals;
+         SCIP_ROW* row;
          SCIP_Real rowval = 0.0;
+         int rownnonz;
 
          /* compute row value for current solution */
-         rownnonz = SCIProwGetNNonz(rows[r]);
-         rowvals = SCIProwGetVals(rows[r]);
-         rowcols = SCIProwGetCols(rows[r]);
+         row = rows[r];
+         rownnonz = SCIProwGetNNonz(row);
+         rowvals = SCIProwGetVals(row);
+         rowcols = SCIProwGetCols(row);
 
          for (i = 0; i < rownnonz; i++)
             rowval += starty[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]))] * rowvals[i];
 
          (*startZrow)[b][2 * r] = 2 * r;
          (*startZcol)[b][2 * r] = 2 * r;
-         (*startZval)[b][2 * r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+         (*startZval)[b][2 * r] = rowval - (SCIProwGetLhs(row) - SCIProwGetConstant(row));
 
          (*startZrow)[b][2 * r + 1] = 2 * r + 1;
          (*startZcol)[b][2 * r + 1] = 2 * r + 1;
-         (*startZval)[b][2 * r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+         (*startZval)[b][2 * r + 1] = SCIProwGetRhs(row) - SCIProwGetConstant(row) - rowval;
       }
 
       /* fill varbound block */
@@ -2672,20 +2690,22 @@ SCIP_RETCODE fillStartZ(
       SCIP_COL** rowcols;
       SCIP_Real* rowvals;
       SCIP_Real rowval = 0.0;
+      SCIP_ROW* row;
       int rownnonz;
       int i;
 
       /* compute row value for current solution */
-      rownnonz = SCIProwGetNNonz(rows[r]);
-      rowvals = SCIProwGetVals(rows[r]);
-      rowcols = SCIProwGetCols(rows[r]);
+      row = rows[r];
+      rownnonz = SCIProwGetNNonz(row);
+      rowvals = SCIProwGetVals(row);
+      rowcols = SCIProwGetCols(row);
       for (i = 0; i < rownnonz; i++)
          rowval += SCIPgetSolVal(scip, dualsol, SCIPcolGetVar(rowcols[i])) * rowvals[i];
 
       /* consider lhs */
       (*startZrow)[nblocks][2 * rowcnt] = 2 * rowcnt;
       (*startZcol)[nblocks][2 * rowcnt] = 2 * rowcnt;
-      zval = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+      zval = rowval - (SCIProwGetLhs(row) - SCIProwGetConstant(row));
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartmevdual) )
          zval = relaxdata->warmstartmevdual;
@@ -2719,7 +2739,7 @@ SCIP_RETCODE fillStartZ(
       /* consider rhs */
       (*startZrow)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
       (*startZcol)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
-      zval = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+      zval = SCIProwGetRhs(row) - SCIProwGetConstant(row) - rowval;
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartmevdual) )
          zval = relaxdata->warmstartmevdual;
@@ -5437,15 +5457,11 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    SCIP_CONSHDLR* sdprank1conshdlr;
    SCIP_RELAXDATA* relaxdata;
    SCIP_ROW** rows;
-   SCIP_COL** rowcols;
    SCIP_CONS** sdpblocks;
    SCIP_Real* solforscip;
-   SCIP_Real* rowvals;
    SCIP_Real timelimit;
-   SCIP_Real rowval;
    int arraylength;
    int nrows;
-   int rownnonz;
    int clocktype;
    int i;
    int r;
@@ -5739,20 +5755,26 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
 
       for (r = 0; r < nrows; r++)
       {
+         SCIP_COL** rowcols;
+         SCIP_Real* rowvals;
+         SCIP_Real rowval = 0.0;
+         SCIP_ROW* row;
+         int rownnonz;
+
          /* compute row value for current solution */
-         rowval = 0.0;
-         rownnonz = SCIProwGetNNonz(rows[r]);
-         rowvals = SCIProwGetVals(rows[r]);
-         rowcols = SCIProwGetCols(rows[r]);
+         row = rows[r];
+         rownnonz = SCIProwGetNNonz(row);
+         rowvals = SCIProwGetVals(row);
+         rowcols = SCIProwGetCols(row);
          for (i = 0; i < rownnonz; i++)
             rowval += SCIPgetSolVal(scip, relaxdata->ipy, SCIPcolGetVar(rowcols[i])) * rowvals[i];
 
          relaxdata->ipZrow[b][2*r] = 2*r;
          relaxdata->ipZcol[b][2*r] = 2*r;
-         relaxdata->ipZval[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+         relaxdata->ipZval[b][2*r] = rowval - (SCIProwGetLhs(row) - SCIProwGetConstant(row));
          relaxdata->ipZrow[b][2*r + 1] = 2*r + 1;
          relaxdata->ipZcol[b][2*r + 1] = 2*r + 1;
-         relaxdata->ipZval[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+         relaxdata->ipZval[b][2*r + 1] = SCIProwGetRhs(row) - SCIProwGetConstant(row) - rowval;
       }
 
       for (v = 0; v < nvars; v++)
