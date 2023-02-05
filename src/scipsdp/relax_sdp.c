@@ -1554,7 +1554,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    }
 
    SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
-   assert( rows != NULL );
+   assert( nrows == 0 || rows != NULL );
 
    /* if the number of LP constraints is not the same, we proceed without warmstart */
    if ( SCIPconsSavesdpsolGetNLPcons(scip, cons) != nrows )
