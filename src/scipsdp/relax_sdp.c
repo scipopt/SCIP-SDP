@@ -2161,31 +2161,30 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    SCIPfreeBufferArray(scip, &obj);
 
    /* add LP rows */
+   SCIP_CALL( SCIPallocBufferArray(scip, &rowinds, nvars) );
+   pos = 0;
    for (r = 0; r < nrows; r++)
    {
       row = rows[r];
       assert( row != NULL );
-      rownnonz = SCIProwGetNNonz(row);
 
+      rownnonz = SCIProwGetNNonz(row);
       rowvals = SCIProwGetVals(row);
       rowcols = SCIProwGetCols(row);
       rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
       rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &rowinds, rownnonz) );
 
       /* iterate over rowcols and get corresponding indices */
       for (i = 0; i < rownnonz; i++)
          rowinds[i] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]));
 
-      pos = 0;
-
       SCIP_CALL( SCIPlpiAddRows(lpi, 1, &rowlhs, &rowrhs, NULL, rownnonz, &pos, rowinds, rowvals) );
-
-      SCIPfreeBufferArray(scip, &rowinds);
    }
+   SCIPfreeBufferArray(scip, &rowinds);
 
    /* for each SDP-block add constraints linking y-variables to eigenvalues of Z matrix */
+   assert( blockeigenvectors != NULL );
    startpos = nvars;
    for (b = 0; b < nblocks; b++)
    {
