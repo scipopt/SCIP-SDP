@@ -2258,11 +2258,11 @@ SCIP_RETCODE solvePrimalRoundingProblem(
             {
                /* for index (i,j) and every eigenvector v, we get an entry -V_iv *V_jv (we get the -1 by transferring this to the left-hand side of the equation)
                 * entry V_iv corresponds to entry i of the v-th eigenvector, which is given as the v-th row of the eigenvectors array */
-               if ( SCIPisGT(scip, REALABS(-1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j]), 0.0) )
+               if ( SCIPisGT(scip, REALABS(- blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j]), 0.0) )
                {
                   pos = SCIPconsSdpCompLowerTriangPos(i, j);
                   blockrowcols[pos][nblockrownonz[pos]] = startpos + evind;
-                  blockrowvals[pos][nblockrownonz[pos]] = -1 * blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j];
+                  blockrowvals[pos][nblockrownonz[pos]] = - blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j];
                   nblockrownonz[pos]++;
                }
             }
@@ -2270,9 +2270,9 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       }
       startpos += blocksize;
 
-      pos = 0;
       /* add the rows one by one */
-      for (r = 0; r < nroundingrows; r++)
+      pos = 0;
+      for (r = nroundingrows - 1; r > 0; --r)
       {
          SCIP_CALL( SCIPlpiAddRows(lpi, 1, &lhs[r], &rhs[r], NULL, nblockrownonz[r], &pos, blockrowcols[r], blockrowvals[r]) );
          SCIPfreeBufferArray(scip, &blockrowvals[r]);
@@ -2301,7 +2301,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
 
    if ( ! SCIPlpiIsOptimal(lpi) )
    {
-      SCIPdebugMsg(scip, "Solution of dual rounding problem failed with status %d, continuing without warmstart\n", SCIPlpiGetInternalStatus(lpi));
+      SCIPdebugMsg(scip, "Solution of dual rounding problem failed with status %d, continuing without warmstart.\n", SCIPlpiGetInternalStatus(lpi));
       relaxdata->dualroundfails++;
 
       /* free memory */
@@ -2356,7 +2356,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          SCIP_SOL* scipsol; /* TODO: eliminate this */
          SCIP_CONS* savedcons;
 
-         SCIPdebugMsg(scip, "Node %lld solved to optimality through rounding problems with optimal objective %f\n",
+         SCIPdebugMsg(scip, "Node %lld solved to optimality through rounding problems with optimal objective %g.\n",
             SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), dualroundobj);
 
          relaxdata->roundingoptimal++;
@@ -2378,16 +2378,8 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          if ( relaxdata->warmstart )
          {
             char consname[SCIP_MAXSTRLEN];
-#ifndef NDEBUG
-            int snprintfreturn; /* this is used to assert that the SCIP string concatenation works */
-#endif
 
-#ifndef NDEBUG
-            snprintfreturn = SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-            assert( snprintfreturn < SCIP_MAXSTRLEN ); /* check whether name fit into string */
-#else
             (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "saved_relax_sol_%d", SCIPnodeGetNumber(SCIPgetCurrentNode(scip)));
-#endif
             SCIP_CALL( createConsSavesdpsol(scip, &savedcons, consname, SCIPnodeGetNumber(SCIPgetCurrentNode(scip)), SCIPgetNLPRows(scip), scipsol,
                   maxprimalentry, nblocks + 1, (*startXnblocknonz), (*startXrow), (*startXcol), (*startXval)) );
 
@@ -2439,12 +2431,12 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          if ( relaxdata->warmstartiptype == 1 )
          {
             /* we take a convex combination with 0, so we just scale */
-            (*starty)[v] = (1 - relaxdata->warmstartipfactor) * optev[v];
+            (*starty)[v] = (1.0 - relaxdata->warmstartipfactor) * optev[v];
          }
          else if ( relaxdata->warmstartiptype == 2 )
          {
             /* take the convex combination with the saved analytic center */
-            (*starty)[v] = (1 - relaxdata->warmstartipfactor) * optev[v] + relaxdata->warmstartipfactor * SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
+            (*starty)[v] = (1.0 - relaxdata->warmstartipfactor) * optev[v] + relaxdata->warmstartipfactor * SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
          }
       }
 
@@ -2503,6 +2495,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       (*startZnblocknonz)[b] = 2 * nrows + 2 * nvars;
 
       /* fill LP-block */
+      assert( b == nblocks );
       for (r = 0; r < nrows; r++)
       {
          SCIP_Real rowval = 0.0;
@@ -2515,25 +2508,25 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          for (i = 0; i < rownnonz; i++)
             rowval += (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]))] * rowvals[i];
 
-         (*startZrow)[b][2*r] = 2 * r;
-         (*startZcol)[b][2*r] = 2 * r;
-         (*startZval)[b][2*r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
+         (*startZrow)[b][2 * r] = 2 * r;
+         (*startZcol)[b][2 * r] = 2 * r;
+         (*startZval)[b][2 * r] = rowval - (SCIProwGetLhs(rows[r]) - SCIProwGetConstant(rows[r]));
 
-         (*startZrow)[b][2*r + 1] = 2 * r + 1;
-         (*startZcol)[b][2*r + 1] = 2 * r + 1;
-         (*startZval)[b][2*r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
+         (*startZrow)[b][2 * r + 1] = 2 * r + 1;
+         (*startZcol)[b][2 * r + 1] = 2 * r + 1;
+         (*startZval)[b][2 * r + 1] = SCIProwGetRhs(rows[r]) - SCIProwGetConstant(rows[r]) - rowval;
       }
 
       /* fill varbound block */
       for (v = 0; v < nvars; v++)
       {
-         (*startZrow)[b][2*nrows + 2 * v] = 2 * nrows + 2 * v;
-         (*startZcol)[b][2*nrows + 2 * v] = 2 * nrows + 2 * v;
-         (*startZval)[b][2*nrows + 2 * v] = (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] - SCIPvarGetLbLocal(vars[v]);
+         (*startZrow)[b][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+         (*startZcol)[b][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+         (*startZval)[b][2 * nrows + 2 * v] = (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])] - SCIPvarGetLbLocal(vars[v]);
 
-         (*startZrow)[b][2*nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
-         (*startZcol)[b][2*nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
-         (*startZval)[b][2*nrows + 2 * v + 1] = SCIPvarGetUbLocal(vars[v]) - (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
+         (*startZrow)[b][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+         (*startZcol)[b][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+         (*startZval)[b][2 * nrows + 2 * v + 1] = SCIPvarGetUbLocal(vars[v]) - (*starty)[SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, vars[v])];
       }
    }
 
