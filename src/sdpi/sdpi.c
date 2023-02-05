@@ -4446,7 +4446,7 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
       for (i = 0; i < sdpi->nlpcons; ++i)
       {
          lhsvals[i] = 0.0;
-         lhsvals[i] = 0.0;
+         rhsvals[i] = 0.0;
       }
       *success = TRUE;
    }
