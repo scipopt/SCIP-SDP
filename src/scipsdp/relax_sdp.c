@@ -2025,7 +2025,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
 
          (*startXrow)[nblocks][pos] = 2 * r;
          (*startXcol)[nblocks][pos] = 2 * r;
-         if ( ! SCIPisInfinity(scip, -1 * rowlhs) )
+         if ( ! SCIPisInfinity(scip, - rowlhs) )
             (*startXval)[nblocks][pos] = optev[evpos++];
          else
             (*startXval)[nblocks][pos] = SCIPinfinity(scip);
@@ -2048,7 +2048,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       {
          (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v;
          (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v;
-         if ( ! SCIPisInfinity(scip, -1 * SCIPvarGetLbLocal(vars[v])) )
+         if ( ! SCIPisInfinity(scip, - SCIPvarGetLbLocal(vars[v])) )
             (*startXval)[nblocks][pos] = optev[evpos++];
          else
             (*startXval)[nblocks][pos] = SCIPinfinity(scip);
@@ -2086,7 +2086,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
 
          /* compute U * [diag(lambda_i_+) * U^T] (note that transposes are switched because LAPACK/Fortran uses column-first-format) */
-         SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksizes[2 + b], blocksizes[2 + b], blockeigenvectors[b], TRUE, blocksizes[2 + b], blocksizes[2 + b],
+         SCIP_CALL( SCIPlapackMatrixMatrixMult(blocksize, blocksize, blockeigenvectors[b], TRUE, blocksize, blocksize,
                scaledeigenvectors, FALSE, fullXmatrix) );
 
          /* extract sparse matrix */
@@ -2181,7 +2181,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
       rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
 
-
       /* iterate over rowcols and get corresponding indices */
       for (i = 0; i < rownnonz; i++)
          rowinds[i] = SCIPsdpVarmapperGetSdpIndex(relaxdata->varmapper, SCIPcolGetVar(rowcols[i]));
@@ -2237,9 +2236,11 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       /* iterate over constant matrix to compute right-hand sides of equality constraints */
       for (i = 0; i < blockconstnnonz; i++)
       {
-         assert( lhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] == 0.0 ); /* there should only be a single entry per index-pair */
-         lhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] = blockconstval[i];
-         rhs[SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i])] = blockconstval[i];
+         pos = SCIPconsSdpCompLowerTriangPos(blockconstrow[i], blockconstcol[i]);
+         assert( 0 <= pos && pos < nroundingrows );
+         assert( lhs[pos] == 0.0 ); /* there should only be a single entry per index-pair */
+         lhs[pos] = blockconstval[i];
+         rhs[pos] = blockconstval[i];
       }
 
       /* iterate over all nonzeros to add them to the roundingrows */
@@ -2263,13 +2264,18 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          {
             for (j = 0; j <= i; j++)
             {
+               SCIP_Real evrow;
+               SCIP_Real evcol;
+
                /* for index (i,j) and every eigenvector v, we get an entry -V_iv *V_jv (we get the -1 by transferring this to the left-hand side of the equation)
                 * entry V_iv corresponds to entry i of the v-th eigenvector, which is given as the v-th row of the eigenvectors array */
-               if ( SCIPisGT(scip, REALABS(- blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j]), 0.0) )
+               evrow = blockeigenvectors[b][evind * blocksize + i];
+               evcol = blockeigenvectors[b][evind * blocksize + j];
+               if ( SCIPisGT(scip, REALABS(- evrow * evcol), 0.0) )
                {
                   pos = SCIPconsSdpCompLowerTriangPos(i, j);
                   blockrowcols[pos][nblockrownonz[pos]] = startpos + evind;
-                  blockrowvals[pos][nblockrownonz[pos]] = - blockeigenvectors[b][evind * blocksize + i] * blockeigenvectors[b][evind * blocksize + j];
+                  blockrowvals[pos][nblockrownonz[pos]] = - evrow * evcol;
                   nblockrownonz[pos]++;
                }
             }
@@ -2409,18 +2415,20 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       }
 
       /* adjust dual vector */
-      for (v = 0; v < nvars; v++)
+      if ( relaxdata->warmstartiptype == 1 )
       {
-         if ( relaxdata->warmstartiptype == 1 )
-         {
-            /* we take a convex combination with 0, so we just scale */
+         /* we take a convex combination with 0, so we just scale */
+         for (v = 0; v < nvars; v++)
             starty[v] = (1.0 - relaxdata->warmstartipfactor) * optev[v];
-         }
-         else if ( relaxdata->warmstartiptype == 2 )
-         {
-            /* take the convex combination with the saved analytic center */
+      }
+      else
+      {
+         assert( relaxdata->warmstartiptype == 2 );
+         assert( relaxdata->ipy != NULL );
+
+         /* take the convex combination with the saved analytic center */
+         for (v = 0; v < nvars; v++)
             starty[v] = (1.0 - relaxdata->warmstartipfactor) * optev[v] + relaxdata->warmstartipfactor * SCIPgetSolVal(scip, relaxdata->ipy, vars[v]);
-         }
       }
 
       /* allocate memory for start vector */
@@ -2446,7 +2454,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       SCIP_CALL( SCIPallocBufferArray(scip, &(*startZval)[nblocks], matrixsize) );
 
       /* build Z matrix */
-      pos = nvars;
+      startpos = nvars;
       for (b = 0; b < nblocks; b++)
       {
          blocksize = blocksizes[2 + b];
@@ -2456,7 +2464,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
          SCIP_CALL( SCIPduplicateBufferArray(scip, &scaledeigenvectors, blockeigenvectors[b], matrixsize) );
 
          /* compute diag(lambda_i_+) * U^T */
-         SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, &(optev[pos])) );
+         SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, &(optev[startpos])) );
 
          /* allocate memory for full Z matrix */
          SCIP_CALL( SCIPallocBufferArray(scip, &fullZmatrix, matrixsize) );
@@ -2466,7 +2474,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
                scaledeigenvectors, FALSE, fullZmatrix) );
 
          /* extract sparse matrix */
-         (*startZnblocknonz)[b] = 0;
+         pos = 0;
          epsilon = SCIPepsilon(scip);
          for (r = 0; r < blocksize; r++)
          {
@@ -2475,14 +2483,16 @@ SCIP_RETCODE solvePrimalRoundingProblem(
                matrixpos = r * blocksize + c;
                if ( REALABS(fullZmatrix[matrixpos]) > epsilon )
                {
-                  (*startZrow)[b][(*startZnblocknonz)[b]] = r;
-                  (*startZcol)[b][(*startZnblocknonz)[b]] = c;
-                  (*startZval)[b][(*startZnblocknonz)[b]] = fullZmatrix[matrixpos];
-                  (*startZnblocknonz)[b]++;
+                  (*startZrow)[b][pos] = r;
+                  (*startZcol)[b][pos] = c;
+                  (*startZval)[b][pos] = fullZmatrix[matrixpos];
+                  ++pos;
                }
             }
          }
-         pos += blocksize;
+         (*startZnblocknonz)[b] = pos;
+         startpos += blocksize;
+
          SCIPfreeBufferArray(scip, &fullZmatrix);
          SCIPfreeBufferArray(scip, &scaledeigenvectors);
          SCIPfreeBufferArray(scip, &blockeigenvectors[b]);
