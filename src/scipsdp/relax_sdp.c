@@ -1817,11 +1817,15 @@ SCIP_RETCODE solvePrimalRoundingProblem(
           * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
          for (evind = 0; evind < blocksize; evind++)
          {
+            SCIP_Real evrow;
+            SCIP_Real evcol;
 
+            evrow = blockeigenvectors[b][evind * blocksize + blockconstrow[i]];
+            evcol = blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
             if ( blockconstrow[i] == blockconstcol[i] )
-               obj[evind] += blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
+               obj[evind] += blockconstval[i] * evrow * evcol;
             else
-               obj[evind] += 2.0 * blockconstval[i] * blockeigenvectors[b][evind * blocksize + blockconstrow[i]] * blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
+               obj[evind] += 2.0 * blockconstval[i] * evrow * evcol;
          }
       }
 
@@ -1836,10 +1840,15 @@ SCIP_RETCODE solvePrimalRoundingProblem(
              * note that we need to mulitply by two for non-diagonal entries to also account for entry (l,k) */
             for (evind = 0; evind < blocksize; evind++)
             {
+               SCIP_Real evrow;
+               SCIP_Real evcol;
+
+               evrow = blockeigenvectors[b][evind * blocksize + blockconstrow[i]];
+               evcol = blockeigenvectors[b][evind * blocksize + blockconstcol[i]];
                if ( blockrow[v][i] == blockcol[v][i] )
-                  val[evind * nvars + varind] += blockval[v][i] * blockeigenvectors[b][evind * blocksize + blockrow[v][i]] * blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
+                  val[evind * nvars + varind] += blockval[v][i] * evrow * evcol;
                else
-                  val[evind * nvars + varind] += 2 * blockval[v][i] * blockeigenvectors[b][evind * blocksize + blockrow[v][i]] * blockeigenvectors[b][evind * blocksize + blockcol[v][i]];
+                  val[evind * nvars + varind] += 2.0 * blockval[v][i] * evrow * evcol;
             }
          }
       }
