@@ -4426,8 +4426,6 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    SCIP_RETCODE retcode;
    SCIP_VAR** vars;
    SCIP_Real givenpenaltyparam;
-   SCIP_Real projminevprimal;
-   SCIP_Real projminevdual;
    int nvars;
 
    assert( relax != NULL );
@@ -4859,14 +4857,14 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
       }
       else
       {
-         if ( ! SCIPisGE(scip, projminevprimal, 0.0) )
+         if ( ! SCIPisGE(scip, relaxdata->warmstartmevprimalP, 0.0) )
          {
             relaxdata->warmstartmevprimal = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxobj, maxsdpcoef) ? maxobj : maxsdpcoef);
 
             SCIPdebugMsg(scip, "Setting warmstartmevprimal to %f\n", relaxdata->warmstartmevprimal);
          }
 
-         if ( ! SCIPisGE(scip, projminevdual, 0.0) )
+         if ( ! SCIPisGE(scip, relaxdata->warmstartmevdualP, 0.0) )
          {
             relaxdata->warmstartmevdual = WARMSTART_PROJ_FACTOR_PRIMAL * (SCIPisGT(scip, maxsdprhs, maxsdpcoef) ? maxsdprhs : maxsdpcoef);
 
