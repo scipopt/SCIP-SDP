@@ -1495,7 +1495,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    SCIP_Real* val;
    SCIP_Real* blockconstval;
    SCIP_Real* scaledeigenvectors;
-   SCIP_Real* fullXmatrix;
    SCIP_Real* fullZmatrix;
    SCIP_Real* rowvals;
    SCIP_Real rowlhs;
@@ -1742,6 +1741,8 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    /* finally add columns corresponding to SDP-constraints */
    for (b = 0; b < nblocks; b++)
    {
+      SCIP_Real* fullXmatrix;
+
       /* get data for this SDP block */
       SCIP_CALL( SCIPconsSdpGetNNonz(scip, sdpblocks[b], NULL, &blockconstnnonz) );
       SCIP_CALL( SCIPallocBufferArray(scip, &blocknvarnonz, nvars) );
@@ -1760,13 +1761,14 @@ SCIP_RETCODE solvePrimalRoundingProblem(
 
       matrixsize = blocksize * blocksize;
 
-      SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvalues[b], blocksize) );
       SCIP_CALL( SCIPallocBufferArray(scip, &blockeigenvectors[b], matrixsize) );
 
+      SCIP_CALL( SCIPallocBufferArray(scip, &fullXmatrix, matrixsize) );
       SCIP_CALL( expandSparseMatrix((*startXnblocknonz)[b], blocksize, (*startXrow)[b], (*startXcol)[b], (*startXval)[b], fullXmatrix) );
 
       SCIP_CALL( SCIPlapackComputeEigenvectorDecomposition(SCIPbuffer(scip), blocksize, fullXmatrix, blockeigenvalues[b], blockeigenvectors[b]) );
+      SCIPfreeBufferArray(scip, &fullXmatrix);
 
       /* compute coefficients for rounding problems, we get blocksize many variables corresponding to the eigenvalues of X* */
       SCIP_CALL( SCIPallocBufferArray(scip, &obj, blocksize) );
@@ -1855,8 +1857,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       SCIPfreeBufferArray(scip, &ub);
       SCIPfreeBufferArray(scip, &lb);
       SCIPfreeBufferArray(scip, &obj);
-
-      SCIPfreeBufferArray(scip, &fullXmatrix);
 
       SCIPfreeBufferArray(scip, &blockconstval);
       SCIPfreeBufferArray(scip, &blockconstrow);
@@ -2070,6 +2070,8 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       evpos = blocksizes[0] + blocksizes[1];
       for (b = 0; b < nblocks; b++)
       {
+         SCIP_Real* fullXmatrix;
+
          blocksize = blocksizes[2 + b];
          matrixsize = blocksize * blocksize;
 
@@ -2283,7 +2285,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       SCIPfreeBufferArray(scip, &nblockrownonz);
       SCIPfreeBufferArray(scip, &rhs);
       SCIPfreeBufferArray(scip, &lhs);
-      SCIPfreeBufferArray(scip, &fullZmatrix);
       SCIPfreeBufferArray(scip, &blockconstval);
       SCIPfreeBufferArray(scip, &blockconstrow);
       SCIPfreeBufferArray(scip, &blockconstcol);
