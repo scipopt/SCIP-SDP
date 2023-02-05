@@ -3195,7 +3195,7 @@ SCIP_RETCODE determineWarmStartInformation(
                   *starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval,
                   lowerbound, result) );
 
-            if ( *startXrow == NULL )
+            if ( *startXrow == NULL || *result == SCIP_SUCCESS || *result == SCIP_CUTOFF )
             {
                SCIPfreeBufferArrayNull(scip, &sdpblocks);
                SCIPfreeBufferArrayNull(scip, starty);
@@ -3328,10 +3328,7 @@ SCIP_RETCODE determineWarmStartInformation(
                /* set all negative eigenvalues to zero (using the property that LAPACK returns them in ascending order) */
                i = 0;
                while (i < blocksize && SCIPisLT(scip, eigenvalues[i], relaxdata->warmstartmevprimal) )
-               {
-                  eigenvalues[i] = relaxdata->warmstartmevprimal;
-                  i++;
-               }
+                  eigenvalues[i++] = relaxdata->warmstartmevprimal;
 
                /* compute diag(lambda_i_+) * U^T */
                SCIP_CALL( scaleTransposedMatrix(blocksize, scaledeigenvectors, eigenvalues) );
