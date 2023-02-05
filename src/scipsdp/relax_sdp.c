@@ -2003,7 +2003,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    else
    {
       SCIP_Real* optev;
-      int evpos = 0;
+      int evpos;
 
       assert( SCIPlpiIsOptimal(lpi) );
 
@@ -2012,30 +2012,7 @@ SCIP_RETCODE solvePrimalRoundingProblem(
 
       SCIP_CALL( SCIPlpiGetSol(lpi, NULL, optev, NULL, NULL, NULL) );
 
-      /* build varbound block */
-      pos = blocksizes[1]; /* to save some sorting later, the startX arrays should start with the LP block */
-      for (v = 0; v < nvars; v++)
-      {
-         (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v;
-         (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v;
-         if ( ! SCIPisInfinity(scip, -1 * SCIPvarGetLbLocal(vars[v])) )
-            (*startXval)[nblocks][pos] = optev[evpos++];
-         else
-            (*startXval)[nblocks][pos] = SCIPinfinity(scip);
-         pos++;
-
-         (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v + 1;
-         (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v + 1;
-         if ( ! SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[v])) )
-            (*startXval)[nblocks][pos] = optev[evpos++];
-         else
-            (*startXval)[nblocks][pos] = SCIPinfinity(scip);
-         pos++;
-      }
-      assert( evpos == blocksizes[0] );
-      assert( pos == blocksizes[1] + 2 * nvars );
-
-      /* build LP constraint block */
+      /* add LP constraint block */
       pos = 0;
       evpos = blocksizes[0];
       for (r = 0; r < nrows; r++)
@@ -2064,10 +2041,33 @@ SCIP_RETCODE solvePrimalRoundingProblem(
       assert( evpos == blocksizes[0] + blocksizes[1] );
       assert( pos == 2 * nrows );
 
+      /* build varbound block */
+      evpos = 0;
+      for (v = 0; v < nvars; v++)
+      {
+         (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v;
+         (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v;
+         if ( ! SCIPisInfinity(scip, -1 * SCIPvarGetLbLocal(vars[v])) )
+            (*startXval)[nblocks][pos] = optev[evpos++];
+         else
+            (*startXval)[nblocks][pos] = SCIPinfinity(scip);
+         pos++;
+
+         (*startXrow)[nblocks][pos] = 2 * nrows + 2 * v + 1;
+         (*startXcol)[nblocks][pos] = 2 * nrows + 2 * v + 1;
+         if ( ! SCIPisInfinity(scip, SCIPvarGetUbLocal(vars[v])) )
+            (*startXval)[nblocks][pos] = optev[evpos++];
+         else
+            (*startXval)[nblocks][pos] = SCIPinfinity(scip);
+         pos++;
+      }
+      assert( evpos == blocksizes[0] );
+      assert( pos == 2 * nrows + 2 * nvars );
+
       (*startXnblocknonz)[nblocks] = blocksizes[0] + blocksizes[1];
 
       /* build SDP blocks */
-      pos = blocksizes[0] + blocksizes[1];
+      evpos = blocksizes[0] + blocksizes[1];
       for (b = 0; b < nblocks; b++)
       {
          blocksize = blocksizes[2 + b];
@@ -2159,8 +2159,6 @@ SCIP_RETCODE solvePrimalRoundingProblem(
    SCIPfreeBufferArray(scip, &obj);
 
    /* add LP rows */
-   SCIP_CALL( SCIPgetLPRowsData(scip, &rows, &nrows) );
-
    for (r = 0; r < nrows; r++)
    {
       row = rows[r];
