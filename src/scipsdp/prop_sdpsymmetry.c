@@ -4422,7 +4422,7 @@ SCIP_RETCODE addStrongSBCsSubgroup(
 
       SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, 2, vars, vals, 0.0,
             SCIPinfinity(scip), propdata->conssaddlp, propdata->conssaddlp, TRUE,
-            FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+            FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
       SCIP_CALL( SCIPaddCons(scip, cons) );
 
@@ -4608,7 +4608,7 @@ SCIP_RETCODE addWeakSBCsSubgroup(
 
          SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, 2, vars, vals, 0.0,
                SCIPinfinity(scip), propdata->conssaddlp, propdata->conssaddlp, TRUE,
-               FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+               FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
          SCIP_CALL( SCIPaddCons(scip, cons) );
 
@@ -6272,7 +6272,7 @@ SCIP_RETCODE addSSTConssOrbitAndUpdateSST(
          {
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "SSTcut_%d_%d", orbits[posleader], orbits[poscur]);
             SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, 2, vars, vals, - SCIPinfinity(scip), 0.0,
-                  FALSE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+                  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
             SCIP_CALL( SCIPaddCons(scip, cons) );
             propdata->sstconss[propdata->nsstconss++] = cons;
@@ -6282,7 +6282,7 @@ SCIP_RETCODE addSSTConssOrbitAndUpdateSST(
       {
          (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "SSTcut_%d_%d", orbits[posleader], orbits[poscur]);
          SCIP_CALL( SCIPcreateConsLinear(scip, &cons, name, 2, vars, vals, - SCIPinfinity(scip), 0.0,
-               FALSE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+               FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
 
          SCIP_CALL( SCIPaddCons(scip, cons) );
          propdata->sstconss[propdata->nsstconss++] = cons;
