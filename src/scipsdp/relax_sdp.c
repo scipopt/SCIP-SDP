@@ -1046,7 +1046,7 @@ SCIP_RETCODE computeConflictCut(
                   assert( 0 <= col && col < blocksize );
 
                   primalval = primalmatrices[b][row * blocksize + col];
-                  assert( SCIPisEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
+                  assert( SCIPisFeasEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
 
                   if ( row == col )
                      SCIPquadprecSumQD(c, c, sdpval[b][v][k] * primalval);
@@ -1065,7 +1065,7 @@ SCIP_RETCODE computeConflictCut(
                assert( 0 <= col && col < blocksize );
 
                primalval = primalmatrices[b][row * blocksize + col];
-               assert( SCIPisEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
+               assert( SCIPisFeasEQ(scip, primalval, primalmatrices[b][col * blocksize + row]) );
 
                if ( row == col )
                   SCIPquadprecSumQD(cutlhs, cutlhs, sdpconstval[b][k] * primalval);
