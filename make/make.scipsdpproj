@@ -134,7 +134,10 @@ include $(SCIPDIR)/make/make.project
 
 # override DEBUGTOOL   =   none
 
-
+# we need C++-11 for Bliss
+ifeq ($(SYM),bliss)
+CXXFLAGS += $(CXX11FLAG)
+endif
 
 #-----------------------------------------------------------------------------
 # settings for SDP solver
@@ -179,7 +182,7 @@ endif
 ifeq ($(SDPS),sdpa)
 CFLAGS		=	-fPIC #-fopenmp
 # Note: In the following, -DFNAME_NONE overrides a different definition from SCIP to fix a bug that results in a segfault when setting up SDPA
-CXXFLAGS	=	-fPIC -pthread -DFNAME_NONE #-fopenmp
+CXXFLAGS	+=	-fPIC -pthread -DFNAME_NONE #-fopenmp
 ifeq ($(OPENBLAS),true)
 BLASLIB		=	-lopenblas
 else
