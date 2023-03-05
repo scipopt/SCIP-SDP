@@ -438,7 +438,7 @@ endif
 ifneq ($(OMP),$(LAST_OMP))
 		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
 endif
-ifneq ($(OMP),$(LAST_OPENBLAS))
+ifneq ($(OPENBLAS),$(LAST_OPENBLAS))
 		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c $(SRCDIR)/sdpi/lapack_interface.c  $(SDPICCSRC) $(SDPICSRC)
 endif
 ifneq ($(ARPACK),$(LAST_ARPACK))
