@@ -1,3 +1,39 @@
+SCIP-SDP version NEXT
+======================
+
+features:
+
+- Revised the internal structure to store LP rows. They are now stored as common in LP-solvers, i.e., with an array that stores the
+  beginning entries of each row. This saves memory and makes data handling easier.
+- The tightening of rows in the relaxator has been moved to the SDPI.
+- The SDPI-solvers now use a representation on which LP constraints have been removed.
+- Implemented several functions to return (primal) solution data for SDPA (SCIPsdpiSolverGetPrimalSolutionMatrix, SCIPsdpiSolverGetPrimalLPSides)
+- Refactored the code for warmstart information.
+- Store number of LP rows in warmstart information and invalidate information if this does not match
+
+API changes:
+- SCIPsdpiLoadSDP() now takes information about integrality of variables.
+- SCIPsdpiSolverLoadAndSolve(), SCIPsdpiSolverLoadAndSolveWithPenalty() now take parameter lpindchanges indicating whether the
+  row has been removed or the number of rows removed before the current one.
+- removed parameters success and sollength from SCIPrelaxSdpGetRelaxSol()
+- renamed SCIPspdiGetSol() to SCIPsdpiGetDualSol() and remove parameter dualsollength
+- renamed SCIPsdpiSolverGetSol() to SCIPsdpiSolverGetDualSol() and remove parameter dualsollength
+- remove dualsollength from SCIPsdpiGetPreoptimalSol()
+- createConsSavesdpsol() has a new parameter nlpcons
+
+Parameters:
+- removed paramter <relaxing/SDP/tightenrows>
+- value 2 for <relaxing/SDP/warmstartprimaltype> has been removed (i.e., taking the dual, because this does not produce a feasible point)
+
+fixed bugs:
+- fixed bug in the access to the primal solution matrix with DSDP
+- fixed several bugs with computing conflict constraint
+- The interface to DSDP now allocated memory once and reallocates it as needed, because DSDP needs it throughout the solution
+  process and for accessing solutions.
+- fix handling of interior point in warmstart if number of LP constraints has changed
+- fixed bug in solving rounding problem with handling matrices
+- fixed several memory issues with warmstart code
+
 SCIP-SDP version 4.1.0
 ======================
 

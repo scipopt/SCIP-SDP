@@ -279,7 +279,7 @@ SCIP_RETCODE solveTest(
    if ( exp_dualfeas == SCIPfeas )
    {
       /* get solution */
-      SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, dualsol, &ncols) );
+      SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, dualsol) );
 
       for (j = 0; j < ncols; ++j)
       {
@@ -367,8 +367,8 @@ SCIP_RETCODE performLPTest(
    SCIP_Real*            lhs,                /**< left hand sides of rows */
    SCIP_Real*            rhs,                /**< right hand sides of rows */
    int                   nnonz,              /**< number of nonzero elements in the constraint matrix */
-   int*                  row,                /**< row-indices of constraint-matrix entries */
-   int*                  col,                /**< column-indices of constraint-matrix entries */
+   int*                  beg,                /**< beg-indices of rows */
+   int*                  ind,                /**< column-indices of constraint-matrix entries */
    SCIP_Real*            val,                /**< values of constraint-matrix entries */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
    SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
@@ -380,8 +380,8 @@ SCIP_RETCODE performLPTest(
    )
 {
    /* load LP data, but leave SDP block empty */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
-         nrows, lhs, rhs, nnonz, row, col, val) );
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+         nrows, lhs, rhs, nnonz, beg, ind, val) );
 
    cr_assert( ! SCIPsdpiWasSolved(sdpi) );
 
@@ -422,9 +422,9 @@ SCIP_RETCODE performSDPTest(
    SCIP_Real*            lhs,                /**< left hand sides of rows */
    SCIP_Real*            rhs,                /**< right hand sides of rows */
    int                   nnonz,              /**< number of nonzero elements in the constraint matrix */
-   int*                  row,                /**< row-indices of constraint-matrix entries */
-   int*                  col,                /**< column-indices of constraint-matrix entries */
-   SCIP_Real*            val,                /**< values of constraint-matrix entries */
+   int*                  beg,                /**< beg-indices of LP rows */
+   int*                  ind,                /**< column-indices of LP constraint-matrix entries */
+   SCIP_Real*            val,                /**< values of LP constraint-matrix entries */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
    SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
    SCIP_Real*            exp_dualsol,        /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
@@ -436,8 +436,8 @@ SCIP_RETCODE performSDPTest(
    )
 {
    /* load LP data, but leave SDP block empty */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-         sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, nrows, lhs, rhs, nnonz, row, col, val) );
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, NULL, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
+         sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, nrows, lhs, rhs, nnonz, beg, ind, val) );
 
    cr_assert( ! SCIPsdpiWasSolved(sdpi) );
 
@@ -540,8 +540,8 @@ Test(checksdpi, test1)
    SCIP_Real obj[2] = {-3, -1};
    SCIP_Real lb[2] = {0, 0};
    SCIP_Real rhs[2] = {10, 15};
-   int row[4] = {0, 0, 1, 1};
-   int col[4] = {0, 1, 0, 1};
+   int beg[2] = {0, 2};
+   int ind[4] = {0, 1, 0, 1};
    SCIP_Real val[4] = {2, 1, 1, 3};
 
    /* data to be filled */
@@ -559,7 +559,7 @@ Test(checksdpi, test1)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, exp_primallbvals, NULL, NULL, exp_primalrhsvals) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPfeas, SCIPfeas, exp_dualsol, exp_primallbvals, NULL, NULL, exp_primalrhsvals) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -579,8 +579,8 @@ Test(checksdpi, test2)
    /* data with fixed values: */
    SCIP_Real obj[2] = {-3, -1};
    SCIP_Real rhs[2] = {10, 15};
-   int row[4] = {0, 0, 1, 1};
-   int col[4] = {0, 1, 0, 1};
+   int beg[2] = {0, 2};
+   int ind[4] = {0, 1, 0, 1};
    SCIP_Real val[4] = {2, 1, 1, 3};
 
    /* data to be filled */
@@ -596,7 +596,7 @@ Test(checksdpi, test2)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas, SCIPunbounded, NULL, NULL, NULL, NULL, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPinfeas, SCIPunbounded, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -620,8 +620,8 @@ Test(checksdpi, test3)
    SCIP_Real lb[2] = {0, 0};
    SCIP_Real lhs[2] = {3, 1};
    SCIP_Real rhs[2] = {3, 1};
-   int row[4] = {0, 0, 1, 1};
-   int col[4] = {0, 1, 0, 1};
+   int beg[2] = {0, 2};
+   int ind[4] = {0, 1, 0, 1};
    SCIP_Real val[4] = {2, 1, 1, 3};
 
    /* data to be filled */
@@ -631,7 +631,7 @@ Test(checksdpi, test3)
    ub[0] = SCIPsdpiInfinity(sdpi);
    ub[1] = SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded,  SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPunbounded,  SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -661,8 +661,8 @@ Test(checksdpi, test4)
       /* data with fixed values: */
       SCIP_Real obj[2] = {-1, -1};
       SCIP_Real rhs[2] = {0, -1};
-      int row[4] = {0, 0, 1, 1};
-      int col[4] = {0, 1, 0, 1};
+      int beg[2] = {0, 2};
+      int ind[4] = {0, 1, 0, 1};
       SCIP_Real val[4] = {1, -1, -1, 1};
 
       /* data to be filled */
@@ -678,7 +678,7 @@ Test(checksdpi, test4)
       lhs[0] = -SCIPsdpiInfinity(sdpi);
       lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPinfeas,  SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
+      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPinfeas,  SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
       /* check that data stored in sdpi is still the same */
       SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -702,8 +702,8 @@ Test(checksdpi, test5)
    SCIP_Real lb[2] = {0, 0};
    SCIP_Real ub[2] = {0, 0};
    SCIP_Real rhs[2] = {10, 15};
-   int row[4] = {0, 0, 1, 1};
-   int col[4] = {0, 1, 0, 1};
+   int beg[4] = {0, 2};
+   int ind[4] = {0, 1, 0, 1};
    SCIP_Real val[4] = {2, 1, 1, 3};
 
    /* data to be filled */
@@ -716,7 +716,7 @@ Test(checksdpi, test5)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -739,8 +739,8 @@ Test(checksdpi, test6)
    SCIP_Real lb[2] = {4, 3};
    SCIP_Real ub[2] = {4, 3};
    SCIP_Real rhs[2] = {10, 15};
-   int row[4] = {0, 0, 1, 1};
-   int col[4] = {0, 1, 0, 1};
+   int beg[2] = {0, 2};
+   int ind[4] = {0, 1, 0, 1};
    SCIP_Real val[4] = {2, 1, 1, 3};
 
    /* data to be filled */
@@ -750,7 +750,7 @@ Test(checksdpi, test6)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -773,8 +773,8 @@ Test(checksdpi, test7)
    SCIP_Real lb[2] = {1, 0};
    SCIP_Real ub[2] = {0, 10};
    SCIP_Real rhs[2] = {10, 15};
-   int row[4] = {0, 0, 1, 1};
-   int col[4] = {0, 1, 0, 1};
+   int beg[2] = {0, 2};
+   int ind[4] = {0, 1, 0, 1};
    SCIP_Real val[4] = {2, 1, 1, 3};
 
    /* data to be filled */
@@ -784,7 +784,7 @@ Test(checksdpi, test7)
    lhs[0] = -SCIPsdpiInfinity(sdpi);
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
+   SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
@@ -823,8 +823,8 @@ Test(checksdpi, test8, .disabled=1)
 {
    /* data with fixed values: */
    SCIP_Real obj[3] = {0, 0, 1};
-   int row[3] = {0, 0, 1};
-   int col[3] = {0, 1, 2};
+   int beg[2] = {0, 2};
+   int ind[3] = {0, 1, 2};
    SCIP_Real val[3] = {1, 1, 1};
    int nsdpblocks = 1;
    int sdpblocksizes[1] = {3};
@@ -884,7 +884,7 @@ Test(checksdpi, test8, .disabled=1)
 
    SCIP_CALL( performSDPTest(3, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, 0, sdpconstnblocknonz,
          NULL, NULL, NULL, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
-         2, lhs, rhs, 3, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL, NULL) );
+         2, lhs, rhs, 3, beg, ind, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(3, obj, lb, ub, 2, lhs, rhs, 5) );
@@ -922,8 +922,8 @@ Test(checksdpi, test9)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {-1, 0};
-   int row[4] = {0, 1, 2, 3};
-   int col[4] = {0, 0, 1, 1};
+   int beg[4] = {0, 1, 2, 3};
+   int ind[4] = {0, 0, 1, 1};
    SCIP_Real val[4] = {1, -1, 1, -1};
    int nsdpblocks = 1;
    int sdpblocksizes[1] = {2};
@@ -990,7 +990,7 @@ Test(checksdpi, test9)
 
    SCIP_CALL( performSDPTest(2, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
          &sdpconstrow, &sdpconstcol, &sdpconstval, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
-         4, lhs, rhs, 4, row, col, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL, NULL) );
+         4, lhs, rhs, 4, beg, ind, val, SCIPunbounded, SCIPinfeas, NULL, NULL, NULL, NULL, NULL, NULL) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 4, lhs, rhs, 4) );
@@ -1023,8 +1023,8 @@ Test(checksdpi, test10)
 {
    /* data with fixed values: */
    SCIP_Real obj[2] = {-1.0, -1.0};
-   int row[4] = {0, 1, 2, 3};
-   int col[4] = {0, 0, 1, 1};
+   int beg[4] = {0, 1, 2, 3};
+   int ind[4] = {0, 0, 1, 1};
    SCIP_Real val[4] = {1, -1, 1, -1};
    int nsdpblocks = 1;
    int sdpblocksizes[1] = {2};
@@ -1087,7 +1087,7 @@ Test(checksdpi, test10)
 
    SCIP_CALL( performSDPTest(2, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
          NULL, NULL, NULL, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
-         4, lhs, rhs, 4, row, col, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, exp_primallhsvals, exp_primalrhsvals, exp_primalmatrix) );
+         4, lhs, rhs, 4, beg, ind, val, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, exp_primallhsvals, exp_primalrhsvals, exp_primalmatrix) );
 
    /* check that data stored in sdpi is still the same */
    SCIP_CALL( checkData(2, obj, lb, ub, 4, lhs, rhs, 4) );

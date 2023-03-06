@@ -7502,6 +7502,8 @@ SCIP_DECL_CONSCHECK(consCheckSdp)
          SCIPinfoMessage(scip, NULL, "Solution is %d for rank-1 part of constraint %s.\n", rank1result, SCIPconsGetName(conss[i]) );
 #endif
       }
+      else
+         rank1result = TRUE;
 
       if ( ! rank1result )
       {
@@ -9638,7 +9640,7 @@ SCIP_Real SCIPconsSdpGetMaxSdpCoef(
  *  Upper bound is computed as \f$ \min \{ \sum_{v \leq m} \text{nvarnonz}(v) + \text{constnnonz}, n \cdot (n+1) / 2 \} \f$.
  */
 int SCIPconsSdpComputeUbSparseSdpMatrixLength(
-   SCIP_CONS*            cons                /**< the constraint for which the Matrix should be assembled */
+   SCIP_CONS*            cons                /**< the constraint for which the matrix should be assembled */
    )
 {  /*lint --e{715}*/
    SCIP_CONSDATA* consdata;

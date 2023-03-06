@@ -76,12 +76,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all variables (including fixed ones) in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
    SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
@@ -122,12 +123,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all variables (including fixed ones) in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
    SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
@@ -180,12 +182,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all scalar variables in the solution that should be checked */
    SCIP_Real**           solmatrices,        /**< values of all matrix variables in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */

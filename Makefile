@@ -433,10 +433,13 @@ ifneq ($(NOBLKBUFMEM),$(LAST_NOBLKBUFMEM))
 		@-touch -c $(ALLSRC)
 endif
 ifneq ($(SDPS),$(LAST_SDPS))
-		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
+		@-touch -c $(SRCDIR)/sdpi/sdpi.c $(SDPICCSRC) $(SDPICSRC)
 endif
 ifneq ($(OMP),$(LAST_OMP))
 		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c
+endif
+ifneq ($(OPENBLAS),$(LAST_OPENBLAS))
+		@-touch -c $(SRCDIR)/scipsdp/cons_sdp.c $(SRCDIR)/sdpi/lapack_interface.c  $(SDPICCSRC) $(SDPICSRC)
 endif
 ifneq ($(ARPACK),$(LAST_ARPACK))
 		@-touch -c $(SRCDIR)/sdpi/solveonevarsdp.c $(SRCDIR)/sdpi/arpack_interface.c
@@ -463,6 +466,7 @@ endif
 		@echo "LAST_NOBLKBUFMEM=$(NOBLKBUFMEM)" >> $(LASTSETTINGS)
 		@echo "LAST_SDPS=$(SDPS)" >> $(LASTSETTINGS)
 		@echo "LAST_OMP=$(OMP)" >> $(LASTSETTINGS)
+		@echo "LAST_OPENBLAS=$(OPENBLAS)" >> $(LASTSETTINGS)
 		@echo "LAST_ARPACK=$(ARPACK)" >> $(LASTSETTINGS)
 		@echo "LAST_SCIPSDPGITHASH=$(SCIPSDPGITHASH)" >> $(LASTSETTINGS)
 

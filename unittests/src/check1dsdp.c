@@ -150,7 +150,7 @@ Test(checksdpi, test1)
    rhs = SCIPsdpiInfinity(sdpi);
 
    /* load LP data, but leave SDP block empty */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
          nrows, &lhs, &rhs, nnonz, &row, &col, &val) );
 
    /* solve problem: no Slater-check, no time limit */
@@ -162,7 +162,7 @@ Test(checksdpi, test1)
    cr_assert( dualfeasible );
 
    /* get solution */
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, &dualsol, &ncols) );
+   SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, &dualsol) );
    cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
 
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.0);
@@ -216,7 +216,7 @@ Test(checksdpi, test2)
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
    /* load LP data, but leave SDP block empty */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
          nrows, lhs, rhs, nnonz, row, col, val) );
 
    /* solve problem: no Slater-check, no time limit */
@@ -228,7 +228,7 @@ Test(checksdpi, test2)
    cr_assert( dualfeasible );
 
    /* get solution */
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, &dualsol, &ncols) );
+   SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, &dualsol) );
    cr_assert( SCIPsdpiIsDualFeasible(sdpi) );
 
    cr_assert_float_eq(dualsol, 1.0, EPS, "Violation of dual solution: %g != %g\n", dualsol, 1.0);
@@ -282,7 +282,7 @@ Test(checksdpi, test3)
    lhs[1] = -SCIPsdpiInfinity(sdpi);
 
    /* load LP data, but leave SDP block empty */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
          nrows, lhs, rhs, nnonz, row, col, val) );
 
    /* solve problem: no Slater-check, no time limit */
@@ -293,7 +293,7 @@ Test(checksdpi, test3)
    cr_assert( ! dualfeasible );
 
    /* get solution */
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, &dualsol, &ncols) );
+   SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, &dualsol) );
 
    cr_assert( SCIPsdpiIsDualInfeasible(sdpi) );
 
@@ -374,7 +374,6 @@ Test(checksdpi, test5)
    SCIP_Bool dualfeasible;
    SCIP_Real objval;
    SCIP_Real dualsol;
-   int ncols = 1;
 
    sdpconstrows = (int*) sdpconstrow;
    sdpconstcols = (int*) sdpconstcol;
@@ -391,7 +390,7 @@ Test(checksdpi, test5)
    sdpvalss = &sdpvals;
 
    /* load SDP data */
-   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, 1, &obj, &lb, &ub, 1, &sdpblocksizes, &sdpnblockvars, 3, &sdpconstnblocknonz, &sdpconstrows, &sdpconstcols, &sdpconstvals,
+   SCIP_CALL( SCIPsdpiLoadSDP(sdpi, 1, &obj, &lb, &ub, NULL, 1, &sdpblocksizes, &sdpnblockvars, 3, &sdpconstnblocknonz, &sdpconstrows, &sdpconstcols, &sdpconstvals,
          3, &sdpnblockvarnonzs, &sdpvars, &sdprowss, &sdpcolss, &sdpvalss, 0, NULL, NULL, 0, NULL, NULL, NULL) );
 
    /* solve problem: no Slater-check, no time limit */
@@ -403,7 +402,7 @@ Test(checksdpi, test5)
    cr_assert( dualfeasible );
 
    /* get solution */
-   SCIP_CALL( SCIPsdpiGetSol(sdpi, &objval, &dualsol, &ncols) );
+   SCIP_CALL( SCIPsdpiGetDualSol(sdpi, &objval, &dualsol) );
    cr_assert_float_eq(dualsol, 1.541381, EPS, "Violation of dual solution: %g != %g\n", dualsol,  1.541381);
 
    /* directly solve problem */
