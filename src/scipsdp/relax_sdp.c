@@ -2718,8 +2718,6 @@ SCIP_RETCODE fillStartZ(
          rowval += SCIPgetSolVal(scip, dualsol, SCIPcolGetVar(rowcols[i])) * rowvals[i];
 
       /* consider lhs */
-      (*startZrow)[nblocks][2 * rowcnt] = 2 * rowcnt;
-      (*startZcol)[nblocks][2 * rowcnt] = 2 * rowcnt;
       zval = rowval - (SCIProwGetLhs(row) - SCIProwGetConstant(row));
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartmevdual) )
@@ -2749,11 +2747,11 @@ SCIP_RETCODE fillStartZ(
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
          zval = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
+      (*startZrow)[nblocks][2 * rowcnt] = 2 * rowcnt;
+      (*startZcol)[nblocks][2 * rowcnt] = 2 * rowcnt;
       (*startZval)[nblocks][2 * rowcnt] = zval;
 
       /* consider rhs */
-      (*startZrow)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
-      (*startZcol)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
       zval = SCIProwGetRhs(row) - SCIProwGetConstant(row) - rowval;
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartmevdual) )
@@ -2781,6 +2779,8 @@ SCIP_RETCODE fillStartZ(
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
          zval = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
+      (*startZrow)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
+      (*startZcol)[nblocks][2 * rowcnt + 1] = 2 * rowcnt + 1;
       (*startZval)[nblocks][2 * rowcnt + 1] = zval;
       ++rowcnt;
    }
@@ -2789,8 +2789,6 @@ SCIP_RETCODE fillStartZ(
    for (v = 0; v < nvars; v++)
    {
       /* consider lower bound */
-      (*startZrow)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
-      (*startZcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
       zval = SCIPgetSolVal(scip, dualsol, vars[v]) - SCIPvarGetLbLocal(vars[v]);
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartmevdual) )
@@ -2818,11 +2816,11 @@ SCIP_RETCODE fillStartZ(
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
          zval = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
+      (*startZrow)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
+      (*startZcol)[nblocks][2 * nrows + 2 * v] = 2 * nrows + 2 * v;
       (*startZval)[nblocks][2 * nrows + 2 * v] = zval;
 
       /* consider upper bound */
-      (*startZrow)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
-      (*startZcol)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
       zval = SCIPvarGetUbLocal(vars[v]) - SCIPgetSolVal(scip, dualsol, vars[v]);
 
       if ( relaxdata->warmstartiptype == 1 && relaxdata->warmstartproject == 3 && SCIPisLT(scip, zval, relaxdata->warmstartmevdual) )
@@ -2850,6 +2848,8 @@ SCIP_RETCODE fillStartZ(
       if ( relaxdata->warmstartpreoptsol && zval < WARMSTART_PREOPT_MIN_Z_LPVAL )
          zval = WARMSTART_PREOPT_MIN_Z_LPVAL;
 
+      (*startZrow)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
+      (*startZcol)[nblocks][2 * nrows + 2 * v + 1] = 2 * nrows + 2 * v + 1;
       (*startZval)[nblocks][2 * nrows + 2 * v + 1] = zval;
    }
 
