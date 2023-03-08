@@ -97,10 +97,10 @@
 #define DEFAULT_USEPRESOLVING       FALSE    /**< whether presolving of SDP-solver should be used */
 #define DEFAULT_USESCALING          TRUE     /**< whether the SDP-solver should use scaling */
 #define DEFAULT_SCALEOBJ            FALSE    /**< whether the objective should be scaled in order to get a more stable behavior */
-#define DEFAULT_CONFLICTCONSS       TRUE     /**< whether conflict constraints should be generated */
-#define DEFAULT_CONFLICTFEAS        TRUE     /**< whether conflict constraints should be generated for feasible subproblems */
+#define DEFAULT_CONFLICTCONSS       FALSE    /**< whether conflict constraints should be generated */
+#define DEFAULT_CONFLICTFEAS        FALSE    /**< whether conflict constraints should be generated for feasible subproblems */
 #define DEFAULT_CONFLICTOBJCUT      FALSE    /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
-#define DEFAULT_CONFLICTINFEAS      TRUE     /**< whether conflict constraints should be generated for infeasible subproblems */
+#define DEFAULT_CONFLICTINFEAS      FA:SE    /**< whether conflict constraints should be generated for infeasible subproblems */
 #define DEFAULT_CONFLICTCMIR        FALSE    /**< whether conflict constraints should be strengthened by the CMIR procedure */
 
 #define WARMSTART_MINVAL            0.01     /**< minimal value for warmstarting (currently only for the linear part when combining with analytic center) */
