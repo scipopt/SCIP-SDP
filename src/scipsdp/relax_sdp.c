@@ -102,6 +102,7 @@
 #define DEFAULT_CONFLICTOBJCUT      FALSE    /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
 #define DEFAULT_CONFLICTINFEAS      FALSE    /**< whether conflict constraints should be generated for infeasible subproblems */
 #define DEFAULT_CONFLICTCMIR        FALSE    /**< whether conflict constraints should be strengthened by the CMIR procedure */
+#define DEFAULT_CONFLICTCANCEL      FALSE    /**< whether continuous variables should be canceled from a conflict constraint */
 
 #define WARMSTART_MINVAL            0.01     /**< minimal value for warmstarting (currently only for the linear part when combining with analytic center) */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimal value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
@@ -152,6 +153,7 @@ struct SCIP_RelaxData
    SCIP_Bool             conflictobjcut;     /**< whether an objective cut should be used to generate conflict constraints for feasible subproblems */
    SCIP_Bool             conflictinfeas;     /**< whether conflict constraints should be generated for infeasible subproblems */
    SCIP_Bool             conflictcmir;       /**< whether conflict constraints should be strengthened by the CMIR procedure */
+   SCIP_Bool             conflictcancel;     /**< whether continuous variables should be canceled from a conflict constraint */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -951,6 +953,7 @@ static
 SCIP_RETCODE computeConflictCut(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_SOL*             sol,                /**< relaxation solution */
+   SCIP_Bool             usecancelation,     /**< whether variables should be canceled from the cut */
    SCIP_Bool             usecmir,            /**< whether the cut should be strengthened using the CMIR procedure */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_SDPI*            sdpi,               /**< SDP-interface structure */
@@ -1219,6 +1222,44 @@ SCIP_RETCODE computeConflictCut(
       SCIPfreeBufferArray(scip, &lhsvals);
    }
 
+   /* possibly cancel variables */
+   if ( *success && usecancelation )
+   {
+      for (j = 0; j < nvars; ++j)
+      {
+         SCIP_Real glbbound;
+         SCIP_Real locbound;
+
+         /* only try to eliminate continuous variables from the cut */
+         if ( SCIPvarGetType(vars[j]) != SCIP_VARTYPE_CONTINUOUS && SCIPvarGetType(vars[j]) != SCIP_VARTYPE_IMPLINT )
+            continue;
+
+         QUAD_ARRAY_LOAD(c, cutcoefs, j);
+         if ( REALABS(QUAD_TO_DBL(c)) <= QUAD_EPSILON )
+            continue;
+
+         if ( QUAD_TO_DBL(c) > 0.0 )
+         {
+            glbbound = SCIPvarGetUbGlobal(vars[j]);
+            locbound = SCIPvarGetUbLocal(vars[j]);
+         }
+         else
+         {
+            glbbound = SCIPvarGetLbGlobal(vars[j]);
+            locbound = SCIPvarGetLbLocal(vars[j]);
+         }
+
+         if ( SCIPisEQ(scip, glbbound, locbound) )
+         {
+            SCIPdebugMsg(scip, "Cancel variable <%s> from conflict constraint.\n", SCIPvarGetName(vars[j]));
+            SCIPquadprecProdQD(c, c, - glbbound);
+            SCIPquadprecSumQQ(cutlhs, cutlhs, c);
+            QUAD_ASSIGN(c, 0.0);
+            QUAD_ARRAY_STORE(cutcoefs, j, c);
+         }
+      }
+   }
+
    /* safely cleanup cut (adapted from conflict.c) */
    if ( *success )
    {
@@ -1336,7 +1377,7 @@ SCIP_RETCODE computeConflictCut(
             ub = SCIPvarGetUbLocal(vars[j]);
             if ( SCIPisFeasEQ(scip, val, lb) || SCIPisFeasEQ(scip, val, ub) )
                val = (lb + ub) / 2.0;
-           SCIP_CALL( SCIPsetSolVal(scip, refsol, vars[j], val) );
+            SCIP_CALL( SCIPsetSolVal(scip, refsol, vars[j], val) );
          }
 
          /* apply flow cover */
@@ -1412,7 +1453,7 @@ SCIP_RETCODE generateConflictCons(
    assert( vars != NULL );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
-   SCIP_CALL( computeConflictCut(scip, sol, relaxdata->conflictcmir, relaxdata->varmapper,
+   SCIP_CALL( computeConflictCut(scip, sol, relaxdata->conflictcancel, relaxdata->conflictcmir, relaxdata->varmapper,
          relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &cmirsuccess, &success) );
    assert( !cmirsuccess || success );
 
@@ -5428,6 +5469,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictcmir",
          "whether conflict constraints should be strengthened by the CMIR procedure",
          &(relaxdata->conflictcmir), TRUE, DEFAULT_CONFLICTCMIR, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictcancel",
+         "whether continuous variables should be canceled from a conflict constraint",
+         &(relaxdata->conflictcancel), TRUE, DEFAULT_CONFLICTCANCEL, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convex combination of IP and parent solution, if warmstarts are enabled",
