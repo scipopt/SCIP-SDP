@@ -180,6 +180,7 @@ endif
 #-----------------------------------------------------------------------------
 # SDPA solver version >= 7.3.8
 ifeq ($(SDPS),sdpa)
+OPENBLAS	=	true   # openblas is on by default for SDPA
 CFLAGS		=	-fPIC #-fopenmp
 # Note: In the following, -DFNAME_NONE overrides a different definition from SCIP to fix a bug that results in a segfault when setting up SDPA
 CXXFLAGS	+=	-fPIC -pthread -DFNAME_NONE #-fopenmp
