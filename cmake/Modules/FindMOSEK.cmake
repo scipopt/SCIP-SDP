@@ -15,10 +15,10 @@ find_library(IOMP5_LIBRARY
     PATH_SUFFIXES bin)
 
 if(IOMPS_LIBRARY)
-  set(MOSEK_LIBRARIES ${MOSEK_LIBRARY} ${IOMP5_LIBRARY} -llapack -lblas -pthread)
+  set(MOSEK_LIBRARIES ${MOSEK_LIBRARY} ${IOMP5_LIBRARY} -pthread)
 else()
   # if libiomps is not available, we skip it
-  set(MOSEK_LIBRARIES ${MOSEK_LIBRARY} -llapack -lblas -pthread)
+  set(MOSEK_LIBRARIES ${MOSEK_LIBRARY} -pthread)
 endif()
 
 include(FindPackageHandleStandardArgs)
