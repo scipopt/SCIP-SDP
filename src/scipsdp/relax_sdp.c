@@ -1386,14 +1386,14 @@ SCIP_RETCODE computeConflictCut(
 
          /* apply MIR */
          SCIP_CALL( SCIPcutGenerationHeuristicCMIR(scip, refsol, POSTPROCESS, BOUNDSWITCH, USEVBDS, ALLOWLOCAL, INT_MAX, NULL, NULL, MINFRAC, MAXFRAC, aggrrow, coefs, &cutrhs, inds,
-               &cnt, &cutefficacy, NULL, &islocal, &cutsuccess) );
+               &cutnnz, &cutefficacy, NULL, &islocal, &cutsuccess) );
          *success = *success || cutsuccess;
 
          if ( *success )
          {
             SCIPdebugMsg(scip, "Strengthened cut by CMIR ...\n");
             BMSclearMemoryArray(conflictcut, nvars);
-            for (j = 0; j < cnt; ++j)
+            for (j = 0; j < cutnnz; ++j)
                conflictcut[inds[j]] = - coefs[j];       /* flip direction */
             *conflictcutlhs = - cutrhs;
             *cmirsuccess = TRUE;
