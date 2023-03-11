@@ -10,6 +10,7 @@ features:
 - Implemented several functions to return (primal) solution data for SDPA (SCIPsdpiSolverGetPrimalSolutionMatrix, SCIPsdpiSolverGetPrimalLPSides)
 - Refactored the code for warmstart information.
 - Store number of LP rows in warmstart information and invalidate information if this does not match
+- Implemented cancelation and CMIR generation for conflict constraints.
 
 API changes:
 - SCIPsdpiLoadSDP() now takes information about integrality of variables.
