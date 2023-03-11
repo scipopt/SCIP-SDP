@@ -1402,6 +1402,9 @@ SCIP_RETCODE computeConflictCut(
          SCIP_CALL( SCIPfreeSol(scip, &refsol) );
          SCIPfreeBufferArray(scip, &coefs);
          SCIPaggrRowFree(scip, &aggrrow);
+
+         /* At this place, the previous steps were successful. We therefore enforce to use the conflict constraint, even if CMIR was not successful. */
+         *success = TRUE;
       }
 
       SCIPfreeBufferArray(scip, &inds);
