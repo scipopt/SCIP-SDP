@@ -1447,7 +1447,7 @@ SCIP_RETCODE generateConflictCons(
    if ( ! SCIPsdpiWasSolved(sdpi) )
       return SCIP_OKAY;
 
-   if ( ! ( SCIPsdpiIsDualFeasible(sdpi) && relaxdata->conflictfeas ) || ( SCIPsdpiIsDualInfeasible(sdpi) && relaxdata->conflictinfeas ) )
+   if ( ! ( ( SCIPsdpiIsDualFeasible(sdpi) && relaxdata->conflictfeas ) || ( SCIPsdpiIsDualInfeasible(sdpi) && relaxdata->conflictinfeas ) ) )
       return SCIP_OKAY;
 
    nvars = SCIPgetNVars(scip);
