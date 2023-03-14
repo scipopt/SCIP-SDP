@@ -4234,6 +4234,10 @@ SCIP_RETCODE calcRelax(
       if ( SCIPsdpiIsDualInfeasible(sdpi) )
       {
          SCIPdebugMsg(scip, "Relaxation is infeasible.\n");
+
+         /* possibly create conflict constraint */
+         SCIP_CALL( generateConflictCons(scip, relax) );
+
          relaxdata->feasible = FALSE;
          relaxdata->objval = SCIPinfinity(scip);
          *result = SCIP_CUTOFF;
