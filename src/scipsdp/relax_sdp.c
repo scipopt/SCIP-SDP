@@ -952,7 +952,6 @@ SCIP_RETCODE putLpDataInInterface(
 static
 SCIP_RETCODE computeConflictCut(
    SCIP*                 scip,               /**< SCIP pointer */
-   SCIP_SOL*             sol,                /**< relaxation solution */
    SCIP_Bool             usecancelation,     /**< whether variables should be canceled from the cut */
    SCIP_Bool             usecmir,            /**< whether the cut should be strengthened using the CMIR procedure */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
@@ -1419,8 +1418,7 @@ SCIP_RETCODE computeConflictCut(
 static
 SCIP_RETCODE generateConflictCons(
    SCIP*                 scip,               /**< SCIP pointer */
-   SCIP_RELAX*           relax,              /**< relaxator */
-   SCIP_SOL*             sol                 /**< relaxation solution */
+   SCIP_RELAX*           relax               /**< relaxator */
    )
 {
    SCIP_RELAXDATA* relaxdata;
@@ -1435,7 +1433,6 @@ SCIP_RETCODE generateConflictCons(
 
    assert( scip != NULL );
    assert( relax != NULL );
-   assert( sol != NULL );
 
    relaxdata = SCIPrelaxGetData(relax);
    assert( relaxdata != NULL );
@@ -1456,7 +1453,7 @@ SCIP_RETCODE generateConflictCons(
    assert( vars != NULL );
 
    SCIP_CALL( SCIPallocBufferArray(scip, &conflictcut, nvars) );
-   SCIP_CALL( computeConflictCut(scip, sol, relaxdata->conflictcancel, relaxdata->conflictcmir, relaxdata->varmapper,
+   SCIP_CALL( computeConflictCut(scip, relaxdata->conflictcancel, relaxdata->conflictcmir, relaxdata->varmapper,
          relaxdata->sdpi, relaxdata->conflictobjcut, conflictcut, &conflictcutlhs, &cmirsuccess, &success) );
    assert( !cmirsuccess || success );
 
@@ -4289,7 +4286,7 @@ SCIP_RETCODE calcRelax(
          *result = SCIP_SUCCESS;
 
          /* possibly create conflict constraint */
-         SCIP_CALL( generateConflictCons(scip, relax, scipsol) );
+         SCIP_CALL( generateConflictCons(scip, relax) );
 
          /* save solution for warmstarts (only if we did not use the penalty formulation, since this would change the problem structure) */
          if ( relaxdata->warmstart && SCIPsdpiSolvedOrig(relaxdata->sdpi) )
