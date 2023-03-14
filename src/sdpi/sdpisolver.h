@@ -229,7 +229,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
                                               *   SCIP_SDPSOLVERSETTING_UNSOLVED to ignore it and start from scratch */
    SCIP_Real             timelimit,          /**< after this many seconds solving will be aborted (currently only implemented for DSDP) */
    SDPI_CLOCK*           usedsdpitime        /**< clock to measure how much time has been used for the current solve */
-);
+   );
 
 /** loads and solves an SDP using a penalty formulation
  *
