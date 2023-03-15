@@ -3661,7 +3661,7 @@ SCIP_Bool SCIPsdpiSolvedOrig(
 {
    assert( sdpi != NULL );
 
-   return ( SCIPsdpiWasSolved(sdpi) && (! sdpi->penalty) );
+   return ( sdpi->solved && ! sdpi->penalty );
 }
 
 /** returns whether a primal solution or ray is available */
