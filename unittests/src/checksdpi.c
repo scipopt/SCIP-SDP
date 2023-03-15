@@ -381,7 +381,7 @@ SCIP_RETCODE performLPTest(
 {
    /* load LP data, but leave SDP block empty */
    SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
-         nrows, lhs, rhs, nnonz, beg, ind, val) );
+         nrows, lhs, rhs, nnonz, beg, ind, val, TRUE) );
 
    cr_assert( ! SCIPsdpiWasSolved(sdpi) );
 
@@ -437,7 +437,7 @@ SCIP_RETCODE performSDPTest(
 {
    /* load LP data, but leave SDP block empty */
    SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, NULL, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-         sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, nrows, lhs, rhs, nnonz, beg, ind, val) );
+         sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, nrows, lhs, rhs, nnonz, beg, ind, val, TRUE) );
 
    cr_assert( ! SCIPsdpiWasSolved(sdpi) );
 
