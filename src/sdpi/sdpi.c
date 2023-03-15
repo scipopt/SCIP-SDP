@@ -3669,10 +3669,17 @@ SCIP_Bool SCIPsdpiHavePrimalSol(
    SCIP_SDPI*            sdpi                /**< SDP-interface structure */
    )
 {
-   if ( ! sdpi->solved || sdpi->infeasible || sdpi->allfixed || (sdpi->solvedonevarsdp == SCIP_ONEVAR_UNSOLVED && SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver)) )
-   {
+   if ( ! sdpi->solved )
       return FALSE;
-   }
+   else if ( sdpi->allfixed )
+      return TRUE;
+   else if ( sdpi->infeasible )
+      return FALSE;
+   else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
+      return TRUE;
+   else if ( SCIPsdpiSolverIsPrimalInfeasible(sdpi->sdpisolver) )
+      return FALSE;
+
    return TRUE;
 }
 
@@ -4381,13 +4388,21 @@ SCIP_RETCODE SCIPsdpiGetPrimalBoundVars(
    {
       SCIPdebugMessage("Problem not solved, no primal solution available.\n");
    }
+   else if ( sdpi->allfixed )
+   {
+      int i;
+
+      /* if all variables are fixed, we return 0 as primal solution */
+      for (i = 0; i < sdpi->nvars; i++)
+      {
+         lbvals[i] = 0.0;
+         ubvals[i] = 0.0;
+      }
+      *success = TRUE;
+   }
    else if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
-   }
-   else if ( sdpi->allfixed )
-   {
-      SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
    }
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
@@ -4469,13 +4484,19 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
    {
       SCIPdebugMessage("Problem not solved, no primal solution available.\n");
    }
+   else if ( sdpi->allfixed )
+   {
+      /* if all variables are fixed, we return 0 as a primal solution */
+      for (i = 0; i < sdpi->nlpcons; ++i)
+      {
+         lhsvals[i] = 0.0;
+         rhsvals[i] = 0.0;
+      }
+      *success = TRUE;
+   }
    else if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
-   }
-   else if ( sdpi->allfixed )
-   {
-      SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
    }
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
@@ -4668,13 +4689,46 @@ SCIP_RETCODE SCIPsdpiGetPrimalSolutionMatrix(
    {
       SCIPdebugMessage("Problem was not solved, no primal solution available.\n");
    }
+   else if ( sdpi->allfixed )
+   {
+      int b;
+
+      /* if the eigenvectors have not been stored, we return */
+      if ( sdpi->allfixedeigenvecs == NULL )
+         return SCIP_OKAY;
+
+      /* loop over all SDP blocks */
+      for (b = 0; b < sdpi->nsdpblocks; b++)
+      {
+         int blocksize;
+         int i;
+         int j;
+
+         assert( primalmatrices[b] != NULL );
+
+         blocksize = sdpi->sdpblocksizes[b];
+
+         if ( sdpi->infeasible )
+         {
+            /* construct rank1 matrix */
+            for (i = 0; i < blocksize; ++i)
+            {
+               for (j = 0; j < blocksize; ++j)
+                  primalmatrices[b][i * blocksize + j] = sdpi->allfixedeigenvecs[b][i] * sdpi->allfixedeigenvecs[b][j];
+            }
+         }
+         else
+         {
+            /* the 0-matrix s optimal if we are feasible */
+            for (j = 0; j < blocksize * blocksize; ++j)
+               primalmatrices[b][j] = 0.0;
+         }
+      }
+      *success = TRUE;
+   }
    else if ( sdpi->infeasible )
    {
       SCIPdebugMessage("Infeasibility was detected while preparing problem, no primal solution available.\n");
-   }
-   else if ( sdpi->allfixed )
-   {
-      SCIPdebugMessage("All variables fixed during preprocessing, no primal solution available.\n");
    }
    else if ( sdpi->solvedonevarsdp > SCIP_ONEVAR_UNSOLVED )
    {
