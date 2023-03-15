@@ -510,7 +510,8 @@ SCIP_RETCODE putSdpDataInInterface(
    SCIP_SDPI*            sdpi,               /**< SDP interface structure */
    SdpVarmapper*         varmapper,          /**< maps SCIP variables to their global SDP indices and vice versa */
    SCIP_Bool             primalobj,          /**< Should the primal objective coefficients (constant part of the SDP constraint) be used? */
-   SCIP_Bool             boundprimal         /**< Should the primal problem be bounded (Tr(X)<=1) through a penalty term in the dual? */
+   SCIP_Bool             boundprimal,        /**< Should the primal problem be bounded (Tr(X)<=1) through a penalty term in the dual? */
+   SCIP_Bool             conflictinfeas      /**< whether conflicts based on infeasibility should be generated */
    )
 {
    SCIP_CONSHDLR* conshdlr;
@@ -705,7 +706,7 @@ SCIP_RETCODE putSdpDataInInterface(
    {
       SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, isintegral, nsdpblocks, sdpblocksizes, nblockvars, sdpconstnnonz, nconstblocknonz, constrow,
             constcol, constval, sdpnnonz, nblockvarnonz, sdpvar, row, col, val, 0,
-            NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
+            NULL, NULL, 0, NULL, NULL, NULL, conflictinfeas) ); /* insert the SDP part, add an empty LP part */
    }
    else
    {
@@ -715,7 +716,7 @@ SCIP_RETCODE putSdpDataInInterface(
 
       SCIP_CALL( SCIPsdpiLoadSDP(sdpi, nvarspen,  obj, lb, ub, isintegral, nsdpblocks, sdpblocksizes, nblockvars, 0, nconstblocknonz, NULL,
             NULL, NULL, sdpnnonz, nblockvarnonz, sdpvar, row, col,  val, 0,
-            NULL, NULL, 0, NULL, NULL, NULL) ); /* insert the SDP part, add an empty LP part */
+            NULL, NULL, 0, NULL, NULL, NULL, conflictinfeas) ); /* insert the SDP part, add an empty LP part */
    }
 
    /* free the remaining memory */
@@ -4461,7 +4462,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       SCIPfreeBufferArray(scip, &newvars);
 
       /* make sure that SDPs and number of variables in SDPI are updated as well */
-      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE, relaxdata->conflictinfeas) );
    }
    else
    {
@@ -4481,7 +4482,7 @@ SCIP_DECL_RELAXEXEC(relaxExecSdp)
       if ( nsdpblocks != nsdpconss )
       {
          SCIPdebugMsg(scip, "Number of SDP constraints changed, new: %d  (old: %d).\n", nsdpconss, nsdpblocks);
-         SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+         SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE, relaxdata->conflictinfeas) );
       }
    }
 
@@ -4624,7 +4625,7 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
 
    if ( nvars > 0 )
    {
-      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE, relaxdata->conflictinfeas) );
    }
 
    /* set the parameters of the SDP-Solver */
@@ -5647,7 +5648,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    /* first solve SDP with primal objective (dual constant part) set to zero to compute analytic center of primal feasible set */
    if ( SCIPsdpiDoesWarmstartNeedPrimal() )
    {
-      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, TRUE) );
+      SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, FALSE, TRUE, relaxdata->conflictinfeas) );
       SCIP_CALL( putLpDataInInterface(scip, relaxdata, FALSE, TRUE) );
 
       /* set time limit */
@@ -5780,7 +5781,7 @@ SCIP_RETCODE SCIPrelaxSdpComputeAnalyticCenters(
    }
 
    /* set dual objective coefficients to zero to compute analytic center of dual feasible set */
-   SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE) );
+   SCIP_CALL( putSdpDataInInterface(scip, relaxdata->sdpi, relaxdata->varmapper, TRUE, FALSE, relaxdata->conflictinfeas) );
    SCIP_CALL( putLpDataInInterface(scip, relaxdata, TRUE, FALSE) );
 
    /* set time limit */

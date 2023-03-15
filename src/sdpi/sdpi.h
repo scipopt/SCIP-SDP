@@ -175,7 +175,8 @@ SCIP_RETCODE SCIPsdpiLoadSDP(
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
    int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
    int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
-   SCIP_Real*            lpval               /**< values of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Bool             allfixedprimalray   /**< whether we should return a primal ray if the problem is infeasible if all variables are fixed */
    );
 
 /** adds rows to the LP-Block
