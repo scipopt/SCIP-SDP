@@ -44,7 +44,7 @@ extern "C" {
 #define SCIPSDP_VERSION               401 /**< SCIP-SDP version number (multiplied by 100 to get integer number) */
 #define SCIPSDP_SUBVERSION              0 /**< SCIP-SDP sub version number */
 #define SCIPSDP_APIVERSION              0 /**< SCIP-SDP API version number */
-#define SCIPSDP_COPYRIGHT   "Copyright (C) 2011-2022 TU Darmstadt"
+#define SCIPSDP_COPYRIGHT   "Copyright (C) 2011-2023 TU Darmstadt"
 
 #define SCIPSDPmajorVersion SCIPSDP_VERSION / 100
 #define SCIPSDPminorVersion (SCIPSDP_VERSION/10) % 10
