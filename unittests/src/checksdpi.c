@@ -381,7 +381,7 @@ SCIP_RETCODE performLPTest(
 {
    /* load LP data, but leave SDP block empty */
    SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
-         nrows, lhs, rhs, nnonz, beg, ind, val) );
+         nrows, lhs, rhs, nnonz, beg, ind, val, TRUE) );
 
    cr_assert( ! SCIPsdpiWasSolved(sdpi) );
 
@@ -437,7 +437,7 @@ SCIP_RETCODE performSDPTest(
 {
    /* load LP data, but leave SDP block empty */
    SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, obj, lb, ub, NULL, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval,
-         sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, nrows, lhs, rhs, nnonz, beg, ind, val) );
+         sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, nrows, lhs, rhs, nnonz, beg, ind, val, TRUE) );
 
    cr_assert( ! SCIPsdpiWasSolved(sdpi) );
 
@@ -1170,4 +1170,84 @@ Test(checksdpi, test11)
    SCIP_CALL( performSDPTest(1, &obj, &lb, &ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
          &sdpconstrows, &sdpconstcols, &sdpconstvals, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
          0, NULL, NULL, 0, NULL, NULL, NULL, SCIPfeas, SCIPfeas, exp_dualsol, NULL, NULL, NULL, NULL, exp_primalmatrix) );
+}
+
+
+/** Test 12
+ *
+ *  inf   x1
+ *        [1,  0] x1 - [1 2]  psd
+ *        [0,  1]      [2 4]
+ *        0 <= x1 <= 0
+ *
+ *  The constant matrix has eigenvalues 0 and 5 and x1 is fixed to 0. Thus, the problem is infeasible.
+ *
+ *  The dual after fixing x1 is:
+ *  sup  <A0,X>
+ *       X psd.
+ *
+ *  This problem is feasible and unbounded. One ray is given by the rank 1 matrix X = x x^T with x = [0.44721, 0.89443]
+ *  = [0.20000, 0.40000]
+ *    [0.40000, 0.80001]
+ */
+Test(checksdpi, test12)
+{
+   /* data with fixed values: */
+   SCIP_Real obj = 1.0;
+   int nsdpblocks = 1;
+   int sdpblocksizes[1] = {2};
+   int sdpnblockvars[1] = {1};
+   int sdpconstnblocknonz[1] = {3};
+   int sdpconstnnonz = 3;
+   int sdpnnonz = 2;
+   int* sdpnblockvarnonz;
+   int* sdpvar;
+   int** sdprow;
+   int** sdpcol;
+   SCIP_Real** sdpval;
+
+   int sdpnblockvarnonzs[1] = {2};
+   int sdpvars[1] = {0};
+   int sdprowss[2] = {0, 1};
+   int sdpcolss[2] = {0, 1};
+   SCIP_Real sdpvalss[2] = {1.0, 1.0};
+
+   int sdpconstrowss[3] = {0, 1, 1};
+   int sdpconstcolss[3] = {0, 0, 1};
+   SCIP_Real sdpconstvalss[3] = {1.0, 2.0, 4.0};
+
+   /* data to be filled */
+   int* sdprows;
+   int* sdpcols;
+   SCIP_Real* sdpvals;
+   int* sdpconstrows;
+   int* sdpconstcols;
+   SCIP_Real* sdpconstvals;
+
+   SCIP_Real lb;
+   SCIP_Real ub;
+
+   /* expected solutions */
+   SCIP_Real exp_dualsol[1] = {5.0};
+   SCIP_Real exp_primalmatrix[4] = {0.2, 0.4, 0.4, 0.8};
+
+   sdpnblockvarnonz = &sdpnblockvarnonzs[0];
+   sdpvar = &sdpvars[0];
+   sdprows = &sdprowss[0];
+   sdpcols = &sdpcolss[0];
+   sdpvals = &sdpvalss[0];
+   sdprow = &sdprows;
+   sdpcol = &sdpcols;
+   sdpval = &sdpvals;
+   sdpconstrows = &sdpconstrowss[0];
+   sdpconstcols = &sdpconstcolss[0];
+   sdpconstvals = &sdpconstvalss[0];
+
+   /* fill data */
+   lb = 0.0;
+   ub = 0.0;
+
+   SCIP_CALL( performSDPTest(1, &obj, &lb, &ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz,
+         &sdpconstrows, &sdpconstcols, &sdpconstvals, sdpnnonz, &sdpnblockvarnonz, &sdpvar, &sdprow, &sdpcol, &sdpval,
+         0, NULL, NULL, 0, NULL, NULL, NULL, SCIPunbounded, SCIPinfeas, exp_dualsol, NULL, NULL, NULL, NULL, exp_primalmatrix) );
 }
