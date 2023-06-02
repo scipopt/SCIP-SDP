@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION="4.1.0"
+VERSION="4.2.0"
 NAME="scipsdp-$VERSION"
 rm -f $NAME
 
