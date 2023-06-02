@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2022 Discrete Optimization, TU Darmstadt               */
+/*               2014-2023 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -616,12 +616,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array */
+   int*                  lpind,              /**< column-index for each entry in lpval-array */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries */
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                               *   also length of corresponding row/col/val-arrays; or NULL */
@@ -647,7 +648,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
 {
    return SCIPsdpiSolverLoadAndSolveWithPenalty(sdpisolver, 0.0, TRUE, FALSE, nvars, obj, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
       sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval, indchanges,
-      nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+      nremovedinds, blockindchanges, nremovedblocks, nlpcons, lpindchanges, lplhs, lprhs, lpnnonz, lpbeg, lpind, lpval,
       starty, startZnblocknonz, startZrow, startZcol, startZval, startXnblocknonz, startXrow, startXcol, startXval, startsettings,
       timelimit, usedsdpitime, NULL, NULL);
 }
@@ -706,12 +707,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right hand sides of active LP rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array */
+   int*                  lpind,              /**< column-index for each entry in lpval-array */
+   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries */
    SCIP_Real*            starty,             /**< NULL or dual vector y as starting point for the solver, this should have length nvars */
    int*                  startZnblocknonz,   /**< dual matrix Z = sum Ai yi as starting point for the solver: number of nonzeros for each block,
                                               *   also length of corresponding row/col/val-arrays; or NULL */
@@ -746,9 +748,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int v;
    int k;
    MSKint64t mosekindex;
-   int mosekind = 0;
    int ind;
-   int nnonz;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
    int nlpvars;
@@ -795,11 +795,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    assert( nsdpblocks == 0 || blockindchanges != NULL );
    assert( 0 <= nremovedblocks && nremovedblocks <= nsdpblocks );
    assert( nlpcons >= 0 );
+   assert( nlpcons == 0 || lpindchanges != NULL );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
+   assert( nlpcons == 0 || lpbeg != NULL );
    assert( lpnnonz >= 0 );
-   assert( nlpcons == 0 || lprow != NULL );
-   assert( nlpcons == 0 || lpcol != NULL );
+   assert( nlpcons == 0 || lpind != NULL );
    assert( nlpcons == 0 || lpval != NULL );
 
    /* compute the time limit to set for the solver */
@@ -947,6 +948,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    {
       for (i = 0; i < nlpcons; i++)
       {
+         if ( lpindchanges[i] < 0 )
+            continue;
+
          if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
 #if CONVERT_ABSOLUTE_TOLERANCES
@@ -1056,6 +1060,9 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    ind = 0;
    for (i = 0; i < nlpcons; i++)
    {
+      if ( lpindchanges[i] < 0 )
+         continue;
+
       /* left hand side */
       if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
       {
@@ -1213,7 +1220,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    /* add the entries corresponding to the lp-constraints in the dual problem */
    if ( lpnnonz > 0 )
    {
-      int currentrow;
       int varcnt = 0;
 
       if ( penaltyparam < sdpisolver->epsilon )
@@ -1228,53 +1234,56 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekval, lpnnonz + 1) );/*lint !e776*/
       }
 
-      currentrow = lprow[0];
-      mosekind = 0;
-      for (nnonz = 0; nnonz < lpnnonz; ++nnonz)
+      for (i = 0; i < nlpcons; ++i)
       {
-         assert( nnonz == 0 || lprow[nnonz-1] <= lprow[nnonz] );  /* rows should be sorted */
+         int mosekind = 0;
+         int nextbeg;
 
-         v = sdpisolver->inputtomosekmapper[lpcol[nnonz]];
-         if ( v >= 0 )
+         if ( lpindchanges[i] < 0 )
+            continue;
+
+         assert( 0 <= lpbeg[i] && lpbeg[i] < lpnnonz );
+         if ( i == nlpcons - 1 )
+            nextbeg = lpnnonz;
+         else
+            nextbeg = lpbeg[i+1];
+
+         for (j = lpbeg[i]; j < nextbeg; ++j)
          {
-            mosekrow[mosekind] = v;
-            mosekval[mosekind++] = lpval[nnonz];
+            assert( 0 <= lpind[j] && lpind[j] < nvars );
+            v = sdpisolver->inputtomosekmapper[lpind[j]];
+            if ( v >= 0 )
+            {
+               assert( v < sdpisolver->nactivevars );
+               mosekrow[mosekind] = v;
+               mosekval[mosekind++] = lpval[j];
+            }
+         }
+         /* all rows with at most one nonzero should have been sorted out, except when checking the Slater condition */
+         assert( mosekind >= 1 );
+
+         /* add the additional entry for the penalty constraint Trace = Gamma */
+         if ( penaltyparam >= sdpisolver->epsilon )
+         {
+            mosekrow[mosekind] = sdpisolver->nactivevars;
+            mosekval[mosekind++] = 1.0;
+         }
+         assert( mosekind <= lpnnonz + 1 );
+
+         /* treat left hand side */
+         if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
+         {
+            MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
          }
 
-         /* we finished a row */
-         if ( nnonz == lpnnonz - 1 || lprow[nnonz + 1] > currentrow )
+         /* treat right hand side */
+         if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
          {
-            /* all rows with at most one nonzero should have been sorted out, except when checking the Slater condition */
-            assert( mosekind >= 1 );
+            /* multiply column by -1 */
+            for (j = 0; j < (penaltyparam < sdpisolver->epsilon ? mosekind : mosekind - 1); j++)/*lint !e644*/
+               mosekval[j] *= -1.0;
 
-            /* add the additional entry for the penalty constraint Trace = Gamma */
-            if ( penaltyparam >= sdpisolver->epsilon )
-            {
-               mosekrow[mosekind] = sdpisolver->nactivevars;
-               mosekval[mosekind++] = 1.0;
-            }
-            assert( mosekind <= lpnnonz + 1 );
-
-            /* treat left hand side */
-            if ( lplhs[currentrow] > - SCIPsdpiSolverInfinity(sdpisolver) )
-            {
-               MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
-            }
-
-            /* treat right hand side */
-            if ( lprhs[currentrow] < SCIPsdpiSolverInfinity(sdpisolver) )
-            {
-               /* multiply column by -1 */
-               for (j = 0; j < (penaltyparam < sdpisolver->epsilon ? mosekind : mosekind - 1); j++)/*lint !e644*/
-                  mosekval[j] *= -1.0;
-
-               MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
-            }
-
-            /* reset counters */
-            mosekind = 0;
-            if ( nnonz < lpnnonz - 1 )
-               currentrow = lprow[nnonz+1];
+            MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
          }
       }
       assert( varcnt == nlpvars );
@@ -1498,19 +1507,16 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          SCIP_Bool infeasible;
          SCIP_Bool solveagain = FALSE;
          SCIP_Real opttime;
-         int nvarspointer;
          int newiterations;
 
          /* get current solution */
          BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &solvector, nvars) );
-         nvarspointer = nvars;
-         SCIP_CALL( SCIPsdpiSolverGetSol(sdpisolver, NULL, solvector, &nvarspointer) );
-         assert( nvarspointer == nvars );
+         SCIP_CALL( SCIPsdpiSolverGetDualSol(sdpisolver, NULL, solvector) );
 
          /* check the solution for feasibility with regards to our tolerance */
          SCIP_CALL( SCIPsdpSolcheckerCheck(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-               indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+               indchanges, nremovedinds, blockindchanges, nlpcons, lpindchanges, lplhs, lprhs, lpnnonz, lpbeg, lpind, lpval,
                solvector, sdpisolver->feastol, sdpisolver->epsilon, &infeasible) );
          BMSfreeBufferMemoryArray(sdpisolver->bufmem, &solvector);
 
@@ -1597,7 +1603,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             /* check violations reported from Mosek */
             SCIP_CALL( SCIPsdpSolcheckerCheckAndGetViolDual(sdpisolver->bufmem, nvars, lb, ub, nsdpblocks, sdpblocksizes, sdpnblockvars, sdpconstnnonz,
                   sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz, sdpvar, sdprow, sdpcol, sdpval,
-                  indchanges, nremovedinds, blockindchanges, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol, lpval,
+                  indchanges, nremovedinds, blockindchanges, nlpcons, lpindchanges, lplhs, lprhs, lpnnonz, lpbeg, lpind, lpval,
                   solvector, sdpisolver->feastol, sdpisolver->epsilon, &maxabsviolbndsd, &sumabsviolbndsd, &maxabsviolconsd, &sumabsviolconsd,
                   &maxabsviolsdpd, &sumabsviolsdpd, &checkinfeas) );
             if ( checkinfeas )
@@ -1605,7 +1611,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
             SCIP_CALL( SCIPsdpSolcheckerCheckAndGetViolPrimal(sdpisolver->bufmem, nvars, obj, lb, ub, sdpisolver->inputtomosekmapper, nsdpblocks,
                   sdpblocksizes, sdpnblockvars, sdpconstnnonz, sdpconstnblocknonz, sdpconstrow, sdpconstcol, sdpconstval, sdpnnonz, sdpnblockvarnonz,
-                  sdpvar, sdprow, sdpcol, sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, lplhs, lprhs, lpnnonz, lprow, lpcol,
+                  sdpvar, sdprow, sdpcol, sdpval, indchanges, nremovedinds, blockindchanges, nremovedblocks, nlpcons, lpindchanges, lplhs, lprhs, lpnnonz, lpbeg, lpind,
                   lpval, solvectorprimal, solmatrices, sdpisolver->feastol, sdpisolver->epsilon, &maxabsviolbndsp, &sumabsviolbndsp, &maxabsviolconsp,
                   &sumabsviolconsp, &maxabsviolsdpp, &sumabsviolsdpp, &checkinfeas) );
             if ( checkinfeas )
@@ -2274,35 +2280,20 @@ SCIP_RETCODE SCIPsdpiSolverGetObjval(
    return SCIP_OKAY;
 }
 
-/** gets dual solution vector for feasible SDPs
- *
- *  If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
- */
-SCIP_RETCODE SCIPsdpiSolverGetSol(
-   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
-   SCIP_Real*            objval,             /**< pointer to store the objective value, may be NULL if not needed */
-   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength       /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
+/** gets dual solution vector for feasible SDPs */
+SCIP_RETCODE SCIPsdpiSolverGetDualSol(
+   SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
+   SCIP_Real*            objval,             /**< pointer to store the objective value (or NULL) */
+   SCIP_Real*            dualsol             /**< array of length nvars to store the dual solution vector (or NULL) */
    )
 {
-   int v;
-   SCIP_Real* moseksol;
-
    assert( sdpisolver != NULL );
    CHECK_IF_SOLVED( sdpisolver );
-   assert( dualsollength != NULL );
 
-   if ( *dualsollength > 0 )
+   if ( dualsol != NULL )
    {
-      assert( dualsol != NULL );
-      if ( *dualsollength < sdpisolver->nvars )
-      {
-         SCIPdebugMessage("The given array in SCIPsdpiSolverGetSol only had length %d, but %d was needed", *dualsollength, sdpisolver->nvars);
-         *dualsollength = sdpisolver->nvars;
-
-         return SCIP_OKAY;
-      }
+      SCIP_Real* moseksol;
+      int v;
 
       BMSallocBufferMemoryArray(sdpisolver->bufmem, &moseksol, sdpisolver->penalty ? sdpisolver->nactivevars + 1 : sdpisolver->nactivevars);
 
@@ -2359,9 +2350,9 @@ SCIP_RETCODE SCIPsdpiSolverGetSol(
 /** return number of nonzeros for each block of the primal solution matrix X for the preoptimal solution */
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) */
-   int*                  startXnblocknonz    /**< pointer to store number of nonzeros for row/col/val-arrays in each block
-                                              *   or first entry -1 if no primal solution is available */
+   int                   nblocks,            /**< length of startXnblocknonz */
+   int*                  startXnblocknonz    /**< array to return number of nonzeros for row/col/val-arrays in each block
+                                              *   or first entry equal to -1 if no primal solution is available */
    )
 { /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
@@ -2371,23 +2362,19 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalPrimalNonzeros(
 
 /** gets preoptimal dual solution vector and primal matrix for warmstarting purposes
  *
- *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
- *  independant of some lhs/rhs being infinity
- *  @note If dualsollength isn't equal to the number of variables this will return the needed length and a debug message is thrown.
- *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
+ *  @note The last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
+ *  independent of some lhs/rhs being infinity.
  */
 SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
-   SCIP_Bool*            success,            /**< could a preoptimal solution be returned ? */
-   SCIP_Real*            dualsol,            /**< pointer to store the dual solution vector, may be NULL if not needed */
-   int*                  dualsollength,      /**< length of the dual sol vector, must be 0 if dualsol is NULL, if this is less than the number
-                                              *   of variables in the SDP, a DebugMessage will be thrown and this is set to the needed value */
-   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks + 1) or -1 if no primal matrix should be returned */
-   int*                  startXnblocknonz,   /**< input: allocated memory for row/col/val-arrays in each block (or NULL if nblocks = -1)
+   SCIP_Bool*            success,            /**< Could a preoptimal solution be returned? */
+   SCIP_Real*            dualsol,            /**< array to return the dual solution vector (or NULL) */
+   int                   nblocks,            /**< length of startXnblocknonz (should be nsdpblocks (+ 1)) or -1 if no primal matrix should be returned */
+   int*                  startXnblocknonz,   /**< input: size of row/col/val-arrays in each block (or NULL if nblocks = -1)
                                               *   output: number of nonzeros in each block or first entry -1 if no primal solution is available */
-   int**                 startXrow,          /**< pointer to store row indices of X (or NULL if nblocks = -1) */
-   int**                 startXcol,          /**< pointer to store column indices of X (or NULL if nblocks = -1) */
-   SCIP_Real**           startXval           /**< pointer to store values of X (or NULL if nblocks = -1) */
+   int**                 startXrow,          /**< array for returning row indices of X (or NULL if nblocks = -1) */
+   int**                 startXcol,          /**< array for returning column indices of X (or NULL if nblocks = -1) */
+   SCIP_Real**           startXval           /**< array for returning values of X (or NULL if nblocks = -1) */
    )
 {/*lint !e1784*/
    SCIPdebugMessage("Not implemented yet\n");
@@ -2456,6 +2443,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
 SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP interface solver structure */
    int                   nlpcons,            /**< number of LP rows */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< lhs of LP rows */
    SCIP_Real*            lprhs,              /**< rhs of LP rows */
    SCIP_Real*            lhsvals,            /**< array to store the values of the variables corresponding to LP lhs */
@@ -2485,6 +2473,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalLPSides(
    /* loop through LP rows */
    for (i = 0; i < nlpcons; i++)
    {
+      if ( lpindchanges[i] < 0 )
+      {
+         lhsvals[i] = 0.0;
+         rhsvals[i] = 0.0;
+         continue;
+      }
+
       if ( lplhs[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
       {
          lhsvals[i] = primalvars[ind] * sdpisolver->objscalefactor;
@@ -2522,7 +2517,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
 /** returns the primal matrix X
  *
  *  @note last block will be the LP block (if one exists) with indices lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ...
- *  independant of some lhs/rhs being infinity
+ *  independent of some lhs/rhs being infinity
  *  @note If the allocated memory for row/col/val is insufficient, a debug message will be thrown and the neccessary amount is returned in startXnblocknonz
  */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(

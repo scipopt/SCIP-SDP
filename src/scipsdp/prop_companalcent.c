@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2022 Discrete Optimization, TU Darmstadt               */
+/*               2014-2023 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -45,19 +45,6 @@
 #define PROP_FREQ                     0 /**< propagator frequency */
 #define PROP_DELAY                FALSE /**< should propagation method be delayed, if other propagators found reductions? */
 #define PROP_TIMING             SCIP_PROPTIMING_AFTERLPLOOP/**< propagation timing mask */
-
-
-/*
- * Data structures
- */
-
-
-/*
- * Local methods
- */
-
-/* put your local methods here, and declare them static */
-
 
 /*
  * Callback methods of propagator
@@ -87,18 +74,14 @@ SCIP_RETCODE SCIPincludePropCompAnalCent(
    SCIP*                 scip                /**< SCIP data structure */
    )
 {
-   SCIP_PROPDATA* propdata;
-   SCIP_PROP* prop;
-
-   /* create xyz propagator data */
-   propdata = NULL;
-   prop = NULL;
+   SCIP_PROPDATA* propdata = NULL;
+   SCIP_PROP* prop = NULL;
 
    /* include propagator */
    SCIP_CALL( SCIPincludePropBasic(scip, &prop, PROP_NAME, PROP_DESC, PROP_PRIORITY, PROP_FREQ, PROP_DELAY, PROP_TIMING,
          propExecCompAnalCent, propdata) );
 
-   assert(prop != NULL);
+   assert( prop != NULL );
 
    return SCIP_OKAY;
 }

@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2022 Discrete Optimization, TU Darmstadt               */
+/*               2014-2023 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -413,29 +413,32 @@ int storeColorsSDPSymmetryData(
       /* store colors of SDP constraints in case the group of constraints ends here */
       if ( c == sdpdata->nsdpconss - 1 || sdpdata->blocksizes[consperm[c + 1]] > curblocksize )
       {
-         /* sort coefficients */
-         SCIPsort(blockperm, SYMsortReal, (void*) blockvals, nblockvals);
-
-         /* iterate over coefficients and store their colors */
-         ++curcolor;
-         colors[considx[blockperm[0]]][valinconsidx[blockperm[0]]] = curcolor;
-         for (i = 1; i < nblockvals; ++i)
+         if ( nblockvals > 0 )
          {
-            /* if we have found a new color */
-            if ( SCIPisGT(scip, blockvals[blockperm[i]], blockvals[blockperm[i - 1]]) )
-               ++curcolor;
-            colors[considx[blockperm[i]]][valinconsidx[blockperm[i]]] = curcolor;
-         }
+            /* sort coefficients */
+            SCIPsort(blockperm, SYMsortReal, (void*) blockvals, nblockvals);
 
-         /* iterate over coefficients and store their second colors */
-         ++curcolor;
-         colors2[considx[blockperm[0]]][valinconsidx[blockperm[0]]] = curcolor;
-         for (i = 1; i < nblockvals; ++i)
-         {
-            /* if we have found a new color */
-            if ( SCIPisGT(scip, blockvals[blockperm[i]], blockvals[blockperm[i - 1]]) )
-               ++curcolor;
-            colors2[considx[blockperm[i]]][valinconsidx[blockperm[i]]] = curcolor;
+            /* iterate over coefficients and store their colors */
+            ++curcolor;
+            colors[considx[blockperm[0]]][valinconsidx[blockperm[0]]] = curcolor;
+            for (i = 1; i < nblockvals; ++i)
+            {
+               /* if we have found a new color */
+               if ( SCIPisGT(scip, blockvals[blockperm[i]], blockvals[blockperm[i - 1]]) )
+                  ++curcolor;
+               colors[considx[blockperm[i]]][valinconsidx[blockperm[i]]] = curcolor;
+            }
+
+            /* iterate over coefficients and store their second colors */
+            ++curcolor;
+            colors2[considx[blockperm[0]]][valinconsidx[blockperm[0]]] = curcolor;
+            for (i = 1; i < nblockvals; ++i)
+            {
+               /* if we have found a new color */
+               if ( SCIPisGT(scip, blockvals[blockperm[i]], blockvals[blockperm[i - 1]]) )
+                  ++curcolor;
+               colors2[considx[blockperm[i]]][valinconsidx[blockperm[i]]] = curcolor;
+            }
          }
       }
    }

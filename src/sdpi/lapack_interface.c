@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2022 Discrete Optimization, TU Darmstadt               */
+/*               2014-2023 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -57,10 +57,14 @@
 /* turn off lint warnings for whole file: */
 /*lint --e{788,818}*/
 
-
-/* we use 64 bit integers as the base type */
+/* use int type from Openblas if available */
+#ifdef OPENBLAS
+#include <cblas.h>
+typedef blasint LAPACKINTTYPE;
+#else
+/* otherwise we use 64 bit integers as the base type because SDPA 7.4.0 uses this by default */
 typedef long long int LAPACKINTTYPE;
-
+#endif
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
 #define BMS_CALL(x)   do                                                                                      \

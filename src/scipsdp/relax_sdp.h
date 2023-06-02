@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2022 Discrete Optimization, TU Darmstadt               */
+/*               2014-2023 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -98,10 +98,7 @@ SCIP_EXPORT
 SCIP_RETCODE SCIPrelaxSdpGetRelaxSol(
    SCIP*                 scip,               /**< SCIP pointer */
    SCIP_RELAX*           relax,              /**< SDP-relaxator to get solution for */
-   SCIP_Bool*            success,            /**< pointer to store whether the last SDP-relaxation was solved successfully */
-   SCIP_Real*            solarray,           /**< pointer to store the solution, this has to be at least length nvars */
-   int*                  sollength           /**< length of the solarray, if this is less than nvars, it will be overwritten with the needed length and a
-                                               *  debug message is thrown */
+   SCIP_Real*            solarray            /**< pointer to store the solution, this has to be at least length nvars */
    );
 
 /** get the number of the SCIP-node which the current SDP solution belongs to */

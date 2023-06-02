@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2022 Discrete Optimization, TU Darmstadt               */
+/*               2014-2023 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -82,12 +82,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all variables (including fixed ones) in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
    SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
@@ -98,7 +99,6 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    int j;
    int b;
    int v;
-   int ind;
 
    assert( bufmem != NULL );
    assert( lb != NULL );
@@ -123,9 +123,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    assert( nlpcons >= 0 );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
+   assert( nlpcons == 0 || lpbeg != NULL );
    assert( lpnnonz >= 0 );
-   assert( nlpcons == 0 || lprow != NULL );
-   assert( nlpcons == 0 || lpcol != NULL );
+   assert( nlpcons == 0 || lpind != NULL );
    assert( nlpcons == 0 || lpval != NULL );
    assert( solvector != NULL );
    assert( feastol >= 0 );
@@ -146,37 +146,34 @@ SCIP_RETCODE SCIPsdpSolcheckerCheck(
    /* check linear constraints (since DSDP sorts the lp-arrays by cols, we cannot expect them to be sorted) */
    if ( nlpcons > 0 )
    {
-      SCIP_Real* lpconsvals;
-
-      BMS_CALL( BMSallocBufferMemoryArray(bufmem, &lpconsvals, nlpcons) );
-
-      /* initialize all rows with zero */
-      for (i = 0; i < nlpcons; i++)
-         lpconsvals[i] = 0;
-
-      /* compute the values of all rows */
-      for (i = 0; i < lpnnonz; i++)
-      {
-         if ( lb[lpcol[i]] < ub[lpcol[i]] - epsilon ) /* fixed variables are already included in lhs/rhs */
-            lpconsvals[lprow[i]] += solvector[lpcol[i]] * lpval[i];
-      }
-
-      /* check all active constraints for feasibility */
-      ind = 0; /* used to iterate over active constraints */
       for (i = 0; i < nlpcons; i++)
       {
-         if ( lpconsvals[i] < lplhs[ind] - feastol || lpconsvals[i] > lprhs[ind] + feastol)
+         SCIP_Real lpconsvals = 0.0;
+         int nextbeg;
+
+         if ( lpindchanges[i] < 0 )
+            continue;
+
+         if ( i == nlpcons - 1 )
+            nextbeg = lpnnonz;
+         else
+            nextbeg = lpbeg[i + 1];
+
+         /* compute the values of all rows */
+         for (j = lpbeg[i]; j < nextbeg; j++)
+         {
+            if ( lb[lpind[j]] < ub[lpind[j]] - epsilon ) /* fixed variables are already included in lhs/rhs */
+               lpconsvals += solvector[lpind[j]] * lpval[j];
+         }
+
+         if ( lpconsvals < lplhs[i] - feastol || lpconsvals > lprhs[i] + feastol )
          {
             SCIPdebugMessage("solution found infeasible (feastol=%g) for dual lp constraint: LP-%d = %g <|= [%g,%g]\n",
-               feastol, i, lpconsvals[i], lplhs[ind], lprhs[ind]);
-            BMSfreeBufferMemoryArray(bufmem, &lpconsvals);
+               feastol, i, lpconsvals, lplhs[i], lprhs[i]);
             *infeasible = TRUE;
             return SCIP_OKAY;
          }
-
-         ind++;
       }
-      BMSfreeBufferMemoryArray(bufmem, &lpconsvals);
    }
 
    /* check sdp constraints */
@@ -301,12 +298,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
    int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all variables (including fixed ones) in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
    SCIP_Real             epsilon,            /**< tolerance used to check for fixed variables */
@@ -323,7 +321,6 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
    int j;
    int b;
    int v;
-   int ind;
    SCIP_Real viol;
 
    assert( bufmem != NULL );
@@ -349,9 +346,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
    assert( nlpcons >= 0 );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
+   assert( nlpcons == 0 || lpbeg != NULL );
    assert( lpnnonz >= 0 );
-   assert( nlpcons == 0 || lprow != NULL );
-   assert( nlpcons == 0 || lpcol != NULL );
+   assert( nlpcons == 0 || lpind != NULL );
    assert( nlpcons == 0 || lpval != NULL );
    assert( solvector != NULL );
    assert( feastol >= 0 );
@@ -397,46 +394,34 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
    /* check linear constraints (since DSDP sorts the lp-arrays by cols, we cannot expect them to be sorted) */
    if ( nlpcons > 0 )
    {
-      SCIP_Real* lpconsvals;
-
-      BMS_CALL( BMSallocBufferMemoryArray(bufmem, &lpconsvals, nlpcons) );
-
-      /* initialize all rows with zero */
-      for (i = 0; i < nlpcons; i++)
-         lpconsvals[i] = 0;
-
-      /* compute the values of all rows */
-      for (i = 0; i < lpnnonz; i++)
+      for (i = 0; i < nlpcons; ++i)
       {
-         if ( lb[lpcol[i]] < ub[lpcol[i]] - epsilon ) /* fixed variables are already included in lhs/rhs */
-            lpconsvals[lprow[i]] += solvector[lpcol[i]] * lpval[i];
-      }
+         SCIP_Real lpconsvals = 0.0;
+         int nextbeg;
 
-      /* check all active constraints for feasibility */
-      ind = 0; /* used to iterate over active constraints */
-      for (i = 0; i < nlpcons; i++)
-      {
-         viol = MAX3(lplhs[ind] - lpconsvals[i], lpconsvals[i] - lprhs[ind], 0.0);
-         *sumabsviolcons += viol;
+         if ( lpindchanges[i] < 0 )
+            continue;
 
-#ifdef SCIP_MORE_DEBUG
-         SCIPdebugMessage("Dual linear constraint %d: lhs = %g, rhs = %g, val = %.15g, viol = %.15g\n", i, lplhs[i], lprhs[i], lpconsvals[i], viol);
-#endif
+         if ( i == nlpcons - 1 )
+            nextbeg = lpnnonz;
+         else
+            nextbeg = lpbeg[i + 1];
 
-         if ( viol > *maxabsviolcons )
-            *maxabsviolcons = viol;
-
-         if ( lpconsvals[i] < lplhs[ind] - feastol || lpconsvals[i] > lprhs[ind] + feastol)
+         /* compute the values of all rows */
+         for (j = lpbeg[i]; j < nextbeg; j++)
          {
-            SCIPdebugMessage("solution found infeasible (feastol=%g) for dual lp constraint: LP-%d = %g <|= [%g,%g].\n",
-               feastol, i, lpconsvals[i], lplhs[ind], lprhs[ind]);
-            BMSfreeBufferMemoryArray(bufmem, &lpconsvals);
-            *infeasible = TRUE;
+            if ( lb[lpind[j]] < ub[lpind[j]] - epsilon ) /* fixed variables are already included in lhs/rhs */
+               lpconsvals += solvector[lpind[j]] * lpval[j];
          }
 
-         ind++;
+         if ( lpconsvals < lplhs[i] - feastol || lpconsvals > lprhs[i] + feastol)
+         {
+            SCIPdebugMessage("solution found infeasible (feastol=%g) for dual lp constraint: LP-%d = %g <|= [%g,%g]\n",
+               feastol, i, lpconsvals, lplhs[i], lprhs[i]);
+            *infeasible = TRUE;
+            return SCIP_OKAY;
+         }
       }
-      BMSfreeBufferMemoryArray(bufmem, &lpconsvals);
    }
 
    /* check sdp constraints */
@@ -575,12 +560,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
    int*                  blockindchanges,    /**< block indizes will be modified by these, see indchanges */
    int                   nremovedblocks,     /**< number of empty blocks that should be removed */
    int                   nlpcons,            /**< number of active (at least two nonzeros) LP-constraints */
+   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
    SCIP_Real*            lplhs,              /**< left-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    SCIP_Real*            lprhs,              /**< right-hand sides of active LP-rows after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lprow,              /**< row-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   int*                  lpcol,              /**< column-index for each entry in lpval-array, might get sorted (may be NULL if lpnnonz = 0) */
-   SCIP_Real*            lpval,              /**< values of LP-constraint-matrix entries, might get sorted (may be NULL if lpnnonz = 0) */
+   int*                  lpbeg,              /**< start index of each row in ind- and val-array, or NULL if nnonz == 0 */
+   int*                  lpind,              /**< column indices of constraint matrix entries, or NULL if nnonz == 0 */
+   SCIP_Real*            lpval,              /**< values of constraint matrix entries, or NULL if nnonz == 0 */
    SCIP_Real*            solvector,          /**< values of all scalar variables in the solution that should be checked */
    SCIP_Real**           solmatrices,        /**< values of all matrix variables in the solution that should be checked */
    SCIP_Real             feastol,            /**< feasibility tolerance to check feasibility for */
@@ -616,7 +602,6 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
    int mosekcol;
    int blockvar;
    int k;
-   int nnonz;
    int c;
 
    assert( bufmem != NULL );
@@ -643,9 +628,9 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
    assert( nlpcons >= 0 );
    assert( nlpcons == 0 || lplhs != NULL );
    assert( nlpcons == 0 || lprhs != NULL );
+   assert( nlpcons == 0 || lpbeg != NULL );
    assert( lpnnonz >= 0 );
-   assert( nlpcons == 0 || lprow != NULL );
-   assert( nlpcons == 0 || lpcol != NULL );
+   assert( nlpcons == 0 || lpind != NULL );
    assert( nlpcons == 0 || lpval != NULL );
    assert( solvector != NULL );
    assert( feastol >= 0 );
@@ -838,44 +823,44 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolPrimal(
       /* add the entries corresponding to the lp-constraints in the dual problem */
       if ( lpnnonz > 0 )
       {
-         int currentrow;
          int varcnt = 0;
-
-         currentrow = lprow[0];
-         for (nnonz = 0; nnonz < lpnnonz; ++nnonz)
+         for (i = 0; i < nlpcons; ++i)
          {
-            assert( nnonz == 0 || lprow[nnonz-1] <= lprow[nnonz] );  /* rows should be sorted */
-            assert( lprow[nnonz] == currentrow );
+            int nextbeg;
 
-            v = inputtomosekmapper[lpcol[nnonz]];
-            if ( v >= 0 )
+            if ( lpindchanges[i] < 0 )
+               continue;
+
+            if ( i == nlpcons - 1 )
+               nextbeg = lpnnonz;
+            else
+               nextbeg = lpbeg[i + 1];
+
+            for (j = lpbeg[i]; j < nextbeg; ++j)
             {
-               assert( v < nactivevars );
+               assert( 0 <= lpind[j] && lpind[j] < nvars );
+               v = inputtomosekmapper[lpind[j]];
+               if ( v >= 0 )
+               {
+                  assert( v < nactivevars );
 
-               /* treat left hand side */
-               if ( lplhs[lprow[nnonz]] > - INF )
-                  lpconsvals[v] += lpval[nnonz] * solvector[varcnt];
+                  /* treat left hand side */
+                  if ( lplhs[i] > - INF )
+                     lpconsvals[v] += lpval[j] * solvector[varcnt];
 
-               /* treat right hand side */
-               if ( lprhs[lprow[nnonz]] < INF )
-                  lpconsvals[v] -= lpval[nnonz] * solvector[varcnt + 1];
+                  /* treat right hand side */
+                  if ( lprhs[i] < INF )
+                     lpconsvals[v] -= lpval[j] * solvector[varcnt + 1];
+               }
             }
 
-            /* we finished a row */
-            if ( nnonz == lpnnonz - 1 || lprow[nnonz + 1] > currentrow )
-            {
-               /* treat left hand side */
-               if ( lplhs[currentrow] > - INF )
-                  varcnt++;
+            /* treat left hand side */
+            if ( lplhs[i] > - INF )
+               varcnt++;
 
-               /* treat right hand side */
-               if ( lprhs[currentrow] < INF )
-                  varcnt++;
-
-               /* reset counters */
-               if ( nnonz < lpnnonz )
-                  currentrow = lprow[nnonz+1];
-            }
+            /* treat right hand side */
+            if ( lprhs[i] < INF )
+               varcnt++;
          }
          assert( varcnt == nlpvars );
       }
