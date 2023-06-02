@@ -5,7 +5,7 @@
 #/*                                                                           */
 #/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 #/*                         EDOM, FAU Erlangen-Nürnberg                       */
-#/*               2014-2022 Discrete Optimization, TU Darmstadt               */
+#/*               2014-2023 Discrete Optimization, TU Darmstadt               */
 #/*                                                                           */
 #/*                                                                           */
 #/* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 #/*                                                                           */
 #/*                                                                           */
 #/* Based on SCIP - Solving Constraint Integer Programs                       */
-#/* Copyright (C) 2002-2022 Zuse Institute Berlin                             */
+#/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
 #/*                                                                           */
 #/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -54,7 +54,7 @@ SCIPSDPLIBDIR	=	$(SCIPSDPREALPATH)/lib
 # own variables
 #-----------------------------------------------------------------------------
 
-SCIPSDPVERSION	=	4.1.0
+SCIPSDPVERSION	=	4.2.0
 SCIPSDPGITHASH	=
 SDPS		=	none
 
@@ -79,7 +79,7 @@ OPTCOMMAND	=	optimize
 SOFTLINKS	=
 MAKESOFTLINKS	=	true
 OMP		=	false
-OPENBLAS	=	true
+OPENBLAS	=	false
 MUMPSSEQ	=	true
 STATICLAPACK	=	false
 PYTHON  	=   	none
@@ -132,9 +132,12 @@ override ZIMPLOPT	:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZIMPLOPT=\([^@]
 override ZLIB		:=$(shell echo "$(SCIPVERSION)" | sed -e 's/.* ZLIB=\([^@]*\).*/\1/')
 include $(SCIPDIR)/make/make.project
 
-override DEBUGTOOL   =   none
+# override DEBUGTOOL   =   none
 
-
+# we need C++-11 for Bliss
+ifeq ($(SYM),bliss)
+CXXFLAGS += $(CXX11FLAG)
+endif
 
 #-----------------------------------------------------------------------------
 # settings for SDP solver
@@ -177,17 +180,21 @@ endif
 #-----------------------------------------------------------------------------
 # SDPA solver version >= 7.3.8
 ifeq ($(SDPS),sdpa)
+OPENBLAS	=	true   # openblas is on by default for SDPA
+CFLAGS		=	-fPIC #-fopenmp
+# Note: In the following, -DFNAME_NONE overrides a different definition from SCIP to fix a bug that results in a segfault when setting up SDPA
+CXXFLAGS	+=	-fPIC -pthread -DFNAME_NONE #-fopenmp
 ifeq ($(OPENBLAS),true)
 BLASLIB		=	-lopenblas
 else
 BLASLIB		=	-lblas -llapack
 endif
 ifeq ($(MUMPSSEQ),true)
-MUMPSLIB	=	-ldmumps_seq -lmumps_common_seq
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -Wl,-rpath,$(SCIPSDPLIBDIR)/shared -lgfortran
+MUMPSLIB	=	-ldmumps_seq -lmumps_common_seq -lpord -lmpiseq -lquadmath
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -Wl,-rpath,$(SCIPSDPLIBDIR)/static -lgfortran -lpthread -fPIC
 else
-MUMPSLIB	=	-ldmumps -lmumps_common -lpord -lgomp -lmpiseq
-SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -lpthread -Wl,-rpath,$(SCIPSDPLIBDIR)/shared -lgfortran   # pthread after (openblas)
+MUMPSLIB	=	-ldmumps -lmumps_common -lpord -lmpiseq -lquadmath #-lgomp -fopenmp
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -lpthread -Wl,-rpath,$(SCIPSDPLIBDIR)/static -lgfortran -fPIC  # pthread after (openblas)
 endif
 endif
 
@@ -195,14 +202,17 @@ endif
 # MOSEK solver
 ifeq ($(SDPS),msk)
 BITEXT     	=  	$(word 2, $(subst _, ,$(ARCH)))
-OPENBLAS	=	false
 ifeq ($(SHARED),true)
 ifeq ($(STATICLAPACK),true)
 BSTATIC		= -Wl,-Bstatic
 BDYNAMIC	= -Wl,-Bdynamic
 endif
 endif
+ifeq ($(OPENBLAS),true)
+SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -lc $(BDYNAMIC) -lopenblas -lquadmath -pthread -lgfortran -lm #-lgomp
+else
 SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -llapack -lblas -lc $(BDYNAMIC) -lquadmath -pthread -lgfortran -lm
+endif
 endif
 
 #-----------------------------------------------------------------------------

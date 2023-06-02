@@ -3,45 +3,42 @@
 /* This file is part of SCIPSDP - a solving framework for mixed-integer      */
 /* semidefinite programs based on SCIP.                                      */
 /*                                                                           */
-/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt               */
+/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2021 Discrete Optimization, TU Darmstadt               */
+/*               2014-2023 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
-/* This program is free software; you can redistribute it and/or             */
-/* modify it under the terms of the GNU Lesser General Public License        */
-/* as published by the Free Software Foundation; either version 3            */
-/* of the License, or (at your option) any later version.                    */
+/* Licensed under the Apache License, Version 2.0 (the "License");           */
+/* you may not use this file except in compliance with the License.          */
+/* You may obtain a copy of the License at                                   */
 /*                                                                           */
-/* This program is distributed in the hope that it will be useful,           */
-/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
-/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
-/* GNU Lesser General Public License for more details.                       */
+/*     http://www.apache.org/licenses/LICENSE-2.0                            */
 /*                                                                           */
-/* You should have received a copy of the GNU Lesser General Public License  */
-/* along with this program; if not, write to the Free Software               */
-/* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.*/
+/* Unless required by applicable law or agreed to in writing, software       */
+/* distributed under the License is distributed on an "AS IS" BASIS,         */
+/* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  */
+/* See the License for the specific language governing permissions and       */
+/* limitations under the License.                                            */
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2021 Zuse Institute Berlin                             */
-/* SCIP is distributed under the terms of the SCIP Academic Licence,         */
-/* see file COPYING in the SCIP distribution.                                */
+/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /**@file   xternal.c
  * @brief  main document page
  * @author Tristan Gally
+ * @author Marc Pfetsch
  */
 
 /*--+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
 /**@mainpage Overview
  *
- * @version 4.1.0
- * @author Marc Pfetsch; Sonja Mars, Lars Schewe, Tristan Gally, Frederic Matter
- * @date 2011-2022
+ * @version 4.2.0
+ * @author Marc Pfetsch; Sonja Mars, Lars Schewe, Tristan Gally, Frederic Matter, Christopher Hojny
+ * @date 2011-2023
  *
  * SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs) of the form
  *
@@ -53,20 +50,23 @@
  *	\end{aligned}
  *   \f}
  *
- * It combines the branch-and-bound framework of SCIP with interior-point SDP-solvers to solve MISDPs using either a
- * nonlinear branch-and-bound approach or an outer-approximation-based cutting-plane approach. In addition to providing
- * a constraint handler for SDP-constraints and a relaxator to solve continuous SDP-relaxations using interior-point
- * solvers, SCIPSDP adds several heuristics and propagators to SCIP. The MISDPs can be read in using either an extended
- * SDPA-format or the CBF-format. To use the nonlinear branch-and-bound approach one of the following SDP-solvers needs
- * to be installed:
+ * SCIP-SDP allows to solve MISDPs using a nonlinear branch-and-bound approach or a linear programming cutting-plane
+ * approach. In the first case (the default), the semidefinite programming (SDP) relaxations are solve using
+ * interior-point SDP-solvers. In the second case, cutting planes based on eigenvector are generated.  SCIP-SDP is based
+ * on the branch-and-cut framework <A HREF="https://scipopt.org">SCIP</A>.  In addition to providing a constraint
+ * handler for SDP-constraints and a relaxator to solve continuous SDP-relaxations using interior-point solvers,
+ * SCIP-SDP adds several heuristics and propagators to SCIP.
+ *
+ * The MISDPs can be read in using either an extended SDPA-format or the CBF-format. There is also an interface for
+ * Matlab/Octave on <A HREF="https://github.com/scipopt/MatlabSCIPInterface">GitHub</A>.
+ *
+ * To use the nonlinear branch-and-bound approach one of the following SDP-solvers needs to be installed:
  *
  * - DSDP
  * - SDPA
  * - MOSEK
  *
- * The solution process of interior-point methods for SDPs is highly dependent on the Slater condition. One of the main
- * purposes of the code is handling cases where the Slater condition does not hold using a penalty approach. However, in
- * some cases the SDP-solvers may still fail because of numerical difficulties or even return wrong results, which cannot
- * be compensated. For this purpose there is the possibility to check the Slater condition for the primal and dual problem
- * before the solution of each SDP by setting a SCIP parameter, for details see the parameters tab.
+ * Mixed-integer semidefinite programs are sometimes numerically challenging to solve. One reason is that the Slater
+ * condition may not hold for the SDP-relaxations of some of the nodes. SCIP-SDP implements several methods that try to
+ * recover from a failure to accurately solve the relaxation.
  */

@@ -1,5 +1,5 @@
 Copyright 2011-2013 Discrete Optimization, TU Darmstadt and EDOM, FAU Erlangen-Nürnberg
-	  2014-2022 Discrete Optimization, TU Darmstadt
+	  2014-2023 Discrete Optimization, TU Darmstadt
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
