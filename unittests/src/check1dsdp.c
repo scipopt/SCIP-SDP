@@ -105,7 +105,7 @@ void teardown(void)
    cr_assert_eq(BMSgetMemoryUsed(), 0, "There is a memory leak!");
 }
 
-TestSuite(checksdpi, .init = setup, .fini = teardown);
+TestSuite(check1sdpi, .init = setup, .fini = teardown);
 
 
 
@@ -119,7 +119,7 @@ TestSuite(checksdpi, .init = setup, .fini = teardown);
  *
  * with optimal solution (1).
  */
-Test(checksdpi, test1)
+Test(check1sdpi, test1)
 {
    /* data with fixed values: */
    SCIP_Real obj = 1.0;
@@ -127,8 +127,8 @@ Test(checksdpi, test1)
    SCIP_Real ub = 1.0;
    SCIP_Real rhs = 1.0;
    SCIP_Real lhs = 1;
-   int row = 0;
-   int col = 0;
+   int beg = 0;
+   int ind = 0;
    SCIP_Real val = 1.0;
    int ncols = 1;
    int nrows = 1;
@@ -151,7 +151,7 @@ Test(checksdpi, test1)
 
    /* load LP data, but leave SDP block empty */
    SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
-         nrows, &lhs, &rhs, nnonz, &row, &col, &val) );
+         nrows, &lhs, &rhs, nnonz, &beg, &ind, &val, FALSE) );
 
    /* solve problem: no Slater-check, no time limit */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
@@ -182,7 +182,7 @@ Test(checksdpi, test1)
  *
  * with optimal solution (1).
  */
-Test(checksdpi, test2)
+Test(check1sdpi, test2)
 {
    /* data with fixed values: */
    SCIP_Real obj = 1.0;
@@ -190,8 +190,8 @@ Test(checksdpi, test2)
    SCIP_Real ub = 1.5;
    SCIP_Real rhs[2];
    SCIP_Real lhs[2];
-   int row[2] = {0, 1};
-   int col[2] = {0, 0};
+   int beg[2] = {0, 1};
+   int ind[2] = {0, 0};
    SCIP_Real val[2] = {1.0, 1.0};
    int ncols = 1;
    int nrows = 2;
@@ -217,7 +217,7 @@ Test(checksdpi, test2)
 
    /* load LP data, but leave SDP block empty */
    SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
-         nrows, lhs, rhs, nnonz, row, col, val) );
+         nrows, lhs, rhs, nnonz, beg, ind, val, FALSE) );
 
    /* solve problem: no Slater-check, no time limit */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
@@ -248,7 +248,7 @@ Test(checksdpi, test2)
  *
  * which is infeasible.
  */
-Test(checksdpi, test3)
+Test(check1sdpi, test3)
 {
    /* data with fixed values: */
    SCIP_Real obj = 1.0;
@@ -256,8 +256,8 @@ Test(checksdpi, test3)
    SCIP_Real ub = 2.0;
    SCIP_Real rhs[2];
    SCIP_Real lhs[2];
-   int row[2] = {0, 1};
-   int col[2] = {0, 0};
+   int beg[2] = {0, 1};
+   int ind[2] = {0, 0};
    SCIP_Real val[2] = {1.0, 1.0};
    int ncols = 1;
    int nrows = 2;
@@ -283,7 +283,7 @@ Test(checksdpi, test3)
 
    /* load LP data, but leave SDP block empty */
    SCIP_CALL( SCIPsdpiLoadSDP(sdpi, ncols, &obj, &lb, &ub, NULL, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL,
-         nrows, lhs, rhs, nnonz, row, col, val) );
+         nrows, lhs, rhs, nnonz, beg, ind, val, FALSE) );
 
    /* solve problem: no Slater-check, no time limit */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
@@ -309,7 +309,7 @@ Test(checksdpi, test3)
  *  V = [  0.97325  -0.22975 ]
  *      [ -0.22975  -0.97325 ]
  */
-Test(checksdpi, test4)
+Test(check1sdpi, test4)
 {
    /* data with fixed values: */
    SCIP_Real obj = 1.0;
@@ -338,7 +338,7 @@ Test(checksdpi, test4)
  *  A = [1,-2;-2,5] with eigenvalue (0.17157, 5.82843)
  *  B = [-2,1;1,3] with eigenvalues (-2.1926, 3.1926)
  */
-Test(checksdpi, test5)
+Test(check1sdpi, test5)
 {
    /* data with fixed values: */
    SCIP_Real obj = 1.0;
@@ -391,7 +391,7 @@ Test(checksdpi, test5)
 
    /* load SDP data */
    SCIP_CALL( SCIPsdpiLoadSDP(sdpi, 1, &obj, &lb, &ub, NULL, 1, &sdpblocksizes, &sdpnblockvars, 3, &sdpconstnblocknonz, &sdpconstrows, &sdpconstcols, &sdpconstvals,
-         3, &sdpnblockvarnonzs, &sdpvars, &sdprowss, &sdpcolss, &sdpvalss, 0, NULL, NULL, 0, NULL, NULL, NULL) );
+         3, &sdpnblockvarnonzs, &sdpvars, &sdprowss, &sdpcolss, &sdpvalss, 0, NULL, NULL, 0, NULL, NULL, NULL, FALSE) );
 
    /* solve problem: no Slater-check, no time limit */
    SCIP_CALL( SCIPsdpiSolve(sdpi, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, SCIP_SDPSOLVERSETTING_UNSOLVED, FALSE, 1e20) );
