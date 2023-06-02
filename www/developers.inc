@@ -9,7 +9,7 @@
 <h3>Former main developers</h3>
 <table class="desc">
    <tr>
-      <td>Frederic Mattery&nbsp;&nbsp;&nbsp;</td>
+      <td>Frederic Matter&nbsp;&nbsp;&nbsp;</td>
       <td>(developer from version 3.2.0 to 4.0.0)</td>
    </tr>
    <tr>
