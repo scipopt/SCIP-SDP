@@ -5,8 +5,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 #
 function(setLibProperties targetname outputname)
     set_target_properties(${targetname} PROPERTIES
-        OUTPUT_NAME ${outputname}
-        MACOSX_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+        OUTPUT_NAME ${outputname})
 endfunction(setLibProperties)
 
 set(CMAKE_C_STANDARD 99)
@@ -141,13 +140,7 @@ target_compile_definitions(scipsdp PRIVATE EXTERN=extern)
 
 set_target_properties(libscipsdp PROPERTIES
     VERSION ${SCIPSDP_VERSION_MAJOR}.${SCIPSDP_VERSION_MINOR}.${SCIPSDP_VERSION_PATCH}
-    SOVERSION ${SCIPSDP_VERSION_MAJOR}.${SCIPSDP_VERSION_MINOR}
-    INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-# set the install rpath to the installed destination
-set_target_properties(scipsdp PROPERTIES
-    INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib"
-    INSTALL_RPATH_USE_LINK_PATH TRUE)
+    SOVERSION ${SCIPSDP_VERSION_MAJOR}.${SCIPSDP_VERSION_MINOR})
 
 # install the header files of scip
 install(FILES ${sdpiheaders} DESTINATION include/sdpi)
