@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out ${{ env.SPKG }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: build/pkgs/${{ env.SPKG }}/src
       - name: Install prerequisites
@@ -74,14 +74,13 @@ jobs:
           && echo "sage-package create ${{ env.SPKG }} --version git --tarball ${{ env.SPKG }}-git.tar.gz --type=standard" > upstream/update-pkgs.sh \
           && if [ -n "${{ env.REMOVE_PATCHES }}" ]; then echo "(cd ../build/pkgs/${{ env.SPKG }}/patches && rm -f ${{ env.REMOVE_PATCHES }}; :)" >> upstream/update-pkgs.sh; fi \
           && ls -l upstream/
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           path: upstream
           name: upstream
 
   linux:
-    # https://github.com/sagemath/sage/blob/develop/.github/workflows/docker.yml
-    uses: sagemath/sagetrac-mirror/.github/workflows/docker.yml@develop
+    uses: sagemath/sage/.github/workflows/docker.yml@develop
     with:
       # Extra system packages to install. See available packages at
       # https://github.com/sagemath/sage/tree/develop/build/pkgs
@@ -92,10 +91,6 @@ jobs:
       sage_repo: sagemath/sage
       sage_ref: develop
       upstream_artifact: upstream
-      sage_trac_git: https://github.com/sagemath/sagetrac-mirror.git
-      # Temporarily test on the branch from sage ticket https://trac.sagemath.org/ticket/34749 (scip_sdp)
-      # (this is a no-op after that ticket is merged)
-      sage_trac_ticket: 34749
       # Docker targets (stages) to tag
       docker_targets: "with-targets"
       # We prefix the image name with the SPKG name ("scip_sdp_") to avoid the error
