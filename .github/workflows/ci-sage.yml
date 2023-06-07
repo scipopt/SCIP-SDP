@@ -52,7 +52,7 @@ env:
   DIST_PREREQ:
   # Name of this project in the Sage distribution
   SPKG:             scip_sdp
-  REMOVE_PATCHES:   "findlapack-09e79cf75146ca34c637f919d1f4527a63743300.patch", "macos_link.patch"
+  REMOVE_PATCHES:   "findlapack-09e79cf75146ca34c637f919d1f4527a63743300.patch, macos_link.patch"
 
 jobs:
 
