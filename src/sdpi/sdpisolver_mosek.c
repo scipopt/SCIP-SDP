@@ -914,13 +914,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                maxabsobjcoef = REALABS(obj[i]);
          }
 
-         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, lb[i]) )
+         if ( lb[i] > - SCIPsdpiSolverInfinity(sdpisolver) )
          {
             mosekvarbounds[sdpisolver->nvarbounds] = lb[i];
             sdpisolver->varboundpos[sdpisolver->nvarbounds++] = -(sdpisolver->nactivevars + 1); /* negative sign means lower bound */
          }
 
-         if ( ! SCIPsdpiSolverIsInfinity(sdpisolver, ub[i]) )
+         if ( ub[i] < SCIPsdpiSolverInfinity(sdpisolver) )
          {
             mosekvarbounds[sdpisolver->nvarbounds] = - ub[i]; /* we give the upper bounds a negative sign for the objective */
             sdpisolver->varboundpos[sdpisolver->nvarbounds++] = +(sdpisolver->nactivevars + 1); /* positive sign means upper bound */
