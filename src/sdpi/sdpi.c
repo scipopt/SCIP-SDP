@@ -4482,6 +4482,12 @@ SCIP_RETCODE SCIPsdpiGetPrimalLPSides(
    assert( rhsvals != NULL );
    assert( success != NULL );
 
+   if ( sdpi->nlpcons <= 0 )
+   {
+      *success = TRUE;
+      return SCIP_OKAY;
+   }
+
    *success = FALSE;
    if ( ! sdpi->solved )
    {
