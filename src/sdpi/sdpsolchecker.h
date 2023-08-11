@@ -34,8 +34,8 @@
  * the smallest eigenvalue is >= -feastol for a given feasibility tolerance.
  */
 
-#ifndef __SCIP_SDPI_H__
-#define __SCIP_SDPI_H__
+#ifndef __SCIP_SDPSOLCHECKER_H__
+#define __SCIP_SDPSOLCHECKER_H__
 
 
 #include "scip/def.h"
