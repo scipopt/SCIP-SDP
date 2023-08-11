@@ -1014,7 +1014,7 @@ SCIP_RETCODE tightenRowCoefs(
             else
                newrhs = *rowrhs;
 
-            SCIPdebugPrintf("tightened coefficient from %g to %g; lhs changed from %g to %g; rhs changed from %g to %g; the bounds are [%g,%g]\n",
+            SCIPdebugMessage("tightened coefficient from %g to %g; lhs changed from %g to %g; rhs changed from %g to %g; the bounds are [%g,%g]\n",
                rowvals[i], newval, *rowlhs, newlhs, *rowrhs, newrhs, lb, ub);
 
             *rowlhs = newlhs;
