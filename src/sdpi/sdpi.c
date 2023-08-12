@@ -1206,19 +1206,22 @@ SCIP_RETCODE prepareLPData(
       nlpnonz = *sdpilpnnonz;
       for (j = sdpi->lpbeg[i]; j < nextbeg; ++j)
       {
-         assert( 0 <= sdpi->lpind[j] && sdpi->lpind[j] < sdpi->nvars );
+         int v;
+
+         v = sdpi->lpind[j];
+         assert( 0 <= v && v < sdpi->nvars );
 
          /* count number of contained active variables */
-         if ( ! isFixed(sdpi, sdpi->lpind[j]) )
+         if ( REALABS(sdpi->sdpiub[v] - sdpi->sdpilb[v]) <= sdpi->epsilon )
+            rowconst += sdpi->lpval[j] * sdpilb[v];  /* contribution of the fixed variables */
+         else
          {
-            sdpilpind[nlpnonz] = sdpi->lpind[j];
+            sdpilpind[nlpnonz] = v;
             sdpilpval[nlpnonz] = sdpi->lpval[j];
             ++nlpnonz;
             ++nrownonz;
             nonzind = j;  /* store unfixed variable in row (used for rows with nrownonz == 1) */
          }
-         else
-            rowconst += sdpi->lpval[j] * sdpilb[sdpi->lpind[j]];  /* contribution of the fixed variables */
          assert( ! SCIPsdpiIsInfinity(sdpi, rowconst) );
       }
 
