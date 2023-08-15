@@ -6,7 +6,8 @@ API changes:
 Parameters:
 fixed bugs:
 (c)make:
-
+- change behavior of dependencies: now computed on the fly, while previously they were collected in a file;
+  a make clean is needed whenever new files are added
 
 SCIP-SDP version 4.2.0
 ======================
