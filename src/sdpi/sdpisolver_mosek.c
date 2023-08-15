@@ -991,11 +991,8 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
     * lp constraints and variable bounds) */
    MOSEK_CALLM( MSK_appendvars(sdpisolver->msktask, nlpvars + sdpisolver->nvarbounds) );/*lint !e641*/
 
-   /* all of these are non-negative */
-   for (v = 0; v < nlpvars + sdpisolver->nvarbounds; v++)
-   {
-      MOSEK_CALL( MSK_putvarbound(sdpisolver->msktask, v, MSK_BK_LO, 0.0, (double) MSK_DPAR_DATA_TOL_BOUND_INF) );/*lint !e641*/
-   }
+   /* the variables for the LP constraints and variable bounds are non-negative */
+   MOSEK_CALLM( MSK_putvarboundsliceconst(sdpisolver->msktask, 0, nlpvars + sdpisolver->nvarbounds, MSK_BK_LO, 0.0, MSK_INFINITY) );/*li
 
    /* append empty constraints (since we solve the primal problem, we get one constraint for each active variable) */
    MOSEK_CALLM( MSK_appendcons(sdpisolver->msktask, (penaltyparam < sdpisolver->epsilon) ? sdpisolver->nactivevars : sdpisolver->nactivevars + 1) );/*lint !e641*/
@@ -1357,7 +1354,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       p = penaltyparam / sdpisolver->objscalefactor;
       if ( rbound )
       {
-         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_UP, (double) - MSK_DPAR_DATA_TOL_BOUND_INF, p) );/*lint !e641*/
+         MOSEK_CALL( MSK_putconbound(sdpisolver->msktask, sdpisolver->nactivevars, MSK_BK_UP, - MSK_INFINITY, p) );/*lint !e641*/
       }
       else
       {
