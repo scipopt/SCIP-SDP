@@ -992,7 +992,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    MOSEK_CALLM( MSK_appendvars(sdpisolver->msktask, nlpvars + sdpisolver->nvarbounds) );/*lint !e641*/
 
    /* the variables for the LP constraints and variable bounds are non-negative */
-   MOSEK_CALLM( MSK_putvarboundsliceconst(sdpisolver->msktask, 0, nlpvars + sdpisolver->nvarbounds, MSK_BK_LO, 0.0, MSK_INFINITY) );/*li
+   MOSEK_CALLM( MSK_putvarboundsliceconst(sdpisolver->msktask, 0, nlpvars + sdpisolver->nvarbounds, MSK_BK_LO, 0.0, MSK_INFINITY) );
 
    /* append empty constraints (since we solve the primal problem, we get one constraint for each active variable) */
    MOSEK_CALLM( MSK_appendcons(sdpisolver->msktask, (penaltyparam < sdpisolver->epsilon) ? sdpisolver->nactivevars : sdpisolver->nactivevars + 1) );/*lint !e641*/
