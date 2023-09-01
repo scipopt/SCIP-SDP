@@ -5,6 +5,8 @@ features:
 API changes:
 Parameters:
 fixed bugs:
+- fidxed bug with calling tightenRowCoefs()
+
 (c)make:
 - change behavior of dependencies: now computed on the fly, while previously they were collected in a file;
   a make clean is needed whenever new files are added
