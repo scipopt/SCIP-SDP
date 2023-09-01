@@ -2,6 +2,8 @@ SCIP-SDP version NEXT
 ======================
 
 features:
+- improved handling of Mosek enivronments for concurrent mode: free data of corresponding thread
+
 API changes:
 Parameters:
 fixed bugs:

@@ -94,11 +94,18 @@
 #define NEAR_REL_TOLERANCE           1.0     /**< MOSEK will multiply all tolerances with this factor after stalling */
 #endif
 
-/* Use thread local environment in order to not create a new environment for each new SDP. */
-#if defined(_Thread_local)
-_Thread_local MSKenv_t reusemskenv = NULL;
-_Thread_local int numsdp           = 0;
-#define SCIP_REUSEENV
+#ifdef SCIP_THREADSAFE
+   #if defined(_Thread_local)
+      /* Use thread local environment in order to not create a new environment for each new LP. */
+      static _Thread_local MSKenv_t reusemskenv = NULL;
+      static _Thread_local int numsdp = 0;
+      #define SCIP_REUSEENV
+   #endif
+#else
+   /* Global Mosek environment in order to not create a new environment for each new LP. This is not thread safe. */
+   static MSKenv_t reusemskenv = NULL;
+   static int numsdp = 0;
+   #define SCIP_REUSEENV
 #endif
 
 
@@ -148,6 +155,10 @@ struct SCIP_SDPiSolver
    int                   nsdpcalls;          /**< number of SDP-calls since the last solve call */
    SCIP_Bool             scaleobj;           /**< whether the objective should be scaled */
    SCIP_Real             objscalefactor;     /**< objective scaling factor */
+#ifdef SCIP_REUSEENV
+   int*                  numsdp;             /**< pointer to count on number of tasks in environment */
+   MSKenv_t*             reusemskenv;        /**< pointer to reused Mosek environment */
+#endif
 };
 
 
@@ -451,11 +462,15 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
 #ifdef SCIP_REUSEENV
    if ( reusemskenv == NULL )
    {
-      assert(numsdp == 0);
+      assert( numsdp == 0 );
       MOSEK_CALL( MSK_makeenv(&reusemskenv, NULL) );
    }
    (*sdpisolver)->mskenv = reusemskenv;
    ++numsdp;
+
+   /* remember address of numsdp and reusemskenv, in case they are thread-local and SCIPsdpisolverFree is called from different thread */
+   (*sdpisolver)->numsdp = &numsdp;
+   (*sdpisolver)->reusemskenv = &reusemskenv;
 #else
    MOSEK_CALL( MSK_makeenv(&((*sdpisolver)->mskenv), NULL) );/*lint !e641*/ /* the NULL-argument is a debug file, but setting this will spam the whole folder */
 #endif
@@ -511,20 +526,21 @@ SCIP_RETCODE SCIPsdpiSolverFree(
       MOSEK_CALL( MSK_deletetask(&((*sdpisolver)->msktask)) );/*lint !e641*/
    }
 
-   if ( (*sdpisolver)->mskenv != NULL )
-   {
 #ifdef SCIP_REUSEENV
-      assert( numsdp > 0 );
-      --numsdp;
-      if ( numsdp == 0 )
-      {
-         MOSEK_CALL( MSK_deleteenv(&reusemskenv) );
-         reusemskenv = NULL;
-      }
-#else
-      MOSEK_CALL( MSK_deleteenv(&((*sdpisolver)->mskenv)) );/*lint !e641*/
-#endif
+   /* decrement the numsdp that belongs to the thread where SCIPsdpisolverCreate was called */
+   assert( *(*sdpisolver)->numsdp > 0 );
+   --(*(*sdpisolver)->numsdp);
+
+   /* if numsdp reached zero, then also free the Mosek environment (that belongs to the thread where SCIPsdpisolverCreate was called) */
+   if ( *(*sdpisolver)->numsdp == 0 )
+   {
+      /* free reused environment */
+      MOSEK_CALL( MSK_deleteenv((*sdpisolver)->reusemskenv) );
+      *(*sdpisolver)->reusemskenv = NULL;
    }
+#else
+   MOSEK_CALL( MSK_deleteenv(&((*sdpisolver)->mskenv)) );/*lint !e641*/
+#endif
 
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->varboundpos, 2 * (*sdpisolver)->maxnvars);
    BMSfreeBlockMemoryArrayNull((*sdpisolver)->blkmem, &(*sdpisolver)->inputtomosekmapper, (*sdpisolver)->maxnvars);
