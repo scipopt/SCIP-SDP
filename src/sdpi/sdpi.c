@@ -1242,7 +1242,7 @@ SCIP_RETCODE prepareLPData(
          assert( 0 <= nonzind && nonzind < sdpi->lpnnonz );
 
          /* try to tighten coefficients based on integrality */
-         SCIP_CALL( tightenRowCoefs(sdpi, sdpilb, sdpiub, &sdpilpval[*nsdpilpcons], &sdpilpind[*nsdpilpcons], &nrownonz, &lhs, &rhs, &lhsredundant, &rhsredundant, &nchgcoefs) );
+         SCIP_CALL( tightenRowCoefs(sdpi, sdpilb, sdpiub, &sdpilpval[*sdpilpnnonz], &sdpilpind[*sdpilpnnonz], &nrownonz, &lhs, &rhs, &lhsredundant, &rhsredundant, &nchgcoefs) );
 
          if ( ! lhsredundant || ! rhsredundant )
          {
