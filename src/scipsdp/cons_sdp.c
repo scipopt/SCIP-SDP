@@ -4907,14 +4907,14 @@ SCIP_RETCODE propagateUpperBounds(
    return SCIP_OKAY;
 }
 
+
 /** analyzes conflicting assignment on given constraint from 3x3 minor propagation, and adds conflict constraint to problem */
 static
 SCIP_RETCODE analyzeConflict3Minor(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_CONS*            cons,               /**< SDP constraint */
-   int                   diagr,              /**< index for diagonal entry corresponding to r */
-   int                   diags,              /**< index for diagonal entry corresponding to s */
-   int                   diagt,              /**< index for diagonal entry corresponding to t */
+   int                   diagr,              /**< index for diagonal entry corresponding to r (or -1) */
+   int                   diags,              /**< index for diagonal entry corresponding to s (or -1) */
    int                   posrs,              /**< index for off-diagonal entry corresponding to (r,s) */
    int                   pos1,               /**< index for one off-diagonal entry corresponding to fixed variable (or -1) */
    int                   pos2                /**< index for one off-diagonal entry corresponding to fixed variable (or -1) */
@@ -4925,12 +4925,16 @@ SCIP_RETCODE analyzeConflict3Minor(
 
    assert( scip != NULL );
    assert( cons != NULL );
+   assert( posrs >= 0 );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
 
-   /* conflict analysis can only be applied in solving stage and if it is applicable */
-   if ( (SCIPgetStage(scip) != SCIP_STAGE_SOLVING && ! SCIPinProbing(scip)) || ! SCIPisConflictAnalysisApplicable(scip) )
+   /* conflict analysis can only be applied in solving stage */
+   if ( SCIPgetStage(scip) != SCIP_STAGE_SOLVING && ! SCIPinProbing(scip) )
+      return SCIP_OKAY;
+
+   if ( ! SCIPisConflictAnalysisApplicable(scip) )
       return SCIP_OKAY;
 
    SCIPdebugMsg(scip, "Analyzing a conflict during propagation of 3x3 minors ...\n");
@@ -4941,7 +4945,7 @@ SCIP_RETCODE analyzeConflict3Minor(
    assert( consdata->matrixvar != NULL );
    assert( consdata->matrixval != NULL );
 
-   if ( consdata->matrixvar[diagr] != NULL )
+   if ( diagr >= 0 && consdata->matrixvar[diagr] != NULL )
    {
       assert( SCIPisFeasEQ(scip, consdata->matrixval[diagr] * SCIPvarGetLbLocal(consdata->matrixvar[diagr]) - consdata->matrixconst[diagr], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagr]), SCIPvarGetUbLocal(consdata->matrixvar[diagr])) );
@@ -4952,13 +4956,13 @@ SCIP_RETCODE analyzeConflict3Minor(
       }
       else
       {
-         /* add both bounds, because we do not know which bound cause the fixing */
+         /* add both bounds, because we do not know which bound caused the fixing */
          SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagr], NULL) );
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagr], NULL) );
       }
    }
 
-   if ( consdata->matrixvar[diags] != NULL )
+   if ( diags >= 0 && consdata->matrixvar[diags] != NULL )
    {
       assert( SCIPisFeasEQ(scip, consdata->matrixval[diags] * SCIPvarGetLbLocal(consdata->matrixvar[diags]) - consdata->matrixconst[diags], 1.0) );
       assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diags]), SCIPvarGetUbLocal(consdata->matrixvar[diags])) );
@@ -4969,26 +4973,9 @@ SCIP_RETCODE analyzeConflict3Minor(
       }
       else
       {
-         /* add both bounds, because we do not know which bound cause the fixing */
+         /* add both bounds, because we do not know which bound caused the fixing */
          SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diags], NULL) );
          SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diags], NULL) );
-      }
-   }
-
-   if ( consdata->matrixvar[diagt] != NULL )
-   {
-      assert( SCIPisFeasEQ(scip, consdata->matrixval[diagt] * SCIPvarGetLbLocal(consdata->matrixvar[diagt]) - consdata->matrixconst[diagt], 1.0) );
-      assert( SCIPisEQ(scip, SCIPvarGetLbLocal(consdata->matrixvar[diagt]), SCIPvarGetUbLocal(consdata->matrixvar[diagt])) );
-
-      if ( SCIPvarIsBinary(consdata->matrixvar[diagt]) )
-      {
-         SCIP_CALL( SCIPaddConflictBinvar(scip, consdata->matrixvar[diagt]) );
-      }
-      else
-      {
-         /* add both bounds, because we do not know which bound cause the fixing */
-         SCIP_CALL( SCIPaddConflictLb(scip, consdata->matrixvar[diagt], NULL) );
-         SCIP_CALL( SCIPaddConflictUb(scip, consdata->matrixvar[diagt], NULL) );
       }
    }
 
@@ -5053,9 +5040,10 @@ SCIP_RETCODE analyzeConflict3Minor(
  *  1, then the other two entries must be the same. For instance, assume the current 3x3 minor looks as follows:
  *  [1 1 a]
  *  [1 1 b]
- *  [a b 1]
- *  Its determinant is 1 + 2 ab - a^2 - b^2 - 1 = - (a - b)^2. Since this determinant must be nonnegative for the
- *  complete matrix to be positive semidefinite, a = b follows.
+ *  [a b c]
+ *  Its determinant is c + 2 ab - a^2 - b^2 - c = - (a - b)^2. Since this determinant must be nonnegative for the
+ *  complete matrix to be positive semidefinite, a = b follows. This argument can be repeatedly applied to show that the
+ *  rows/column corresponding to the first two rows/columns must be equal.
  *
  *  The idea is motivated by the Masters Thesis "Facial Reduction on Binary Semidefinite Programs" by Jeremy Jany, TU
  *  Darmstadt, 2021.
@@ -5108,17 +5096,10 @@ SCIP_RETCODE propagate3Minors(
             /* check rows */
             for (r = 1; r < blocksize; ++r)
             {
-               int diagr;
-
-               diagr = r * (r + 1)/2 + r;
-
                /* check column */
                for (s = 0; s < r; ++s)
                {
-                  int diags;
                   int posrs;
-
-                  diags = s * (s + 1)/2 + s;
 
                   /* check whether position (r,s) is 1 */
                   posrs = r * (r + 1)/2 + s;
@@ -5143,24 +5124,20 @@ SCIP_RETCODE propagate3Minors(
                   if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrs] * val - consdata->matrixconst[posrs], 1.0) )
                      continue;
 
-                  /* now check all other columns */
-                  for (t = s+1; t < blocksize; ++t)
+                  /* at this place rows/columns r and s are equal */
+
+                  /* try to fix variables */
+                  for (t = 1; t < blocksize; ++t)
                   {
                      SCIP_VAR* var1;
                      SCIP_VAR* var2;
-                     int diagt;
                      int pos1;
                      int pos2;
 
-                     if ( t == r )
-                        continue;
-
-                     diagt = t * (t + 1)/2 + t;
-
-                     /* at this place the positions (r,t) and (s,t) need to be equal due to the 3x3 minor */
-
-                     /* check off-diagonal entries */
-                     pos1 = t * (t + 1)/2 + s;
+                     if ( t > s )
+                        pos1 = t * (t + 1)/2 + s;
+                     else
+                        pos1 = s * (s + 1)/2 + t;
                      var1 = consdata->matrixvar[pos1];
                      if ( var1 == NULL )
                         continue;
@@ -5185,7 +5162,7 @@ SCIP_RETCODE propagate3Minors(
                               SCIPdebugMsg(scip, "Detected infeasibility for (%d, %d, %d) <%s>, <%s>.\n", r, s, t,
                                  SCIPvarGetName(var1), SCIPvarGetName(var2));
                               *infeasible = TRUE;
-                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, pos2) );
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], -1, -1, posrs, pos1, pos2) );
                               return SCIP_OKAY;
                            }
                         }
@@ -5200,7 +5177,7 @@ SCIP_RETCODE propagate3Minors(
                            {
                               SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
                                  SCIPvarGetName(var1), SCIPvarGetName(var2));
-                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, -1) );
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], -1, -1, posrs, pos1, -1) );
                               return SCIP_OKAY;
                            }
                            if ( tightened )
@@ -5225,7 +5202,7 @@ SCIP_RETCODE propagate3Minors(
                            {
                               SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
                                  SCIPvarGetName(var1), SCIPvarGetName(var2));
-                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, -1, pos2) );
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], -1, -1, posrs, -1, pos2) );
                               return SCIP_OKAY;
                            }
                            if ( tightened )
@@ -5324,45 +5301,20 @@ SCIP_RETCODE propagate3Minors(
                   if ( ! SCIPisFeasEQ(scip, consdata->matrixval[posrs] * val - consdata->matrixconst[posrs], 1.0) )
                      continue;
 
-                  /* now check all other columns */
-                  for (t = s+1; t < blocksize; ++t)
+                  /* at this place rows/columns r and s are equal */
+
+                  /* try to fix variables */
+                  for (t = 1; t < blocksize; ++t)
                   {
                      SCIP_VAR* var1;
                      SCIP_VAR* var2;
-                     int diagt;
                      int pos1;
                      int pos2;
 
-                     if ( t == r )
-                        continue;
-
-                     /* make sure that we have 1s on the diagonal */
-                     diagt = t * (t + 1)/2 + t;
-
-                     /* skip positions covered by at least two variables */
-                     if ( consdata->matrixval[diagt] == SCIP_INVALID ) /*lint !e777*/
-                        continue;
-
-                     var = consdata->matrixvar[diagt];
-                     if ( var != NULL )
-                     {
-                        /* skip unfixed variable */
-                        if ( ! SCIPisEQ(scip, SCIPvarGetLbLocal(var), SCIPvarGetUbLocal(var)) )
-                           continue;
-
-                        val = SCIPvarGetLbLocal(var); /* fixed value */
-                     }
+                     if ( t > s )
+                        pos1 = t * (t + 1)/2 + s;
                      else
-                        val = 0.0;
-
-                     /* the result should be equal to 1 */
-                     if ( ! SCIPisFeasEQ(scip, consdata->matrixval[diagt] * val - consdata->matrixconst[diagt], 1.0) )
-                        continue;
-
-                     /* at this place the positions (r,t) and (s,t) need to be equal due to the 3x3 minor */
-
-                     /* check off-diagonal entries */
-                     pos1 = t * (t + 1)/2 + s;
+                        pos1 = s * (s + 1)/2 + t;
                      var1 = consdata->matrixvar[pos1];
                      if ( var1 == NULL )
                         continue;
@@ -5387,7 +5339,7 @@ SCIP_RETCODE propagate3Minors(
                               SCIPdebugMsg(scip, "Detected infeasibility for (%d, %d, %d) <%s>, <%s>.\n", r, s, t,
                                  SCIPvarGetName(var1), SCIPvarGetName(var2));
                               *infeasible = TRUE;
-                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, pos2) );
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, posrs, pos1, pos2) );
                               return SCIP_OKAY;
                            }
                         }
@@ -5402,7 +5354,7 @@ SCIP_RETCODE propagate3Minors(
                            {
                               SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
                                  SCIPvarGetName(var1), SCIPvarGetName(var2));
-                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, pos1, -1) );
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, posrs, pos1, -1) );
                               return SCIP_OKAY;
                            }
                            if ( tightened )
@@ -5427,7 +5379,7 @@ SCIP_RETCODE propagate3Minors(
                            {
                               SCIPdebugMsg(scip, "Propagation on minor (%d, %d, %d) <%s>, <%s> detected infeasibility.\n", r, s, t,
                                  SCIPvarGetName(var1), SCIPvarGetName(var2));
-                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, diagt, posrs, -1, pos2) );
+                              SCIP_CALL( analyzeConflict3Minor(scip, conss[c], diagr, diags, posrs, -1, pos2) );
                               return SCIP_OKAY;
                            }
                            if ( tightened )
