@@ -1124,6 +1124,9 @@ SCIP_RETCODE tightenRowCoefs(
  *  - convert rows with one nonzero into bounds
  *
  *  The same relative order in all data is preserved.
+ *
+ *  Note that the result currently depends on the order of rows.
+ *  @todo Repeatedly run if bounds have been tightened.
  */
 static
 SCIP_RETCODE prepareLPData(
@@ -1212,7 +1215,7 @@ SCIP_RETCODE prepareLPData(
          assert( 0 <= v && v < sdpi->nvars );
 
          /* count number of contained active variables */
-         if ( REALABS(sdpi->sdpiub[v] - sdpi->sdpilb[v]) <= sdpi->epsilon )
+         if ( REALABS(sdpiub[v] - sdpilb[v]) <= sdpi->epsilon )
             rowconst += sdpi->lpval[j] * sdpilb[v];  /* contribution of the fixed variables */
          else
          {
