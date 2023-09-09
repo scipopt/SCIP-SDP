@@ -5134,9 +5134,6 @@ SCIP_RETCODE propagate3Minors(
                      int pos1;
                      int pos2;
 
-                     if ( t == r || t == s )
-                        continue;
-
                      if ( t > s )
                         pos1 = t * (t + 1)/2 + s;
                      else
