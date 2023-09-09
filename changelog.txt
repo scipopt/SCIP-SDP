@@ -6,6 +6,8 @@ features:
 - improved propagation of 3x3 minors by using that rows/columns are equal and do not need to check diagonal for t
 
 API changes:
+- use const in SDPI and SDPI-solver interfaces
+
 Parameters:
 fixed bugs:
 - fidxed bug with calling tightenRowCoefs()
