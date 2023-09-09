@@ -891,17 +891,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    SCIP_CALL( ensureMappingDataMemory(sdpisolver, nvars) );
    BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &mosekvarbounds, 2 * nvars) ); /*lint !e647*/
 
+   /* find fixed variables */
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
    sdpisolver->nvarbounds = 0;
    nfixedvars = 0;
-
-   for (i = 0; i < sdpisolver->nactivevars; i++)
-   {
-      assert( 0 <= sdpisolver->mosektoinputmapper[i] && sdpisolver->mosektoinputmapper[i] < nvars );
-   }
-
-   /* find fixed variables */
    sdpisolver->fixedvarsobjcontr = 0.0;
    for (i = 0; i < nvars; i++)
    {
@@ -1014,13 +1008,13 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    MOSEK_CALLM( MSK_appendcons(sdpisolver->msktask, (penaltyparam < sdpisolver->epsilon) ? sdpisolver->nactivevars : sdpisolver->nactivevars + 1) );/*lint !e641*/
 
    /* set objective values for the matrix variables */
-   i = 0;
-
    if ( sdpconstnnonz > 0 )
    {
+      i = 0;
+
       for (b = 0; b < nsdpblocks; b++)
       {
-         if ( blockindchanges[b] > -1 )
+         if ( blockindchanges[b] >= 0 )
          {
             /* if some indices in the block were removed, we need to change indices accordingly */
             if ( nremovedinds[b] > 0 )
