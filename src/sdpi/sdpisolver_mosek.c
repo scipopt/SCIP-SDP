@@ -2547,7 +2547,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    return SCIP_LPERROR;
 }
 
-/** returns the primal solution matrix (without LP rows) */
+/** returns the primal solution matrix (without LP rows)
+ *
+ *  The solution of Mosek is given as an array in lower triangular column-wise stacked form. The position of entry (i,j)
+ *  (with i >= j) in this array is given by \sum_{k=0}^{j-1} (n - k) + (i - j), because:
+ *  - The number of entries before column j is given by the first sum (from first column: 0, n, n + (n-1), ...).
+ *  - Then we add the number of entries in column j, which is i - j.
+ */
 SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver interface */
    int                   nsdpblocks,         /**< number of blocks */
@@ -2588,7 +2594,9 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          SCIP_Real* X;   /* the upper triangular entries of matrix X */
          SCIP_Real val;
          int redsize;
-         int idx = 0;
+         int row;
+         int col;
+         int idx;
          int i;
 
          redsize = blocksize - nremovedinds[b];
@@ -2597,19 +2605,27 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          MOSEK_CALL( MSK_getbarxj(sdpisolver->msktask, MSK_SOL_ITR, b - blockindchanges[b], X) );/*lint !e641*/
 
          /* fill in matrix */
-         for (j = 0; j < blocksize; ++j)
+         for (i = 0; i < blocksize; ++i)
          {
-            if ( indchanges[b][j] >= 0 )
+            if ( indchanges[b][i] >= 0 )
             {
-               assert( 0 <= (j - indchanges[b][j]) && (j - indchanges[b][j]) < redsize );
+               row = i - indchanges[b][i];
+               assert( 0 <= row && row < redsize );
 
-               for (i = j; i < blocksize; ++i)
+               for (j = 0; j <= i; ++j)
                {
-                  if ( indchanges[b][i] >= 0 )
+                  if ( indchanges[b][j] >= 0 )
                   {
-                     assert( 0 <= (i - indchanges[b][i]) && (i - indchanges[b][i]) < redsize );
+                     col = j - indchanges[b][j];
+                     assert( 0 <= col && col < redsize );
+
+                     if ( row >= col )
+                        idx = (redsize * col) - (col - 1) * col/2 + (row - col);
+                     else
+                        idx = (redsize * row) - (row - 1) * row/2 + (col - row);
                      assert( 0 <= idx && idx < redsize * (redsize + 1)/2 );
-                     val = X[idx++];
+
+                     val = X[idx];
                      primalmatrices[b][i * blocksize + j] = val;
                      primalmatrices[b][j * blocksize + i] = val;
                   }

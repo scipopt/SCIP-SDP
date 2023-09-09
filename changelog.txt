@@ -9,6 +9,7 @@ API changes:
 Parameters:
 fixed bugs:
 - fidxed bug with calling tightenRowCoefs()
+- fixed generation of primal matrix with Mosek
 
 (c)make:
 - change behavior of dependencies: now computed on the fly, while previously they were collected in a file;
