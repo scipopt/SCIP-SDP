@@ -383,15 +383,16 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
       if ( viol > *maxabsviolbnds )
          *maxabsviolbnds = viol;
 
-      if ( solvector[i] < lb[i] - feastol || solvector[i] > ub[i] + feastol )
+      if ( viol > feastol )
       {
          SCIPdebugMessage("solution found infeasible (feastol=%f) for dual variable bounds: x[%d] = %g <|= [%g, %g]\n",
             feastol, i, solvector[i], lb[i], ub[i]);
          *infeasible = TRUE;
+         return SCIP_OKAY;
       }
    }
 
-   /* check linear constraints (since DSDP sorts the lp-arrays by cols, we cannot expect them to be sorted) */
+   /* check linear constraints */
    if ( nlpcons > 0 )
    {
       for (i = 0; i < nlpcons; ++i)
@@ -414,7 +415,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
                lpconsvals += solvector[lpind[j]] * lpval[j];
          }
 
-         if ( lpconsvals < lplhs[i] - feastol || lpconsvals > lprhs[i] + feastol)
+         viol = MAX3(lplhs[i] - lpconsvals, lpconsvals - lprhs[i], 0.0);
+         *sumabsviolcons += viol;
+
+         if ( viol > *maxabsviolcons )
+            *maxabsviolcons = viol;
+
+         if ( viol > feastol )
          {
             SCIPdebugMessage("solution found infeasible (feastol=%g) for dual lp constraint: LP-%d = %g <|= [%g,%g]\n",
                feastol, i, lpconsvals, lplhs[i], lprhs[i]);
@@ -424,24 +431,20 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
       }
    }
 
-   /* check sdp constraints */
+   /* check SDP constraints */
    if ( nsdpblocks > 0 )
    {
       SCIP_Real* fullsdpmatrix;
       SCIP_Real eigenvalue;
       int maxblocksize = 0;
+      int row;
+      int col;
 
-      /* allocate memory */
-      if ( nsdpblocks == 1 )
-         maxblocksize = sdpblocksizes[0] - nremovedinds[0];
-      else
+      /* calculate maximum size of any SDP block to not have to reallocate memory in between */
+      for (b = 0; b < nsdpblocks; b++)
       {
-         /* calculate maximum size of any SDP block to not have to reallocate memory in between */
-         for (b = 0; b < nsdpblocks; b++)
-         {
-            if ( (sdpblocksizes[b] - nremovedinds[b]) > maxblocksize )
-               maxblocksize = sdpblocksizes[b] - nremovedinds[b];
-         }
+         if ( (sdpblocksizes[b] - nremovedinds[b]) > maxblocksize )
+            maxblocksize = sdpblocksizes[b] - nremovedinds[b];
       }
 
       BMS_CALL( BMSallocBufferMemoryArray(bufmem, &fullsdpmatrix, maxblocksize * maxblocksize) );/*lint !e647*/
@@ -450,13 +453,15 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
       {
          if ( blockindchanges[b] > -1 )
          {
+            int redsize;
+
+            redsize = sdpblocksizes[b] - nremovedinds[b];
+
             /* initialize lower triangular part of fullsdpmatrix with zero */
-            for (i = 0; i < sdpblocksizes[b] - nremovedinds[b]; i++)
+            for (i = 0; i < redsize; i++)
             {
                for (j = 0; j <= i; j++)
-               {
-                  fullsdpmatrix[i * (sdpblocksizes[b] - nremovedinds[b]) + j] = 0.0; /*lint !e679*/
-               }
+                  fullsdpmatrix[i * redsize + j] = 0.0; /*lint !e679*/
             }
 
             /* iterate over all non-fixed variables and add the corresponding nonzeros */
@@ -466,8 +471,17 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
                {
                   for (i = 0; i < sdpnblockvarnonz[b][v]; i++)
                   {
-                     fullsdpmatrix[((sdprow[b][v][i] - indchanges[b][sdprow[b][v][i]]) * (sdpblocksizes[b] - nremovedinds[b])) +
-                                   sdpcol[b][v][i] - indchanges[b][sdpcol[b][v][i]]] += solvector[sdpvar[b][v]] * sdpval[b][v][i];/*lint !e679*/
+                     row = sdprow[b][v][i];
+                     row = row - indchanges[b][row];
+
+                     col = sdpcol[b][v][i];
+                     col = col - indchanges[b][col];
+
+                     assert( 0 <= row && row < redsize );
+                     assert( 0 <= col && col < redsize );
+                     assert( row >= col );
+
+                     fullsdpmatrix[row * redsize + col] += solvector[sdpvar[b][v]] * sdpval[b][v][i];/*lint !e679*/
                   }
                }
             }
@@ -477,22 +491,29 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
             {
                for (i = 0; i < sdpconstnblocknonz[b]; i++)
                {
-                  fullsdpmatrix[((sdpconstrow[b][i] - indchanges[b][sdpconstrow[b][i]]) * (sdpblocksizes[b] - nremovedinds[b])) +
-                     sdpconstcol[b][i] - indchanges[b][sdpconstcol[b][i]]] -= sdpconstval[b][i];/*lint !e679*/
+                  row = sdpconstrow[b][i];
+                  row = row - indchanges[b][row];
+
+                  col = sdpconstcol[b][i];
+                  col = col - indchanges[b][col];
+
+                  assert( 0 <= row && row < redsize );
+                  assert( 0 <= col && col < redsize );
+                  assert( row >= col );
+
+                  fullsdpmatrix[row * redsize + col] -= sdpconstval[b][i];/*lint !e679*/
                }
             }
 
             /* extend to full symmetric matrix for LAPACK */
-            for (i = 0; i < sdpblocksizes[b] - nremovedinds[b]; i++)
+            for (i = 0; i < redsize; i++)
             {
                for (j = 0; j < i; j++)
-               {
-                  fullsdpmatrix[j * (sdpblocksizes[b] - nremovedinds[b]) + i] = fullsdpmatrix[i * (sdpblocksizes[b] - nremovedinds[b]) + j];/*lint !e679*/
-               }
+                  fullsdpmatrix[j * redsize + i] = fullsdpmatrix[i * redsize + j];/*lint !e679*/
             }
 
             /* compute smallest eigenvalue using LAPACK */
-            SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, sdpblocksizes[b] - nremovedinds[b], fullsdpmatrix, 1, &eigenvalue, NULL) );
+            SCIP_CALL( SCIPlapackComputeIthEigenvalue(bufmem, FALSE, redsize, fullsdpmatrix, 1, &eigenvalue, NULL) );
 
             viol = MAX(-eigenvalue, 0.0);
             *sumabsviolsdp += viol;
@@ -504,12 +525,13 @@ SCIP_RETCODE SCIPsdpSolcheckerCheckAndGetViolDual(
             if ( viol > *maxabsviolsdp )
                *maxabsviolsdp = viol;
 
-            if ( eigenvalue < - feastol )
+            if ( viol > feastol )
             {
                SCIPdebugMessage("solution found infeasible (feastol=%.10g) for dual SDP constraint %d, smallest eigenvector %.10g\n",
                      feastol, b, eigenvalue);
                BMSfreeBufferMemoryArray(bufmem, &fullsdpmatrix);
                *infeasible = TRUE;
+               return SCIP_OKAY;
             }
          }
       }
