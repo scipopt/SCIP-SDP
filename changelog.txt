@@ -5,6 +5,8 @@ features:
 - improved handling of Mosek enivronments for concurrent mode: free data of corresponding thread
 
 API changes:
+- use const in SDPI and SDPI-solver interfaces
+
 Parameters:
 fixed bugs:
 - fidxed bug with calling tightenRowCoefs()
