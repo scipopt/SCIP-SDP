@@ -392,6 +392,10 @@ ifneq ($(OBJDIR),)
 		@-rm -f $(OBJDIR)/sdpi/*.o
 		@-rm -f $(OBJDIR)/symmetry/*.o
 		@-rm -f $(OBJDIR)/*.o
+		@-rm -f $(OBJDIR)/scipsdp/*.d
+		@-rm -f $(OBJDIR)/sdpi/*.d
+		@-rm -f $(OBJDIR)/symmetry/*.d
+		@-rm -f $(OBJDIR)/*.d
 		@-rmdir $(OBJDIR)/scipsdp
 	 	@-rmdir $(OBJDIR)/sdpi
 	 	@-rmdir $(OBJDIR)/symmetry
