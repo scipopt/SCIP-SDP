@@ -3,6 +3,7 @@ SCIP-SDP version NEXT
 
 features:
 - improved handling of Mosek enivronments for concurrent mode: free data of corresponding thread
+- improved propagation of 3x3 minors by using that rows/columns are equal and do not need to check diagonal for t
 - use current bounds in prepareLPData to detect fixed variables
 
 API changes:
