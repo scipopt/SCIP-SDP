@@ -1125,8 +1125,7 @@ SCIP_RETCODE tightenRowCoefs(
  *
  *  The same relative order in all data is preserved.
  *
- *  Note that the result currently depends on the order of rows.
- *  @todo Repeatedly run if bounds have been tightened.
+ *  Note that this function is repeatedly called as long as there have been changes.
  */
 static
 SCIP_RETCODE prepareLPData(
