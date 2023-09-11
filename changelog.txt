@@ -4,11 +4,15 @@ SCIP-SDP version NEXT
 features:
 - improved handling of Mosek enivronments for concurrent mode: free data of corresponding thread
 - improved propagation of 3x3 minors by using that rows/columns are equal and do not need to check diagonal for t
+- use current bounds in prepareLPData to detect fixed variables
 
 API changes:
+- use const in SDPI and SDPI-solver interfaces
+
 Parameters:
 fixed bugs:
 - fidxed bug with calling tightenRowCoefs()
+- fixed generation of primal matrix with Mosek
 
 (c)make:
 - change behavior of dependencies: now computed on the fly, while previously they were collected in a file;
