@@ -1,4 +1,5 @@
 concurrent/paramsetprefix = "../settings/"
+parallel/minnthreads = 4
 parallel/maxnthreads = 4
 parallel/mode = 0
 concurrent/changeseeds = false
