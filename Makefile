@@ -199,7 +199,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 ifeq ($(SYM),bliss)
 SCIPSDPCCOBJ 	=	symmetry/compute_symmetry_bliss.o
 else
-SCIPSDPCOBJ 	+=	symmetry/compute_symmetry_none.o
+SCIPSDPCCOBJ 	+=	symmetry/compute_symmetry_none.o
 endif
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
