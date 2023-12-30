@@ -1322,7 +1322,7 @@ SCIP_RETCODE CBFreadObjAcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
+         "OBJACOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1469,7 +1469,7 @@ SCIP_RETCODE CBFreadFcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
+         "FCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1587,7 +1587,7 @@ SCIP_RETCODE CBFreadAcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
+         "ACOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -1701,7 +1701,7 @@ SCIP_RETCODE CBFreadBcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
+         "BCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -2002,7 +2002,7 @@ SCIP_RETCODE CBFreadHcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
+         "HCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;
@@ -2170,7 +2170,7 @@ SCIP_RETCODE CBFreadDcoord(
    if ( nzerocoef > 0 )
    {
       SCIPverbMessage(scip, SCIP_VERBLEVEL_HIGH, NULL,
-         "OBJFCOORD: Remove %d zero coefficients.\n", nzerocoef);
+         "DCOORD: Remove %d zero coefficients.\n", nzerocoef);
    }
 
    return SCIP_OKAY;

@@ -13,6 +13,7 @@ Parameters:
 fixed bugs:
 - fidxed bug with calling tightenRowCoefs()
 - fixed generation of primal matrix with Mosek
+- fixed messages about removed zero coefficients in different CBF blocks
 
 (c)make:
 - change behavior of dependencies: now computed on the fly, while previously they were collected in a file;
