@@ -2505,12 +2505,14 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
       {
          SCIP_Real* X;   /* the upper triangular entries of matrix X */
          SCIP_Real val;
-         int redsize;
          int idx = 0;
          int n;
          int i;
 
+#ifndef NDEBUG
+         int redsize;
          redsize = blocksize - nremovedinds[b];
+#endif
          DSDP_CALL( SDPConeGetXArray(sdpisolver->sdpcone, b - blockindchanges[b], &X, &n) );
          assert( n == redsize * (redsize + 1)/2 );
 
