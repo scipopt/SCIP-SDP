@@ -263,7 +263,7 @@ SCIP_RETCODE ensureMappingDataMemory(
    SCIP_SDPISOLVER*      sdpisolver,         /**< pointer to an SDP-solver structure */
    int                   nvars,              /**< number of variables */
    int                   nsdpblocks,         /**< number of SDP blocks */
-   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
    int                   nlpcons,            /**< number of LP constraints */
    SCIP_Bool             usepreoptimalsol    /**< whether preoptimalsol(x) should be set up */
    )
@@ -370,37 +370,37 @@ SCIP_RETCODE checkFeastolAndResolve(
    SCIP_SDPISOLVER*      sdpisolver,         /**< SDP-solver interface */
    SCIP_Real             penaltyparam,       /**< penalty parameter Gamma */
    int                   nvars,              /**< number of variables */
-   SCIP_Real*            lb,                 /**< lower bounds of variables */
-   SCIP_Real*            ub,                 /**< upper bounds of variables */
+   const SCIP_Real*      lb,                 /**< lower bounds of variables */
+   const SCIP_Real*      ub,                 /**< upper bounds of variables */
    int                   nsdpblocks,         /**< number of SDP-blocks */
-   int*                  sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
-   int*                  sdpnblockvars,      /**< number of variables that exist in each block */
+   const int*            sdpblocksizes,      /**< sizes of the SDP-blocks (may be NULL if nsdpblocks = sdpconstnnonz = sdpnnonz = 0) */
+   const int*            sdpnblockvars,      /**< number of variables that exist in each block */
    int                   sdpconstnnonz,      /**< number of nonzero elements in the constant matrices of the SDP-blocks AFTER FIXINGS */
-   int*                  sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
+   const int*            sdpconstnblocknonz, /**< number of nonzeros for each variable in the constant part, also the i-th entry gives the
                                               *   number of entries  of sdpconst row/col/val [i] AFTER FIXINGS */
-   int**                 sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS*/
-   int**                 sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
-   SCIP_Real**           sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
+   int* const*           sdpconstrow,        /**< pointers to row-indices for each block AFTER FIXINGS*/
+   int* const*           sdpconstcol,        /**< pointers to column-indices for each block AFTER FIXINGS */
+   SCIP_Real* const*     sdpconstval,        /**< pointers to the values of the nonzeros for each block AFTER FIXINGS */
    int                   sdpnnonz,           /**< number of nonzero elements in the SDP-constraint-matrix */
-   int**                 sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
+   int* const*           sdpnblockvarnonz,   /**< entry [i][j] gives the number of nonzeros for block i and variable j, this is exactly
                                               *   the number of entries of sdp row/col/val [i][j] */
-   int**                 sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
+   int* const*           sdpvar,             /**< sdpvar[i][j] gives the sdp-index of the j-th variable (according to the sorting for row/col/val)
                                               *   in the i-th block */
-   int***                sdprow,             /**< pointer to the row-indices for each block and variable */
-   int***                sdpcol,             /**< pointer to the column-indices for each block and variable */
-   SCIP_Real***          sdpval,             /**< values of SDP-constraintmmatrix entries (may be NULL if sdpnnonz = 0) */
-   int**                 indchanges,         /**< changes needed to be done to the indices, if indchanges[block][ind]=-1, then the index can
+   int** const*          sdprow,             /**< pointer to the row-indices for each block and variable */
+   int** const*          sdpcol,             /**< pointer to the column-indices for each block and variable */
+   SCIP_Real** const*    sdpval,             /**< values of SDP-constraintmmatrix entries (may be NULL if sdpnnonz = 0) */
+   int* const*           indchanges,         /**< changes needed to be done to the indices, if indchanges[block][ind]=-1, then the index can
                                               *   be removed, otherwise it gives the number of indices removed before this */
-   int*                  nremovedinds,       /**< the number of rows/cols to be fixed for each block */
-   int*                  blockindchanges,    /**< block indices will be modified by these, see indchanges */
+   const int*            nremovedinds,       /**< the number of rows/cols to be fixed for each block */
+   const int*            blockindchanges,    /**< block indices will be modified by these, see indchanges */
    int                   nlpcons,            /**< number LP-constraints */
-   int*                  lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
-   SCIP_Real*            lplhs,              /**< left-hand sides of LP-constraints after fixings (may be NULL if nlpcons = 0) */
-   SCIP_Real*            lprhs,              /**< right-hand sides of LP-constraints after fixings (may be NULL if nlpcons = 0) */
+   const int*            lpindchanges,       /**< array for the number of LP-constraints removed before the current one (-1 if removed itself) */
+   const SCIP_Real*      lplhs,              /**< left-hand sides of LP-constraints after fixings (may be NULL if nlpcons = 0) */
+   const SCIP_Real*      lprhs,              /**< right-hand sides of LP-constraints after fixings (may be NULL if nlpcons = 0) */
    int                   lpnnonz,            /**< number of nonzero elements in the LP-constraint-matrix */
-   int*                  lpbeg,              /**< start index of each row in ind- and val-array */
-   int*                  lpind,              /**< column-index for each entry in lpval-array */
-   SCIP_Real*            lpval,              /**< values of LP-constraint matrix entries */
+   const int*            lpbeg,              /**< start index of each row in ind- and val-array */
+   const int*            lpind,              /**< column-index for each entry in lpval-array */
+   const SCIP_Real*      lpval,              /**< values of LP-constraint matrix entries */
    SCIP_Real*            feastol,            /**< current feasibility tolerance for SDPA */
    SCIP_Real*            gaptol              /**< current gap tolerance for SDPA */
    )
