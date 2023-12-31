@@ -513,8 +513,8 @@ const char* SCIPsdpiSolverGetSolverName(
 const char* SCIPsdpiSolverGetSolverDesc(
    void
    )
-{/*lint !e1784*/
-   return "Primal-dual Interior Point Solver for SDPs developed by K. Fujisawa et al. (sdpa.sourceforge.net)";
+{  /*lint !e1784*/
+   return "Primal-dual Interior Point Solver for SDPs developed by K. Fujisawa et al. (https://github.com/sdpaninf/SDPA)";
 }
 
 /** gets pointer to SDP-solver - use only with great care

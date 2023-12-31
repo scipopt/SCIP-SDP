@@ -8,7 +8,7 @@ For using SCIP-SDP you need an installed and fully working version of SCIP 7.0.2
 of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
-SDPA 7.3.8 (http://sdpa.sourceforge.net/)
+SDPA 7.4.4 (https://github.com/sdpaninf/SDPA)
 MOSEK at least version 8.1 (https://www.mosek.com/)
 
 Building SCIP-SDP via Makefile
@@ -99,7 +99,7 @@ linked to libsdpa.a.
 > /home/username/openblas/lib/libopenblas.so.0 
 
 Setting Links for MOSEK
-----------------------
+-----------------------
 
 For SDPS=msk the following links need to be set, where /home/username/mosek is the path to the
 MOSEK directory. Please note that the omp and cilk (for MOSEK 8) libraries must be available
