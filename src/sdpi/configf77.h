@@ -26,7 +26,7 @@
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/**@file   config.h
+/**@file   configf77.h
  * @brief  Macros for calling Fortran-functions
  * @author Sonja Mars
  * @author Lars Schewe
