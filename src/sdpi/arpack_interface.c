@@ -34,7 +34,7 @@
 #include <assert.h>
 
 #include "arpack_interface.h"
-#include "config.h"                          /* for F77_FUNC */
+#include "configf77.h"                       /* for F77_FUNC */
 
 #include "scip/def.h"
 #include "scip/pub_message.h"                /* for debug and error message */
