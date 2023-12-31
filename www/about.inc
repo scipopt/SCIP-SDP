@@ -33,7 +33,7 @@
 </p>
 <ul>
    <li><a href="http://www.mcs.anl.gov/hs/software/DSDP/">DSDP</a></li>
-   <li><a href="http://sdpa.sourceforge.net/">SDPA</a></li>
+   <li><a href="https://github.com/sdpaninf/SDPA">SDPA</a></li>
    <li><a href="https://www.mosek.com/">MOSEK</a></li>
 </ul>
 
