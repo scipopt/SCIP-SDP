@@ -3279,9 +3279,15 @@ SCIP_RETCODE determineSymmetry(
    if ( propdata->ofenabled || ( propdata->symconsenabled && propdata->detectorbitopes )
       || propdata->detectsubgroups || propdata->sstenabled )
    {
+#if SCIP_VERSION >= 900
+      SCIP_CALL( SCIPcomputeComponentsSym(scip, SYM_SYMTYPE_PERM, propdata->perms, propdata->nperms, propdata->permvars,
+            propdata->npermvars, FALSE, &propdata->components, &propdata->componentbegins,
+            &propdata->vartocomponent, &propdata->componentblocked, &propdata->ncomponents) );
+#else
       SCIP_CALL( SCIPcomputeComponentsSym(scip, propdata->perms, propdata->nperms, propdata->permvars,
             propdata->npermvars, FALSE, &propdata->components, &propdata->componentbegins,
             &propdata->vartocomponent, &propdata->componentblocked, &propdata->ncomponents) );
+#endif
    }
 
 #ifdef SCIP_OUTPUT_COMPONENT
