@@ -234,9 +234,9 @@
 #define COMPRESSNVARSLB             25000    /**< lower bound on the number of variables above which compression could be performed */
 
 /* macros for getting activeness of symmetry handling methods */
-#define ISSYMRETOPESACTIVE(x)      (((unsigned) x & SYM_HANDLETYPE_SYMBREAK) != 0)
-#define ISORBITALFIXINGACTIVE(x)   (((unsigned) x & SYM_HANDLETYPE_ORBITALFIXING) != 0)
-#define ISSSTACTIVE(x)             (((unsigned) x & SYM_HANDLETYPE_SST) != 0)
+#define ISSYMRETOPESACTIVE(x)      (((unsigned) x & SDPSYM_HANDLETYPE_SYMBREAK) != 0)
+#define ISORBITALFIXINGACTIVE(x)   (((unsigned) x & SDPSYM_HANDLETYPE_ORBITALFIXING) != 0)
+#define ISSSTACTIVE(x)             (((unsigned) x & SDPSYM_HANDLETYPE_SST) != 0)
 
 #define ISSSTBINACTIVE(x)          (((unsigned) x & SCIP_SSTTYPE_BINARY) != 0)
 #define ISSSTINTACTIVE(x)          (((unsigned) x & SCIP_SSTTYPE_INTEGER) != 0)
@@ -1176,7 +1176,7 @@ SCIP_Bool SymmetryFixVar(
 {
    if ( (fixedtype & SDPSYM_SPEC_INTEGER) && SCIPvarGetType(var) == SCIP_VARTYPE_INTEGER )
       return TRUE;
-   if ( (fixedtype & SYM_SPEC_BINARY) && SCIPvarGetType(var) == SCIP_VARTYPE_BINARY )
+   if ( (fixedtype & SDPSYM_SPEC_BINARY) && SCIPvarGetType(var) == SCIP_VARTYPE_BINARY )
       return TRUE;
    if ( (fixedtype & SDPSYM_SPEC_REAL) &&
       (SCIPvarGetType(var) == SCIP_VARTYPE_CONTINUOUS || SCIPvarGetType(var) == SCIP_VARTYPE_IMPLINT) )
@@ -4971,7 +4971,7 @@ SCIP_RETCODE detectAndHandleSubgroups(
 
             if ( ! propdata->componentblocked[i] )
             {
-               propdata->componentblocked[i] |= SYM_HANDLETYPE_SYMBREAK;
+               propdata->componentblocked[i] |= SDPSYM_HANDLETYPE_SYMBREAK;
                ++propdata->ncompblocked;
             }
 
@@ -5102,7 +5102,7 @@ SCIP_RETCODE detectAndHandleSubgroups(
 
                if ( ! propdata->componentblocked[i] )
                {
-                  propdata->componentblocked[i] |= SYM_HANDLETYPE_SYMBREAK;
+                  propdata->componentblocked[i] |= SDPSYM_HANDLETYPE_SYMBREAK;
                   ++propdata->ncompblocked;
                }
 
@@ -5141,7 +5141,7 @@ SCIP_RETCODE detectAndHandleSubgroups(
 
             if ( ! propdata->componentblocked[i] )
             {
-               propdata->componentblocked[i] |= SYM_HANDLETYPE_SYMBREAK;
+               propdata->componentblocked[i] |= SDPSYM_HANDLETYPE_SYMBREAK;
                ++propdata->ncompblocked;
             }
 
@@ -5217,7 +5217,7 @@ SCIP_RETCODE detectAndHandleSubgroups(
 
             if ( ! propdata->componentblocked[i] )
             {
-               propdata->componentblocked[i] |= SYM_HANDLETYPE_SYMBREAK;
+               propdata->componentblocked[i] |= SDPSYM_HANDLETYPE_SYMBREAK;
                ++propdata->ncompblocked;
             }
 
@@ -5525,7 +5525,7 @@ SCIP_RETCODE detectOrbitopes(
          propdata->genorbconss[propdata->ngenorbconss++] = cons;
          ++propdata->norbitopes;
 
-         propdata->componentblocked[i] |= SYM_HANDLETYPE_SYMBREAK;
+         propdata->componentblocked[i] |= SDPSYM_HANDLETYPE_SYMBREAK;
       }
 
       /* free data structures */
@@ -5962,9 +5962,9 @@ SCIP_RETCODE addSymresackConss(
             sstcompatible = FALSE;
 
          /* skip components that were treated by incompatible symmetry handling techniques */
-         if ( (propdata->componentblocked[i] & SYM_HANDLETYPE_SYMBREAK) != 0
-            || (propdata->componentblocked[i] & SYM_HANDLETYPE_ORBITALFIXING) != 0
-            || ((propdata->componentblocked[i] & SYM_HANDLETYPE_SST) != 0 && ! sstcompatible) )
+         if ( (propdata->componentblocked[i] & SDPSYM_HANDLETYPE_SYMBREAK) != 0
+            || (propdata->componentblocked[i] & SDPSYM_HANDLETYPE_ORBITALFIXING) != 0
+            || ((propdata->componentblocked[i] & SDPSYM_HANDLETYPE_SST) != 0 && ! sstcompatible) )
             continue;
 
          /* loop through perms in component i and add symresack constraints */
@@ -5981,7 +5981,7 @@ SCIP_RETCODE addSymresackConss(
             /* adapt permutation to leader */
             if ( propdata->nleaders > 0 && ISSSTBINACTIVE(propdata->sstleadervartype) )
             {
-               assert( (propdata->componentblocked[i] & SYM_HANDLETYPE_SST) != 0 );
+               assert( (propdata->componentblocked[i] & SDPSYM_HANDLETYPE_SST) != 0 );
                assert( modifiedperms != NULL );
                assert( modifiedpermvars != NULL );
 
@@ -5993,7 +5993,7 @@ SCIP_RETCODE addSymresackConss(
                SCIP_CALL( SCIPcreateSymbreakCons(scip, &cons, name, perms[permidx], permvars, npermvars, FALSE,
                      conssaddlp, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE) );
             }
-            propdata->componentblocked[i] |= SYM_HANDLETYPE_SYMBREAK;
+            propdata->componentblocked[i] |= SDPSYM_HANDLETYPE_SYMBREAK;
             SCIP_CALL( SCIPaddCons(scip, cons) );
 
             /* do not release constraint here - will be done later */
@@ -6700,7 +6700,7 @@ SCIP_RETCODE addSSTConss(
    for (c = 0; c < ncomponents; ++c)
    {
       if ( norbitleadercomponent[c] > 0 )
-         componentblocked[c] |= SYM_HANDLETYPE_SST;
+         componentblocked[c] |= SDPSYM_HANDLETYPE_SST;
    }
    SCIPfreeBufferArray(scip, &norbitleadercomponent);
 
@@ -7492,8 +7492,8 @@ SCIP_DECL_PROPPRESOL(propPresolSymmetry)
       SCIP_Bool earlyterm = FALSE;
 
       /* skip presolving if we are not at the end if addconsstiming == 2 */
-      assert( 0 <= propdata->addconsstiming && propdata->addconsstiming <= SYM_COMPUTETIMING_AFTERPRESOL );
-      if ( propdata->addconsstiming > SYM_COMPUTETIMING_DURINGPRESOL && ! SCIPisPresolveFinished(scip) )
+      assert( 0 <= propdata->addconsstiming && propdata->addconsstiming <= SDPSYM_COMPUTETIMING_AFTERPRESOL );
+      if ( propdata->addconsstiming > SDPSYM_COMPUTETIMING_DURINGPRESOL && ! SCIPisPresolveFinished(scip) )
          return SCIP_OKAY;
 
       /* possibly stop */
@@ -7578,8 +7578,8 @@ SCIP_DECL_PROPPRESOL(propPresolSymmetry)
    }
 
    /* run OF presolving */
-   assert( 0 <= propdata->ofsymcomptiming && propdata->ofsymcomptiming <= SYM_COMPUTETIMING_AFTERPRESOL );
-   if ( propdata->ofenabled && propdata->performpresolving && propdata->ofsymcomptiming <= SYM_COMPUTETIMING_DURINGPRESOL )
+   assert( 0 <= propdata->ofsymcomptiming && propdata->ofsymcomptiming <= SDPSYM_COMPUTETIMING_AFTERPRESOL );
+   if ( propdata->ofenabled && propdata->performpresolving && propdata->ofsymcomptiming <= SDPSYM_COMPUTETIMING_DURINGPRESOL )
    {
       SCIP_Bool infeasible;
       int nprop;
@@ -7604,7 +7604,7 @@ SCIP_DECL_PROPPRESOL(propPresolSymmetry)
          propdata->offoundreduction = TRUE;
       }
    }
-   else if ( propdata->ofenabled && propdata->ofsymcomptiming == SYM_COMPUTETIMING_DURINGPRESOL )
+   else if ( propdata->ofenabled && propdata->ofsymcomptiming == SDPSYM_COMPUTETIMING_DURINGPRESOL )
    {
       /* otherwise compute symmetry early if timing requests it; fix non-binary potential branching variables */
       if ( hasNonlinearConstraints(propdata) || propdata->symfixnonbinaryvars )
