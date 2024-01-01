@@ -584,13 +584,15 @@ $(SCIPSDPBINFILE): $(SCIPLIBFILE) $(LPILIBFILE) $(NLPILIBFILE) libscipsdp $(MAIN
 		@echo "-> linking $@"
 		$(LINKCXX) $(MAINOBJFILES) $(LINKCXXSCIPSDPALL) $(LINKCXX_o)$@
 
+# $(SDPIINC) should come first in order to take precedence over install software, e.g., mumps
 $(OBJDIR)/%.o:	$(SRCDIR)/%.c | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
-		$(CC) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CFLAGS) $(DFLAGS) $(OMPFLAGS) -c $< $(CC_o)$@
+		$(CC) $(SDPIINC) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CFLAGS) $(DFLAGS) $(OMPFLAGS) -c $< $(CC_o)$@
 
+# $(SDPIINC) should come first in order to take precedence over install software, e.g., mumps
 $(OBJDIR)/%.o:	$(SRCDIR)/%.cpp | $(SDPOBJSUBDIRS)
 		@echo "-> compiling $@"
-		$(CXX) $(FLAGS) $(OFLAGS) $(SDPIINC) $(BINOFLAGS) $(CXXFLAGS) $(DFLAGS) $(OMPFLAGS) -c $< $(CXX_o)$@
+		$(CXX) $(SDPIINC) $(FLAGS) $(OFLAGS) $(BINOFLAGS) $(CXXFLAGS) $(DFLAGS) $(OMPFLAGS) -c $< $(CXX_o)$@
 
 
 .PHONY: help
