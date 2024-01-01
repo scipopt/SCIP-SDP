@@ -1323,7 +1323,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                if ( rhspresent )
                {
                   /* LP nonzeros are added as diagonal entries of the last block; negative value because this is a <=-constraint, while SDPA works with >= */
-                  sdpisolver->sdpa->inputElement((SDPA_INT) v, (SDPA_INT) (nsdpablocks + 1), lhsrhscnt + lhspresent, lhsrhscnt + lhspresent, - lpval[j], checkinput);
+                  sdpisolver->sdpa->inputElement((SDPA_INT) v, (SDPA_INT) (nsdpablocks + 1), lhsrhscnt + (int) lhspresent, lhsrhscnt + (int) lhspresent, - lpval[j], checkinput);
                }
             }
          }
