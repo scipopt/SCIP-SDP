@@ -61,7 +61,7 @@ set(symsources
    )
 
 set(sdpiheaders
-    sdpi/config.h
+    sdpi/configf77.h
     sdpi/sdpisolver.h
     sdpi/lapack_interface.h
     sdpi/sdpiclock.h
