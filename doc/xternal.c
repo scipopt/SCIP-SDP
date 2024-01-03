@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2023 Discrete Optimization, TU Darmstadt               */
+/*               2014-2024 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2023 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2024 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -38,7 +38,7 @@
  *
  * @version 4.2.0
  * @author Marc Pfetsch; Sonja Mars, Lars Schewe, Tristan Gally, Frederic Matter, Christopher Hojny
- * @date 2011-2023
+ * @date 2011-2024
  *
  * SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite programs (MISDPs) of the form
  *

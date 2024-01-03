@@ -5,10 +5,10 @@ This program is licensed under the <a href="http://www.apache.org/licenses/LICEN
 <table style="width:80%">
 <tr><td>Copyright (C)</td><td> 2011-2013</td><td width="70%"> Discrete Optimization, TU Darmstadt   </td> </tr>
 <tr><td></td><td></td><td>                         EDOM, FAU Erlangen-N&uuml;rnberg   </td></tr>
-<tr><td></td><td>             2014-2023</td><td> Discrete Optimization, TU Darmstadt </td></tr>
+<tr><td></td><td>             2014-2024</td><td> Discrete Optimization, TU Darmstadt </td></tr>
 </table>
 <br><br>
-<p>It is based on <a href="scipopt.org">SCIP - Solving Constraint Integer Programs</a>, Copyright (C) 2002-2023 Zuse Institute Berlin.</p>
+<p>It is based on <a href="scipopt.org">SCIP - Solving Constraint Integer Programs</a>, Copyright (C) 2002-2024 Zuse Institute Berlin.</p>
 <br><br>
 <p>
    <b>Any publication using SCIP-SDP should include an acknowledgment and a reference to the following article:</b>
