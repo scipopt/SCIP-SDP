@@ -101,5 +101,4 @@ tools/InstanceGeneration/*.cbf
 rank1instances/*
 readerrorinstances/*
 *.patch
-
-
+examples/
