@@ -119,6 +119,9 @@ if(SYM STREQUAL "bliss")
         message(STATUS "Finding BLISS - not found")
         set(sym symmetry/compute_symmetry_none.cpp)
     endif()
+
+    # compute_symmetry_bliss.cpp needsC++-17
+    set(CMAKE_CXX_STANDARD 17)
 elseif(SYM STREQUAL "none")
     message(STATUS "Support SYM: OFF")
     set(sym symmetry/compute_symmetry_none.cpp)
