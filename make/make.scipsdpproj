@@ -190,10 +190,10 @@ else
 BLASLIB		=	-lblas -llapack
 endif
 ifeq ($(MUMPSSEQ),true)
-MUMPSLIB	=	-ldmumps_seq -lmumps_common_seq -lpord -lmpiseq -lquadmath
+MUMPSLIB	=	-ldmumps_seq -lmumps_common_seq -lpord -lmpiseq
 SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -Wl,-rpath,$(SCIPSDPLIBDIR)/static -lgfortran -lpthread -fPIC
 else
-MUMPSLIB	=	-ldmumps -lmumps_common -lpord -lmpiseq -lquadmath #-lgomp -fopenmp
+MUMPSLIB	=	-ldmumps -lmumps_common -lpord -lmpiseq #-lgomp -fopenmp
 SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lsdpa $(MUMPSLIB) $(BLASLIB) -lpthread -Wl,-rpath,$(SCIPSDPLIBDIR)/static -lgfortran -fPIC  # pthread after (openblas)
 endif
 endif
@@ -209,9 +209,9 @@ BDYNAMIC	= -Wl,-Bdynamic
 endif
 endif
 ifeq ($(OPENBLAS),true)
-SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -lc $(BDYNAMIC) -lopenblas -lquadmath -pthread -lgfortran -lm #-lgomp
+SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -lc $(BDYNAMIC) -lopenblas -pthread -lgfortran -lm #-lgomp
 else
-SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -llapack -lblas -lc $(BDYNAMIC) -lquadmath -pthread -lgfortran -lm
+SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -llapack -lblas -lc $(BDYNAMIC) -pthread -lgfortran -lm
 endif
 endif
 
