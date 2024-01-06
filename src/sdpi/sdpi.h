@@ -45,6 +45,7 @@
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
 #include "sdpi/type_sdpi.h"
+#include "scip/type_message.h"
 
 #ifdef __cplusplus
 extern "C" {

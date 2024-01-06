@@ -31,8 +31,9 @@
  * @author Marc Pfetsch
  */
 
-#include "scip/pub_misc.h"
 #include "sdpi/solveonevarsdp.h"
+#include "scip/pub_misc.h"
+#include "scip/pub_message.h"
 #include "sdpi/lapack_interface.h"
 #include "sdpi/arpack_interface.h"
 
