@@ -40,6 +40,7 @@
 
 #include "scip/def.h"
 #include "blockmemshell/memory.h"
+#include "scip/type_retcode.h"
 
 #ifdef __cplusplus
 extern "C" {

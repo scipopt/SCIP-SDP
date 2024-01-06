@@ -57,6 +57,7 @@
 #include "scip/def.h"
 #include "blockmemshell/memory.h"
 #include "scip/type_retcode.h"
+#include "scip/type_message.h"
 #include "sdpi/type_sdpi.h"
 #include "sdpi/sdpiclock.h"
 

@@ -103,8 +103,8 @@
 #include <assert.h>
 #include <math.h>
 
-#include "sdpi/sdpisolver.h"
 #include "sdpi/sdpi.h"
+#include "sdpi/sdpisolver.h"
 #include "scipsdp/SdpVarfixer.h"
 #include "sdpi/lapack_interface.h"           /* to check feasibility if all variables are fixed during preprocessing */
 #include "sdpi/sdpiclock.h"
