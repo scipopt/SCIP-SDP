@@ -18,13 +18,10 @@ SDPA-format with support for integrality as well as rank-1
 constraints. For a description of the extended SDPA-format see the
 file "sdpa_format.txt". The CBF-format is supported up to version 2,
 see https://cblib.zib.de, and has also been extended to support rank-1
-constraints. For a description of this extension, see the
-corresponding section in the release report of the SCIP Optimization
-Suite 7.0, which can be found at
-https://www.scipopt.org/index.php#cite.
+constraints.
 
-To use the nonlinear branch-and-bound approach one of the following
-SDP-solvers needs to be installed: DSDP, SDPA, MOSEK. For more
+To use the nonlinear branch-and-bound approach, one of the following
+SDP-solvers needs to be installed: DSDP, SDPA, or MOSEK. For more
 information about the installation of SCIP-SDP see the INSTALL file.
 
 Features
@@ -64,7 +61,7 @@ inherits all SCIP parameters. Here, we highlight some:
 - Tolerances: "numerics/feastol" and "numerics/dualfeastol" (default
   1e-5) are SCIP parameters that determine the feasibility
   tolerances. Note that the default is a bit weaker than the default
-  SCIP parameter value (1e-6 and 1e-7).
+  SCIP parameter values (1e-6 and 1e-7, respectively).
   "relaxing/SDP/sdpsolverfeastol" and "relaxing/SDP/sdpsolvergaptol"
   (default 1e-5) determine the tolerances used for the SDP-solvers.
   For Mosek the feasibility tolerance is always tightened by 0.1,
@@ -84,12 +81,19 @@ Documentation
 -------------
 
 - A doxygen documentation is given at
-  https://wwwopt.mathematik.tu-darmstadt.de/scipsdp/doc-4.0.0/html/
+  https://wwwopt.mathematik.tu-darmstadt.de/scipsdp/doc-4.3.0/html/
 
-- The SCIP reports listed at https://www.scipopt.org/index.php#cite
-  each contain a part on the developments in SCIP-SDP.
+- Reports for the SCIP Optimization Suites listed at
+  https://www.scipopt.org/index.php#cite each contain a part on the
+  developments in SCIP-SDP.
 
-- The dissertations of Tristan Gally "Computational Mixed-Integer
-  Semidefinite Programming" and Sonja Mars "Mixed-Integer Semidefinite
-  Programming with an Application to Truss Topology Design" contain
-  many more algorithmic details.
+- Many methods used in SCIP-SDP are described in the following dissertations:
+
+  Sonja Mars (2013) "Mixed-Integer Semidefinite Programming with an
+  Application to Truss Topology Design"
+
+  Tristan Gally (2019) "Computational Mixed-Integer Semidefinite
+  Programming"
+
+  Frederic Matter (2022) "Sparse Recovery Under Side Constraints Using
+  Null Space Properties"
