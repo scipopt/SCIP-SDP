@@ -2,138 +2,136 @@ Installing SCIP-SDP
 =====================
 
 Additional Software
-------------------------------------
-For using SCIP-SDP you need an installed and fully working version of SCIP 7.0.2
-(http://scip.zib.de/) or higher. Additionally you may want to install at least one
-of the following SDP-Solvers:
+-------------------
+
+For using SCIP-SDP you need an installed and fully working version of SCIP (http://scipopt.de/)
+version 8 or higher. Additionally, you should install at least one of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
-SDPA 7.4.4 (https://github.com/sdpaninf/SDPA)
 MOSEK at least version 8.1 (https://www.mosek.com/)
+SDPA 7.4.4 (https://github.com/sdpaninf/SDPA)
+
+See the notes below for comments on the corresponding installation.
+
+Now you are ready to install SCIP-SDP. This can be done either via Makefile or via cmake. We first
+discuss the makefile option.
+
 
 Building SCIP-SDP via Makefile
 ------------------------------
-Now you are ready to install SCIP-SDP. This can be done either via Makefile (established)
-or via cmake (experimental). For building via Makefile, you need to set a symbolic link to your
-SCIP directory in the lib-subdirectory after unpacking the files, this can be done via
+
+For building via Makefile, you need to set a symbolic link to your SCIP directory in the
+lib-subdirectory after unpacking the files, this can for example be done via
 
 mkdir lib
 cd lib
-ln -s /home/username/scipoptsuite-6.0.0/scip/ scip
+ln -s /home/username/scipoptsuite-9.0.0/scip/ scip
 cd ..
 
-if /home/username/scipoptsuite-6.0.0/scip is the path to your SCIP directory.
-Afterwards you can use "make" to compile the plugin. For SCIP-SDP the option SDPS
-is mandatory, it defines the SDP-solver that should be used. You can choose between
-dsdp, sdpa, msk and none. In the latter case you can only use LP-relaxations with
-additional cutting planes enforcing the positive semidefiniteness and need to
-disable SDP-relaxations by setting the relaxing/SDP/freq to -1 and lp/solvefreq
-to 1. So for example to compile SCIP-SDP with DSDP, just type
+where /home/username/scipoptsuite-9.0.0/scip is the path to your SCIP directory.  Afterwards you can
+use "make" to compile the plugin. For SCIP-SDP the makefile option SDPS is mandatory. It defines the
+SDP-solver that should be used. You can choose between "dsdp", "mdk", "sdpa", and "none". (In the
+latter case, you can only use LP-relaxations with additional cutting planes enforcing the positive
+semidefiniteness and need to disable SDP-relaxations by setting the relaxing/SDP/solvesds to
+false.)
+
+So, for example to compile SCIP-SDP with DSDP, just type
 
 make SDPS=dsdp
 
-in the main directory. Furthermore, for SDPA you may need to set OMP=false if you do not 
-have OpenMP. This disables the possibility to set the number of threads dynamically via
-SCIP-parameter for SDPA/OpenBLAS. Additionally, you can use the same options for the 
-Makefile as you can use for building SCIP (e.g., make SDPS=sdpa OPT=dbg LPS=cpx), note that 
-a compiled SCIP binary with the same settings needs to exist in the linked path. You may 
-also create a doxygen-documentation by calling, e.g., make OPT=dbg SDPS=dsdp doc .
+in the main directory. Additionally, you can use the same options for the Makefile as you can use
+for building SCIP (e.g., make SDPS=sdpa OPT=dbg LPS=cpx), note that a compiled SCIP binary with the
+same settings needs to exist in the linked path. You may also create a doxygen-documentation by
+calling, e.g., make OPT=dbg SDPS=dsdp doc .
+
+After calling "make" with an SDPS-option other than none, you will be asked for paths to your
+installation of the SDP-solver and possibly other libraries. The corresponding settings are
+explained in the following for different SDP solvers.
 
 Setting Links for DSDP
 ----------------------
 
-After calling "make" with an SDPS-option other than none, you will be asked for paths
-to your installation of the SDP-solver and possibly other libraries. For example for 
-DSDP (assuming an installation path of /home/username/DSDP5.8 ) you need to enter 
+For DSDP (assuming an installation path of /home/username/DSDP5.8 ) you need to enter
 
 - preparing missing soft-link "lib/include/dsdpinc":
 > Enter soft-link target file or directory for "lib/include/dsdpinc" (return if not needed):
 > /home/username/DSDP5.8/include/
 
 - preparing missing soft-link "lib/static/libdsdp.a":
-> Enter soft-link target file or directory for "lib/static/libdsdp.a" (return if not needed): 
-> /home/username/DSDP5.8/lib/libdsdp.a 
+> Enter soft-link target file or directory for "lib/static/libdsdp.a" (return if not needed):
+> /home/username/DSDP5.8/lib/libdsdp.a
 
-Setting Links for SDPA
-----------------------
-
-In case of SDPA you also need to link to openblas and mumps (these should be the same versions
-used to build SDPA). Please note that you do not need to give the link to libsdpa.so if you
-linked to libsdpa.a.
-
-- preparing missing soft-link "lib/include/sdpainc":
-> Enter soft-link target file or directory for "lib/include/sdpainc" (return if not needed): 
-> /home/username/sdpa.7.3.8/include/
-
-- preparing missing soft-link "lib/static/libsdpa.a":
-> Enter soft-link target file or directory for "lib/static/libsdpa.a" (return if not needed):
-> /home/username/sdpa.7.3.8/lib/libsdpa.a
-
-- preparing missing soft-link "lib/shared/libsdpa.so":
-* this soft-link is not necessarily needed since "lib/static/libsdpa.a" already exists - press return to skip
-> Enter soft-link target file or directory for "lib/shared/libsdpa.so" (return if not needed):
-> 
-
-- preparing missing soft-link "lib/include/mumpsinc":
-> Enter soft-link target file or directory for "lib/include/mumpsinc" (return if not needed):
-> /home/username/sdpa-7.3.8/mumps/build/include/
-
-- preparing missing soft-link "lib/static/libdmumps.a":
-> Enter soft-link target file or directory for "lib/static/libdmumps.a" (return if not needed):
-> /home/username/sdpa.7.3.8/mumps/build/lib/libdmumps.a
-
-- preparing missing soft-link "lib/static/libmumps_common.a":
-> Enter soft-link target file or directory for "lib/static/libmumps_common.a" (return if not needed):
-> /home/username/sdpa.7.3.8/mumps/build/lib/libmumps_common.a
-
-- preparing missing soft-link "lib/static/libpord.a":
-> Enter soft-link target file or directory for "lib/static/libpord.a" (return if not needed):
-> /home/username/sdpa.7.3.8/mumps/build/lib/libpord.a
-
-- preparing missing soft-link "lib/static/libmpiseq.a":
-> Enter soft-link target file or directory for "lib/static/libmpiseq.a" (return if not needed):
-> /home/username/sdpa.7.3.8/mumps/build/libseq/libmpiseq.a
-
-- preparing missing soft-link "lib/shared/libopenblas.so.0":
-> Enter soft-link target file or directory for "lib/shared/libopenblas.so.0" (return if not needed):
-> /home/username/openblas/lib/libopenblas.so.0 
 
 Setting Links for MOSEK
 -----------------------
 
-For SDPS=msk the following links need to be set, where /home/username/mosek is the path to the
-MOSEK directory. Please note that the omp and cilk (for MOSEK 8) libraries must be available
-in the same directory as the given MOSEK library.
+For SDPS=msk the following links need to be set, where /home/username/mosek/10 is the path to the
+MOSEK directory. Please note that the omp and cilk (for MOSEK 8) libraries must be available in the
+same directory as the given MOSEK library.
 
 - preparing missing soft-link "lib/include/mosekh":
 > Enter soft-link target file or directory for "lib/include/mosekh" (return if not needed):
-> /home/username/mosek/8/tools/platform/linux64x86/h/
+> /home/username/mosek/10/tools/platform/linux64x86/h/
 
 - preparing missing soft-link "lib/shared/libmosek64.so":
-> Enter soft-link target file or directory for "lib/shared/libmosek64.so" (return if not needed): 
-> /home/username/mosek/8/tools/platform/linux64x86/bin/libmosek64.so
+> Enter soft-link target file or directory for "lib/shared/libmosek64.so" (return if not needed):
+> /home/username/mosek/10/tools/platform/linux64x86/bin/libmosek64.so
+
+
+Setting Links for SDPA
+----------------------
+
+In case of SDPA you also need to link to Mumps (this should be the same version used to build
+SDPA). Please note that you do not need to give the link to libsdpa.so if you linked to libsdpa.a.
+
+- preparing missing soft-link "lib/include/sdpainc":
+> Enter soft-link target file or directory for "lib/include/sdpainc" (return if not needed):
+> /home/username/sdpa.7.4.4/include/
+
+- preparing missing soft-link "lib/static/libsdpa.a":
+> Enter soft-link target file or directory for "lib/static/libsdpa.a" (return if not needed):
+> /home/username/sdpa.7.4.4/lib/libsdpa.a
+
+- preparing missing soft-link "lib/shared/libsdpa.so":
+* this soft-link is not necessarily needed since "lib/static/libsdpa.a" already exists - press return to skip
+> Enter soft-link target file or directory for "lib/shared/libsdpa.so" (return if not needed):
+>
+
+- preparing missing soft-link "lib/include/mumpsinc":
+> Enter soft-link target file or directory for "lib/include/mumpsinc" (return if not needed):
+> /home/username/sdpa-7.4.4/mumps/build/include/
+
+- preparing missing soft-link "lib/static/libdmumps.a":
+> Enter soft-link target file or directory for "lib/static/libdmumps.a" (return if not needed):
+> /home/username/sdpa.7.4.4/mumps/build/lib/libdmumps.a
+
+- preparing missing soft-link "lib/static/libmumps_common.a":
+> Enter soft-link target file or directory for "lib/static/libmumps_common.a" (return if not needed):
+> /home/username/sdpa.7.4.4/mumps/build/lib/libmumps_common.a
+
+- preparing missing soft-link "lib/static/libpord.a":
+> Enter soft-link target file or directory for "lib/static/libpord.a" (return if not needed):
+> /home/username/sdpa.7.4.4/mumps/build/lib/libpord.a
+
+- preparing missing soft-link "lib/static/libmpiseq.a":
+> Enter soft-link target file or directory for "lib/static/libmpiseq.a" (return if not needed):
+> /home/username/sdpa.7.4.4/mumps/build/libseq/libmpiseq.a
+
+
 
 Testing the Installation
 ------------------------
 
-The success of the installation can now be tested via make test by typing for example
+After building SCIP-SDP, the success of the installation can now be tested by running a small test
+set via make test by typing for example
 
-make SDPS=dsdp test
+make SDPS=msk test
 
-where you have to use the same options you included in your make command. Please note that
-when using SDPA, you will get messages 
+where you have to use the same options you included in your make command. If "SDPS=none" the the
+tests will automatically use the "lp_approx" settings, but the solution process is rather slow for
+many instances in this testset. You can also manually choose such settings as follows: "make
+SDPS=none SETTINGS=lp_approx test".
 
-pFEAS_dINF criteria :: line 1211 in sdpa_parts.cpp
-
-between the SCIP output. This is output given by SDPA whenever a problem is infeasible
-and cannot be deactivated. Within a branch-and-bound context it is normal for infeasible
-problems to appear, so this is not a sign of an unsuccessful installation or a bug.
-Furthermore, make test currently only works if SDPS is not "none". You can still run the
-shell if installing SCIP-SDP with SDPS=none and it is also possible to use the test scripts
-with the lp_approx settings disabling the SDP-solving, just the combination of SDPS=none
-and the testscripts does not work (this issue is caused by SCIP-SDP naming the results files
-using the SDPS instead of the LPS setting, which causes SCIP to automatically disable LP solving
-in case SDPS=none).
 
 Usage of SCIP-SDP
 -----------------
@@ -142,46 +140,65 @@ To use SCIP-SDP call
 
 ./bin/scipsdp
 
-to open a SCIP shell for solving MISDPs. There you can read a sparse SDPA-File with added
-integrality constraints (for details about the format see sdpa_format.txt) named
-instancefile.dat-s by calling
+to open a SCIP shell for solving MISDPs. There you can read a CBF or SDPA-File. For instance, you can use
 
-read instancefile.dat-s
+SCIP-SDP> read instances/example_small.dat-s
 
 followed by
 
-optimize
+SCIP-SDP> optimize
 
-as in the usual SCIP shell (for more details about the SCIP shell please refer to the SCIP
-documentation and FAQ). Alternatively, CBF-Files can be used as well. You can test this with
-the examples in the "instances"-subfolder.
+as in the usual SCIP shell (for more details about the SCIP shell please see the SCIP documentation
+and FAQ). Further examples are given in the "instances"-subfolder.
 
-Parallelization for SDPA
+As explained above, if you want to use the LP-based approach, you can set the corresponding
+parameter before solving:
+SCIP-SDP> read instances/example_small.dat-s
+SCIP-SDP> set relaxing SDP solvesds false
+SCIP-SDP> optimize
+
+
+Using DSDP as SDP-solver
 ------------------------
 
-If you compiled SCIP-SDP with SDPA and OpenBLAS, the OpenBLAS routines can be run multithreaded.
-For this you have to set the corresponding environment variable by typing
+DSDP is a relatively old, but stable SDP solver. It is currently not developed, but can still be
+used with SCIP-SDP. No particular comments apply.
 
-export OMP_NUM_THREADS=n
 
-before opening the shell, where n is the desired number of threads.
-
-Alternatively, if you have OpenMP, you may also compile SCIP-SDP with OMP=true (which is
-the default for SDPS=sdpa). Then you can change the number of threads via SCIP-parameter:
-
-set constraints SDP advanced threads n
-
-Parallelization for MOSEK
+Using MOSEK as SDP-Solver
 -------------------------
 
-If you compiled SCIP-SDP with MOSEK, the SDP-solver of MOSEK can be run multithreaded using
-the parameter
+MOSEK is currently the fastest and most stable SDP-solver interfaced with SCIP-SDP. One can apply for
+an academic license on the MOSEK web page, if applicable.
 
-set relaxing SDP advanced sdpsolverthreads n
+One can determine the number of threads that MOSEK uses via the shell command "set relaxing SDP
+advanced sdpsolverthreads n". The default value of the parameter is 1, since this is usually
+faster. The value -1 would automatically detect and use the number of cores. Note that this will
+only parallelize the solution of the SDP-relaxations but not the eigenvalue computations in
+SCIP-SDP.
 
-By default this parameter is set to 1. The value -1 would automatically detect and use the number of
-cores. Note that this will only parallelize the solution of the SDP-relaxations but not the eigenvalue
-computations in SCIP-SDP, unlike the parallelization for OpenBLAS/SDPA.
+One MacOS platforms, the MOSEK libraries can sometimes not be found when trying to run the
+binary. One solution is to add symbolic links to the MOSEK libraries to the "bin"
+directory. Alternatively, you can use the "install_name_tool". One example usage is:
+
+install_name_tool -change libmosek64.10.1.dylib @rpath/libmosek64.10.1.dylib bin/scipsd
+
+This lets the SCIP-SDP binary use the rpath to search for the MOSEK library.
+
+
+Using SDPA as SDP-solver
+------------------------
+
+We recommend to use the "LP64" version which uses ordinary sized integers. This will probably
+suffice for every instance that can be solved with SCIP-SDP. SDPA will automatically build Mumps and
+SCIP-SDP needs to be linked with this version (when linking with a different pre-installed Mumps
+version, obviously strange errors can occur).
+
+We recommend to build SDPA with some Lapack installation and run it with only one thread. If you
+want to run SDPA in parallel, you should follow the installation instructions of SDPA and set the
+threads, e.g., with "export OMP_NUM_THREADS=8". You may need to specify the usage of Openblas by
+using the makefile parameter "OPENBLAS=true".
+
 
 Parallelization using UG
 ------------------------
@@ -196,26 +213,48 @@ before compiling the MISDP application within UG. For more information see the R
 in the MISDP application of UG. Please note, that the MISDP application within UG is still a very early
 beta version and far from bug free.
 
+
+Using the Concurrent Mode
+-------------------------
+
+One can also run the SDP- and LP-based approaches in parallel on two threads. For this SCIP and
+SCIP-SDP need to be compiled with TPI=tny or TPI=omp. Then in the shell one uses:
+
+SCIP-SDP> read <instance>
+SCIP-SDP> set load settings concurrent2.set
+SCIP-SDP> concurrentopt
+
+It depends on the particular instance whether this approach is faster, since the synchronization of
+the two threads is not always perfect.
+
+
 Building SCIP-SDP via cmake
 ---------------------------
 
-Since version 3.1.1 it is also possible to build SCIP-SDP via
-cmake. In this case also SCIP must have been built with cmake.
+It is also possible to build SCIP-SDP via cmake. In this case also SCIP must have been built with
+cmake.
 
-CMake uses an out-of-source build, i.e., compiled binaries and object files are separated
-from the source tree and located in another directory, which you have to create. Usually this
-directory is called build or debug or whatever you prefer. From within this directory, run
-"cmake <path/to/SCIPSDP>" to configure your build, followed by "make" to compile the code according
-to the current configuration.
+CMake uses an out-of-source build, i.e., compiled binaries and object files are separated from the
+source tree and located in another directory, which you have to create. Usually this directory is
+called "build" or whatever you prefer. From within this directory, run "cmake <path/to/SCIPSDP>" to
+configure your build, followed by "make" to compile the code according to the current configuration.
 
-You need to set the additional option "-DSDPS={none,msk,dsdp,sdpa}". Additionally, it
-may be necessary to give paths to find the SCIP and the SDP-solver. For SCIP the necessary option
-is "-DSCIP_DIR=<path to SCIP build directory)". In case of MOSEK, the correpsonding option
-is "-DMOSEK_DIR=<path to Mosek>", for DSDP it is "-DDSDP_DIR=<path to DSDP>" and for SDPA the options
-are "-DSDPA_DIR=<path to SDPA> -DMUMPS_DIR=<path to mumps> -DOPENBLAS_DIR=<path to openblas>". So
-for example to build SCIP-SDP via cmake using Mosek you should type
+You need to set the additional option "-DSDPS={none,msk,dsdp,sdpa}". Additionally, it may be
+necessary to give paths to find SCIP and SDP-solver by adding the following strings to the "cmake
+..." call.
+
+- SCIP: "-DSCIP_DIR=<path to SCIP build directory)".
+
+- DSDP: "-DDSDP_DIR=<path to DSDP>"
+
+- MOSEK: e.g. "-DMOSEK_DIR=<path to Mosek>/tools/platform/linux64x86"
+
+- SDPA: "-DSDPA_DIR=<path to SDPA> -DMUMPS_DIR=<path to mumps>".
+
+
+So, for example to build SCIP-SDP via cmake using Mosek the call could be
 
 mkdir build
 cd build
-cmake .. -DSCIP_DIR=/home/username/scipoptsuite-6.0.0/scip/build/ -DSDPS=msk -DMOSEK_DIR=/home/username/mosek/8/tools/platform/linux64x86/
+cmake .. -DSCIP_DIR=/home/username/scipoptsuite-9.0.0/scip/build/ -DSDPS=msk -DMOSEK_DIR=/home/username/mosek/10/tools/platform/linux64x86/
 make
