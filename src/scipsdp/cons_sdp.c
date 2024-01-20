@@ -73,6 +73,10 @@
 #include "scip/scip_cons.h"             /* for SCIPgetConsVars */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 #include "scip/def.h"
+#if SCIP_VERSION >= 900
+#include "scip/symmetry_graph.h"
+#include "symmetry/struct_symmetry.h"
+#endif
 
 #ifdef OMP
 #include "omp.h"                        /* for changing the number of threads */
@@ -6304,6 +6308,113 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 
 #endif
 
+#if SCIP_VERSION >= 900
+/** adds symmetry information of constraint to a symmetry detection graph */
+static
+SCIP_RETCODE addSymmetryInformation(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SYM_SYMTYPE           symtype,            /**< type of symmetries that need to be added */
+   SCIP_CONS*            cons,               /**< SDP constraint */
+   SYM_GRAPH*            graph,              /**< symmetry detection graph */
+   SCIP_Bool*            success             /**< pointer to store whether symmetry information could be added */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   int* dimnodeidx;
+   int consnodeidx;
+   int v;
+   int i;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( graph != NULL );
+   assert( success != NULL );
+
+   *success = TRUE;
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+
+   /* add node initializing constraint (with artificial rhs) */
+   SCIP_CALL( SCIPaddSymgraphConsnode(scip, graph, cons, 0.0, 0.0, &consnodeidx) );
+
+   /* for each constraint, add nodes for the dimensions of the matrix */
+   SCIP_CALL( SCIPallocBufferArray(scip, &dimnodeidx, consdata->blocksize) );
+   for (i = 0; i < consdata->blocksize; ++i)
+   {
+      SCIP_CALL( SCIPaddSymgraphOpnode(scip, graph, i, &dimnodeidx[i]) );
+   }
+
+   /* for each variable matrix entry, add two nodes corresponding to row/column index and connect it with variable and
+    * dimension nodes */
+   for (v = 0; v < consdata->nvars; ++v)
+   {
+      int varnodeidx;
+
+      varnodeidx = SCIPgetSymgraphVarnodeidx(scip, graph, consdata->vars[v]);
+
+      /* connect variable node to constraint node */
+      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, varnodeidx, consnodeidx, FALSE, 0.0) );
+
+      /* loop over all entries in the matrix */
+      for (i = 0; i < consdata->nvarnonz[v]; ++i)
+      {
+         int nodeidx1;
+         int nodeidx2;
+         int node;
+
+         /* add two nodes for each symmetry row/col pair */
+         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->val[v][i], &nodeidx1) );
+         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->val[v][i], &nodeidx2) );
+
+         /* add edge between nodes */
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, nodeidx2, FALSE, 0.0) );
+
+         /* add edges to variable node */
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, varnodeidx, FALSE, 0.0) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, varnodeidx, FALSE, 0.0) );
+
+         /* add edges to dimension nodes */
+         assert( 0 <= consdata->row[v][i] && consdata->row[v][i] < consdata->blocksize );
+         node = dimnodeidx[consdata->row[v][i]];
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->val[v][i]) );
+
+         assert( 0 <= consdata->col[v][i] && consdata->col[v][i] < consdata->blocksize );
+         node = dimnodeidx[consdata->col[v][i]];
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->val[v][i]) );
+      }
+   }
+
+   /* for each constant matrix entry, add two nodes corresponding to row/column index and connect it with dimension
+    * nodes */
+   for (i = 0; i < consdata->constnnonz; ++i)
+   {
+      int nodeidx1;
+      int nodeidx2;
+      int node;
+
+      /* add two nodes for each symmetry row/col pair */
+      SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx1) );
+      SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx2) );
+
+      /* add edge between nodes */
+      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, nodeidx2, FALSE, 0.0) );
+
+      /* add edges to dimension nodes */
+      assert( 0 <= consdata->constrow[i] && consdata->constrow[i] < consdata->blocksize );
+      node = dimnodeidx[consdata->constrow[i]];
+      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
+
+      assert( 0 <= consdata->constcol[i] && consdata->constcol[i] < consdata->blocksize );
+      node = dimnodeidx[consdata->constcol[i]];
+      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
+   }
+
+   SCIPfreeBufferArray(scip, &dimnodeidx);
+
+   return SCIP_OKAY;
+}
+#endif
 
 
 /*
@@ -8747,6 +8858,25 @@ SCIP_DECL_CONSGETNVARS(consGetNVarsSdp)
    return SCIP_OKAY;
 }
 
+#if SCIP_VERSION >= 900
+/** constraint handler method which returns the permutation symmetry detection graph of a constraint */
+static
+SCIP_DECL_CONSGETPERMSYMGRAPH(consGetPermsymGraphSdp)
+{  /*lint --e{715}*/
+   SCIP_CALL( addSymmetryInformation(scip, SYM_SYMTYPE_PERM, cons, graph, success) );
+
+   return SCIP_OKAY;
+}
+
+/** constraint handler method which returns the signed permutation symmetry detection graph of a constraint */
+static
+SCIP_DECL_CONSGETSIGNEDPERMSYMGRAPH(consGetSignedPermsymGraphSdp)
+{
+   *success = FALSE;
+   return SCIP_OKAY;
+}
+#endif
+
 /** creates the handler for SDP constraints and includes it in SCIP */
 SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
@@ -8824,6 +8954,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
+#if SCIP_VERSION >= 900
+   SCIP_CALL( SCIPsetConshdlrGetPermsymGraph(scip, conshdlr, consGetPermsymGraphSdp) );
+   SCIP_CALL( SCIPsetConshdlrGetSignedPermsymGraph(scip, conshdlr, consGetSignedPermsymGraphSdp) );
+#endif
 
    /* add parameter */
 #ifdef OMP
