@@ -4629,7 +4629,6 @@ SCIP_DECL_RELAXINITSOL(relaxInitSolSdp)
    }
 
    /* set the parameters of the SDP-Solver */
-   /* for Mosek: tighten gap tolerance by one order of magnitude */
    retcode = SCIPsdpiSetRealpar(relaxdata->sdpi, SCIP_SDPPAR_GAPTOL, relaxdata->sdpsolvergaptol);
    if ( retcode == SCIP_PARAMETERUNKNOWN )
    {
