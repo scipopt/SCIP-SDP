@@ -6309,6 +6309,8 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 #endif
 
 #if SCIP_VERSION >= 900
+#define OP_SDP_DIMENSION 1
+
 /** adds symmetry information of constraint to a symmetry detection graph */
 static
 SCIP_RETCODE addSymmetryInformation(
@@ -6342,7 +6344,7 @@ SCIP_RETCODE addSymmetryInformation(
    SCIP_CALL( SCIPallocBufferArray(scip, &dimnodeidx, consdata->blocksize) );
    for (i = 0; i < consdata->blocksize; ++i)
    {
-      SCIP_CALL( SCIPaddSymgraphOpnode(scip, graph, i, &dimnodeidx[i]) );
+      SCIP_CALL( SCIPaddSymgraphOpnode(scip, graph, OP_SDP_DIMENSION, &dimnodeidx[i]) );
    }
 
    /* for each variable matrix entry, add two nodes corresponding to row/column index and connect it with variable and
@@ -6378,10 +6380,12 @@ SCIP_RETCODE addSymmetryInformation(
          assert( 0 <= consdata->row[v][i] && consdata->row[v][i] < consdata->blocksize );
          node = dimnodeidx[consdata->row[v][i]];
          SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->val[v][i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->val[v][i]) );
 
          assert( 0 <= consdata->col[v][i] && consdata->col[v][i] < consdata->blocksize );
          node = dimnodeidx[consdata->col[v][i]];
          SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->val[v][i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->val[v][i]) );
       }
    }
 
@@ -6404,10 +6408,12 @@ SCIP_RETCODE addSymmetryInformation(
       assert( 0 <= consdata->constrow[i] && consdata->constrow[i] < consdata->blocksize );
       node = dimnodeidx[consdata->constrow[i]];
       SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
+      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->constval[i]) );
 
       assert( 0 <= consdata->constcol[i] && consdata->constcol[i] < consdata->blocksize );
       node = dimnodeidx[consdata->constcol[i]];
       SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
+      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->constval[i]) );
    }
 
    SCIPfreeBufferArray(scip, &dimnodeidx);
