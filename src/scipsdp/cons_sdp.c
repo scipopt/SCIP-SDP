@@ -8630,6 +8630,16 @@ SCIP_DECL_CONSCOPY(consCopySdp)
       targetdata->initallmatricespsd = sourcedata->initallmatricespsd;
    }
 
+   /* copy issymunique information if available */
+   if ( sourcedata->issymunique != NULL )
+   {
+      SCIP_CONSDATA* targetdata;
+
+      targetdata = SCIPconsGetData(*cons);
+      assert( targetdata->issymunique == NULL );
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->issymunique), sourcedata->issymunique, sourcedata->nvars) );
+   }
+
    SCIPfreeBufferArray(scip, &targetvars);
 
    return SCIP_OKAY;
