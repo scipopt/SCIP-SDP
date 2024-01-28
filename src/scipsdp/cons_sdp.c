@@ -4404,7 +4404,7 @@ SCIP_RETCODE fixAndAggrVars(
 
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
             SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
-            if ( v < consdata->nvars -1 )
+            if ( v < consdata->nvars - 1 )
             {
                consdata->col[v] = consdata->col[consdata->nvars - 1];
                consdata->row[v] = consdata->row[consdata->nvars - 1];
@@ -8945,7 +8945,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteSdp) );
    SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeSdp) );
    SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopySdp, consCopySdp) );
-   SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
+   SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr, consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExit(scip, conshdlr, consExitSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
