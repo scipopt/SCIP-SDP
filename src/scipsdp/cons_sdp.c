@@ -181,6 +181,7 @@ struct SCIP_ConsData
    int*                  constcol;           /**< column indices of the constant nonzeros */
    int*                  constrow;           /**< row indices of the constant nonzeros */
    SCIP_Real*            constval;           /**< values of the constant nonzeros */
+   SCIP_Bool*            issymunique;        /**< for each matrix marks whether it is unique and cannot be symmetric */
    SCIP_Real             maxrhsentry;        /**< maximum entry of constant matrix (needed for DIMACS error norm) */
    SCIP_Bool             rankone;            /**< Should matrix be rank one? */
    int*                  maxevsubmat;        /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
@@ -6308,6 +6309,193 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 
 #endif
 
+/* defines for lexicographic sorting macros */
+#define SORTTPL_NAMEEXT     RealRealIntInt
+#define SORTTPL_KEYTYPE     SCIP_Real
+#define SORTTPL_FIELD1TYPE  int
+#define SORTTPL_FIELD2TYPE  int
+#include "sorttpllex.c" /*lint !e451*/
+
+/** check which matrices are unique across all SDP constraints */
+static
+SCIP_RETCODE checkSymUniqueMatrices(
+   SCIP*                 scip,               /**< SCIP pointer */
+   int                   nconss,             /**< number of SDP constraints */
+   SCIP_CONS**           conss               /**< SDP constraints */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real* minvals;
+   SCIP_Real* maxvals;
+   int* nnonz;
+   int* considx;
+   int* varidx;
+   int nvars;
+   int nmatrices =0;
+   int lastidx;
+   int currentidx;
+   int currentnnonz;
+   int c;
+   int v;
+   int i;
+   int j;
+
+   assert( scip != NULL );
+
+   if ( conss == NULL || nconss <= 0 )
+      return SCIP_OKAY;
+   assert( conss != NULL );
+
+   nvars = SCIPgetNVars(scip);
+   SCIP_CALL( SCIPallocBufferArray(scip, &nnonz, nconss * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &considx, nconss * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &varidx, nconss * nvars) );
+
+   /* collect number of nonzeros of all matrices */
+   for (c = 0; c < nconss; ++c)
+   {
+      assert( conss[c] != NULL );
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+
+      /* init array */
+      if ( consdata->issymunique == NULL )
+      {
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->issymunique, consdata->nvars) );
+      }
+
+      /* collect data */
+      for (v = 0; v < consdata->nvars; ++v)
+      {
+         consdata->issymunique[v] = FALSE;
+
+         nnonz[nmatrices] = consdata->nvarnonz[v];
+         considx[nmatrices] = c;
+         varidx[nmatrices] = v;
+         ++nmatrices;
+      }
+   }
+   assert( nmatrices <= nconss * nvars );
+
+   /* possibly stop early */
+   if ( nmatrices == 0 )
+   {
+      SCIPfreeBufferArray(scip, &varidx);
+      SCIPfreeBufferArray(scip, &considx);
+      SCIPfreeBufferArray(scip, &nnonz);
+   }
+
+   /* sort according to number of nonzeros */
+   SCIPsortIntIntInt(nnonz, considx, varidx, nmatrices);
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &minvals, nmatrices) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &maxvals, nmatrices) );
+
+   /* search matrices of equal number of nonzeros and compare w.r.t. min/max values */
+   currentidx = 0;
+   while ( currentidx < nmatrices )
+   {
+      /* find next matrix with different number of nonzeros */
+      lastidx = currentidx;
+      currentnnonz = nnonz[lastidx];
+      do
+      {
+         ++currentidx;
+      }
+      while ( currentidx < nmatrices && nnonz[currentidx] == currentnnonz );
+
+      /* if there are at least two matrices of the same size */
+      if ( currentidx > lastidx + 1 )
+      {
+         int nmat = 0;
+
+         /* loop through matrices and compute min/max values */
+         for (i = lastidx; i < currentidx; ++i)
+         {
+            SCIP_Real minval = SCIP_REAL_MAX;
+            SCIP_Real maxval = SCIP_REAL_MIN;
+
+            /* compute min/max values */
+            c = considx[i];
+            v = varidx[i];
+            assert( 0 <= c && c < nconss );
+            assert( conss[c] != NULL );
+            consdata = SCIPconsGetData(conss[c]);
+            assert( consdata != NULL );
+
+            assert( 0 <= v && v < consdata->nvars );
+            for (j = 0; j < consdata->nvarnonz[v]; ++j)
+            {
+               SCIP_Real val;
+
+               val = consdata->val[v][j];
+               if ( val < minval )
+                  minval = val;
+               if ( val > maxval )
+                  maxval = val;
+            }
+            SCIPdebugMsg(scip, "Constraint %d, variable %d: nnonz = %d, minval = %g, maxval = %g\n", c, v, consdata->nvarnonz[v], minval, maxval);
+
+            minvals[nmat] = minval;
+            maxvals[nmat] = maxval;
+            ++nmat;
+         }
+         assert( nmat >= 2 );
+
+         /* lexicographically sort entries according to minvals and maxvals */
+         SCIPlexSortRealRealIntInt(minvals, maxvals, &considx[lastidx], &varidx[lastidx], nmat);
+
+         /* loop through entries and check for different entries */
+         i = 0;
+         while ( i < nmat - 1 )
+         {
+            int len = 0;
+
+            while ( i < nmat - 1 && SCIPisEQ(scip, minvals[i], minvals[i+1]) && SCIPisEQ(scip, maxvals[i], maxvals[i+1]) )
+            {
+               ++i;
+               ++len;
+            }
+
+            /* if the entry is unique */
+            if ( i < nmat - 1 && len == 0 )
+            {
+               /* matrix is unique */
+               c = considx[lastidx + i];
+               v = varidx[lastidx + i];
+               assert( 0 <= c && c < nconss );
+               assert( conss[c] != NULL );
+               consdata = SCIPconsGetData(conss[c]);
+               assert( consdata != NULL );
+               consdata->issymunique[v] = TRUE;
+               SCIPdebugMsg(scip, "unique: constraint %d, variable %d\n", c, v);
+            }
+            ++i;
+         }
+      }
+      else
+      {
+         /* matrix is unique */
+         c = considx[lastidx];
+         v = varidx[lastidx];
+         assert( 0 <= c && c < nconss );
+         assert( conss[c] != NULL );
+         consdata = SCIPconsGetData(conss[c]);
+         assert( consdata != NULL );
+         consdata->issymunique[v] = TRUE;
+         SCIPdebugMsg(scip, "unique: constraint %d, variable %d\n", c, v);
+      }
+   }
+   SCIPfreeBufferArray(scip, &maxvals);
+   SCIPfreeBufferArray(scip, &minvals);
+   SCIPfreeBufferArray(scip, &varidx);
+   SCIPfreeBufferArray(scip, &considx);
+   SCIPfreeBufferArray(scip, &nnonz);
+
+   return SCIP_OKAY;
+}
+
+
 #if SCIP_VERSION >= 900
 #define OP_SDP_DIMENSION 1
 
@@ -6477,6 +6665,9 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
       if ( conshdlrdata->sdpconshdlrdata->prop3minortime == NULL )
          SCIP_CALL( SCIPcreateClock(scip, &conshdlrdata->prop3minortime) );
    }
+
+   /* determine unique matrices */
+   SCIP_CALL( checkSymUniqueMatrices(scip, nconss, conss) );
 
    return SCIP_OKAY;
 }
@@ -7425,6 +7616,14 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    /* copy the maxrhsentry */
    targetdata->maxrhsentry = sourcedata->maxrhsentry;
 
+   /* copy uniqueness information */
+   if ( sourcedata->issymunique != NULL )
+   {
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->issymunique), sourcedata->issymunique, sourcedata->nvars) );
+   }
+   else
+      targetdata->issymunique = NULL;
+
    /* copy rankone */
    targetdata->rankone = sourcedata->rankone;
 
@@ -8292,6 +8491,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixval, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixvar, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixconst, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->issymunique, (*consdata)->nvars);
    SCIPfreeBlockMemory(scip, consdata);
 
    return SCIP_OKAY;
@@ -9960,6 +10160,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
    consdata->initallmatricespsd = FALSE;
+   consdata->issymunique = NULL;
 
    for (i = 0; i < nvars; i++)
    {
@@ -10198,6 +10399,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
    consdata->initallmatricespsd = FALSE;
+   consdata->issymunique = NULL;
 
    for (i = 0; i < nvars; i++)
    {
