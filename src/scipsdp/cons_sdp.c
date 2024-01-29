@@ -4770,7 +4770,7 @@ SCIP_RETCODE fixAndAggrVars(
          consdata->nnonz += consdata->nvarnonz[v];
 
       /* possibly update issymunique */
-      if ( nfixednonz > 0 )
+      if ( consdata->issymunique == NULL )
       {
          SCIP_CALL( checkSymUniqueMatrices(scip, 1, &conss[c]) );
       }
