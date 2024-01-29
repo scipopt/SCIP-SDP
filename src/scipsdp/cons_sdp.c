@@ -6549,6 +6549,7 @@ SCIP_RETCODE addSymmetryInformation(
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
+   assert( consdata->issymunique != NULL );
 
    /* add node initializing constraint (with artificial rhs) */
    SCIP_CALL( SCIPaddSymgraphConsnode(scip, graph, cons, 0.0, 0.0, &consnodeidx) );
@@ -6565,6 +6566,10 @@ SCIP_RETCODE addSymmetryInformation(
    for (v = 0; v < consdata->nvars; ++v)
    {
       int varnodeidx;
+
+      /* skip variables with matrices that are unique and cannot be symmetric */
+      if ( consdata->issymunique[v] )
+         continue;
 
       varnodeidx = SCIPgetSymgraphVarnodeidx(scip, graph, consdata->vars[v]);
 
