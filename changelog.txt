@@ -18,6 +18,7 @@ fixed bugs:
 (c)make:
 - change behavior of dependencies: now computed on the fly, while previously they were collected in a file;
   a make clean is needed whenever new files are added
+- add parameter to choose "long long int" for Lapack (make ... LAPACKLONG=true, cmake .. -DLAPACKLONG=on)
 
 SCIP-SDP version 4.2.0
 ======================

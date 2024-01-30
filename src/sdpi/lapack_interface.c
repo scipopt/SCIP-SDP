@@ -58,12 +58,16 @@
 /*lint --e{788,818}*/
 
 /* use int type from Openblas if available */
+#ifdef LAPACKLONG
+typedef long long int LAPACKINTTYPE;
+#else
 #ifdef OPENBLAS
 #include <cblas.h>
 typedef blasint LAPACKINTTYPE;
 #else
 /* otherwise we use int as a default */
 typedef int LAPACKINTTYPE;
+#endif
 #endif
 
 /** Checks if a BMSallocMemory-call was successfull, otherwise returns SCIP_NOMEMORY */
