@@ -82,6 +82,7 @@ OMP		=	false
 OPENBLAS	=	false
 MUMPSSEQ	=	false
 STATICLAPACK	=	false
+LAPACKLONG	=	false
 PYTHON  	=   	none
 ARPACK		=	false
 
@@ -229,6 +230,11 @@ ifeq ($(OPENBLAS),true)
 CFLAGS			+=	-DOPENBLAS
 CXXFLAGS		+=	-DOPENBLAS
 LDFLAGS			+=	-Wl,--allow-multiple-definition   # this avoids errors for multiple symbols, e.g., in CPLEX and SDP-solvers
+endif
+
+ifeq ($(LAPACKLONG),true)
+CFLAGS			+=	-DLAPACKLONG
+CXXFLAGS		+=	-DLAPACKLONG
 endif
 
 ifeq ($(ARPACK),true)
