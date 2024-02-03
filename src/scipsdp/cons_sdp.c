@@ -4258,7 +4258,7 @@ SCIP_RETCODE checkSymUniqueMatrices(
 
          /* loop through entries and check for different entries */
          i = 0;
-         while ( i < nmat - 1 )
+         while ( i < nmat )
          {
             int len = 0;
 
@@ -4269,7 +4269,7 @@ SCIP_RETCODE checkSymUniqueMatrices(
             }
 
             /* if the entry is unique */
-            if ( i < nmat - 1 && len == 0 )
+            if ( len == 0 )
             {
                /* matrix is unique */
                c = considx[lastidx + i];
