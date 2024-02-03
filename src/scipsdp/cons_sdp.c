@@ -6535,8 +6535,9 @@ SCIP_RETCODE addSymmetryInformation(
    )
 {
    SCIP_CONSDATA* consdata;
-   int* dimnodeidx;
+   int* dimnodeidx = NULL;
    int consnodeidx;
+   int nunique = 0;
    int v;
    int i;
 
@@ -6554,15 +6555,27 @@ SCIP_RETCODE addSymmetryInformation(
    /* add node initializing constraint (with artificial rhs) */
    SCIP_CALL( SCIPaddSymgraphConsnode(scip, graph, cons, 0.0, 0.0, &consnodeidx) );
 
-   /* for each constraint, add nodes for the dimensions of the matrix */
-   SCIP_CALL( SCIPallocBufferArray(scip, &dimnodeidx, consdata->blocksize) );
-   for (i = 0; i < consdata->blocksize; ++i)
+   /* check whether all variable matrices are unqiue */
+   for (v = 0; v < consdata->nvars; ++v)
    {
-      SCIP_CALL( SCIPaddSymgraphOpnode(scip, graph, OP_SDP_DIMENSION, &dimnodeidx[i]) );
-
-      /* connect new node to constraint node */
-      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, consnodeidx, dimnodeidx[i], FALSE, 0.0) );
+      if ( consdata->issymunique[v] )
+         ++nunique;
    }
+
+   /* if there are some variable matrices that are not unique */
+   if ( nunique < consdata->nvars )
+   {
+      /* for each constraint, add nodes for the dimensions of the matrix */
+      SCIP_CALL( SCIPallocBufferArray(scip, &dimnodeidx, consdata->blocksize) );
+      for (i = 0; i < consdata->blocksize; ++i)
+      {
+         SCIP_CALL( SCIPaddSymgraphOpnode(scip, graph, OP_SDP_DIMENSION, &dimnodeidx[i]) );
+
+         /* connect new node to constraint node */
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, consnodeidx, dimnodeidx[i], FALSE, 0.0) );
+      }
+   }
+   SCIPdebugMsg(scip, "Constraint <%s> has %d unique variable matrices among %d.\n", SCIPconsGetName(cons), nunique, consdata->nvars);
 
    /* for each variable matrix entry, add two nodes corresponding to row/column index and connect it with variable and
     * dimension nodes */
@@ -6570,11 +6583,15 @@ SCIP_RETCODE addSymmetryInformation(
    {
       int varnodeidx;
 
-      /* skip variables with matrices that are unique and cannot be symmetric */
-      if ( consdata->issymunique[v] )
-         continue;
-
       varnodeidx = SCIPgetSymgraphVarnodeidx(scip, graph, consdata->vars[v]);
+
+      /* connect variables with unique matrices to constraint node with unique color (i.e., index + 1) to signify that they should be fixed */
+      if ( consdata->issymunique[v] )
+      {
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, varnodeidx, consnodeidx, TRUE, v + 1.0) );
+         continue;
+      }
+      assert( dimnodeidx != NULL );
 
       /* loop over all entries in the matrix */
       for (i = 0; i < consdata->nvarnonz[v]; ++i)
@@ -6607,34 +6624,40 @@ SCIP_RETCODE addSymmetryInformation(
       }
    }
 
-   /* for each constant matrix entry, add two nodes corresponding to row/column index and connect it with dimension
-    * nodes */
-   for (i = 0; i < consdata->constnnonz; ++i)
+   /* if not all variable matrices are unique, we treat the constant matrix */
+   if ( nunique < consdata->nvars )
    {
-      int nodeidx1;
-      int nodeidx2;
-      int node;
+      assert( dimnodeidx != NULL );
 
-      /* add two nodes for each symmetry row/col pair */
-      SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx1) );
-      SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx2) );
+      /* for each constant matrix entry, add two nodes corresponding to row/column index and connect it with dimension
+       * nodes */
+      for (i = 0; i < consdata->constnnonz; ++i)
+      {
+         int nodeidx1;
+         int nodeidx2;
+         int node;
 
-      /* add edge between nodes */
-      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, nodeidx2, FALSE, 0.0) );
+         /* add two nodes for each symmetry row/col pair - we use values since this seems to improve the speed */
+         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx1) );
+         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx2) );
 
-      /* add edges to dimension nodes */
-      assert( 0 <= consdata->constrow[i] && consdata->constrow[i] < consdata->blocksize );
-      node = dimnodeidx[consdata->constrow[i]];
-      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
-      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->constval[i]) );
+         /* add edge between nodes */
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, nodeidx2, FALSE, 0.0) );
 
-      assert( 0 <= consdata->constcol[i] && consdata->constcol[i] < consdata->blocksize );
-      node = dimnodeidx[consdata->constcol[i]];
-      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
-      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->constval[i]) );
+         /* add edges to dimension nodes */
+         assert( 0 <= consdata->constrow[i] && consdata->constrow[i] < consdata->blocksize );
+         node = dimnodeidx[consdata->constrow[i]];
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->constval[i]) );
+
+         assert( 0 <= consdata->constcol[i] && consdata->constcol[i] < consdata->blocksize );
+         node = dimnodeidx[consdata->constcol[i]];
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->constval[i]) );
+      }
    }
 
-   SCIPfreeBufferArray(scip, &dimnodeidx);
+   SCIPfreeBufferArrayNull(scip, &dimnodeidx);
 
    return SCIP_OKAY;
 }
