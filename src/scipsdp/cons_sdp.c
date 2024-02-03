@@ -6522,6 +6522,8 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 
 
 #if SCIP_VERSION >= 900
+
+/* define indices for operator nodes in symmetry graph */
 #define OP_SDP_DIMENSION 1
 
 /** adds symmetry information of constraint to a symmetry detection graph */
@@ -6600,7 +6602,7 @@ SCIP_RETCODE addSymmetryInformation(
          int nodeidx2;
          int node;
 
-         /* add two nodes for each symmetry row/col pair */
+         /* add two nodes for each symmetry row/col pair - we use values since this seems to improve the speed */
          SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->val[v][i], &nodeidx1) );
          SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->val[v][i], &nodeidx2) );
 
