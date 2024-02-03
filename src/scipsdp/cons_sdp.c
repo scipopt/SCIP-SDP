@@ -4140,7 +4140,7 @@ SCIP_RETCODE checkSymUniqueMatrices(
    int* considx;
    int* varidx;
    int nvars;
-   int nmatrices =0;
+   int nmatrices = 0;
    int lastidx;
    int currentidx;
    int currentnnonz;
@@ -4194,6 +4194,8 @@ SCIP_RETCODE checkSymUniqueMatrices(
       SCIPfreeBufferArray(scip, &varidx);
       SCIPfreeBufferArray(scip, &considx);
       SCIPfreeBufferArray(scip, &nnonz);
+
+      return SCIP_OKAY;
    }
 
    /* sort according to number of nonzeros */
