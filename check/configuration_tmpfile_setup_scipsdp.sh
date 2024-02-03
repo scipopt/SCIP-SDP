@@ -19,25 +19,27 @@
 ### display of the solving process
 
 # environment variables passed as arguments
-INSTANCE=$1        #  instance name to solve
-SCIPPATH=$2        # - path to working directory for test (usually, the check subdirectory)
-TMPFILE=$3         # - the batch file to control XPRESS
-SETNAME=$4         # - specified basename of settings-file, or 'default'
-SETFILE=$5         # - instance/settings specific set-file
-THREADS=$6         # - the number of LP solver threads to use
-SETCUTOFF=$7       # - should optimal instance value be used as objective limit (0 or 1)?
-FEASTOL=$8         # - feasibility tolerance, or 'default'
-TIMELIMIT=$9       # - time limit for the solver
-MEMLIMIT=${10}     # - memory limit for the solver
-NODELIMIT=${11}    # - node limit for the solver
-LPS=${12}          # - LP solver to use
-DISPFREQ=${13}     # - display frequency for chronological output table
-REOPT=${14}        # - true if we use reoptimization, i.e., using a difflist file instead if an instance file
-OPTCOMMAND=${15}   # - command that should per executed after reading the instance, e.g. optimize, presolve or count
-CLIENTTMPDIR=${16} # - directory for temporary files
-SOLBASENAME=${17}  # - base name for solution file
-VISUALIZE=${18}    # - true, if the branch-and-bound search should be visualized
-SOLUFILE=${19}     # - solu file, only necessary if $SETCUTOFF is 1
+INSTANCE="${1}"        #  instance name to solve
+SCIPPATH="${2}"        # - path to working directory for test (usually, the check subdirectory)
+TMPFILE="${3}"         # - the batch file to control XPRESS
+SETNAME="${4}"         # - specified basename of settings-file, or 'default'
+SETFILE="${5}"         # - instance/settings specific set-file
+THREADS="${6}"         # - the number of LP solver threads to use
+SETCUTOFF="${7}"       # - should optimal instance value be used as objective limit (0 or 1)?
+FEASTOL="${8}"         # - feasibility tolerance, or 'default'
+TIMELIMIT="${9}"       # - time limit for the solver
+MEMLIMIT="${10}"       # - memory limit for the solver
+NODELIMIT="${11}"      # - node limit for the solver
+LPS="${12}"            # - LP solver to use
+DISPFREQ="${13}"       # - display frequency for chronological output table
+REOPT="${14}"          # - true if we use reoptimization, i.e., using a difflist file instead if an instance file
+OPTCOMMAND="${15}"     # - command that should per executed after reading the instance, e.g. optimize, presolve or count
+CLIENTTMPDIR="${16}"   # - directory for temporary files
+SOLBASENAME="${17}"    # - base name for solution file
+VISUALIZE="${18}"      # - true, if the branch-and-bound search should be visualized
+SOLUFILE="${19}"       # - solu file, only necessary if ${SETCUTOFF} is 1
+EMPHBENCHMARK="${20}"  # - use set emphasis benchmark
+CLOCKTYPE="${21}"      # - clocktype (1 = CPU, 2 = wallclock)
 
 #args=("$@")
 #for ((i=0; i < $#; i++)) {
@@ -106,16 +108,17 @@ then
     echo set load ${INSTANCESETTINGSFILE} >> $TMPFILE
 fi
 
-echo set limits time $TIMELIMIT        >> $TMPFILE
-echo set limits nodes $NODELIMIT       >> $TMPFILE
-echo set limits memory $MEMLIMIT       >> $TMPFILE
-echo set lp advanced threads $THREADS  >> $TMPFILE
-echo set relaxing SDP advanced sdpsolverthreads $THREADS >> $TMPFILE    # adaptation for SCIPSDP
-echo set timing clocktype 1            >> $TMPFILE
-echo set display freq $DISPFREQ        >> $TMPFILE
-# avoid switching to dfs - better abort with memory error
-echo set memory savefac 1.0            >> $TMPFILE
-echo set save $SETFILE                 >> $TMPFILE
+if  [ "${EMPHBENCHMARK}" = true ] ; then
+    echo "set emphasis benchmark"        >> "${TMPFILE}" # avoid switching to dfs etc. - better abort with memory error; this has to be first
+fi
+echo "set limits time ${TIMELIMIT}"        >> $TMPFILE
+echo "set limits nodes ${NODELIMIT}"       >> $TMPFILE
+echo "set limits memory ${MEMLIMIT}"       >> $TMPFILE
+echo "set lp advanced threads ${THREADS}"  >> $TMPFILE
+echo "set relaxing SDP advanced sdpsolverthreads ${THREADS}" >> $TMPFILE    # adaptation for SCIPSDP
+echo "set timing clocktype ${CLOCKTYPE}"   >> $TMPFILE
+echo "set display freq ${DISPFREQ}"        >> $TMPFILE
+echo "set save ${SETFILE}"                 >> $TMPFILE
 
 if test "$VISUALIZE" = true
 then
