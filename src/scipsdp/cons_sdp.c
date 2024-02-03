@@ -6559,6 +6559,9 @@ SCIP_RETCODE addSymmetryInformation(
    for (i = 0; i < consdata->blocksize; ++i)
    {
       SCIP_CALL( SCIPaddSymgraphOpnode(scip, graph, OP_SDP_DIMENSION, &dimnodeidx[i]) );
+
+      /* connect new node to constraint node */
+      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, consnodeidx, dimnodeidx[i], FALSE, 0.0) );
    }
 
    /* for each variable matrix entry, add two nodes corresponding to row/column index and connect it with variable and
@@ -6572,9 +6575,6 @@ SCIP_RETCODE addSymmetryInformation(
          continue;
 
       varnodeidx = SCIPgetSymgraphVarnodeidx(scip, graph, consdata->vars[v]);
-
-      /* connect variable node to constraint node */
-      SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, varnodeidx, consnodeidx, FALSE, 0.0) );
 
       /* loop over all entries in the matrix */
       for (i = 0; i < consdata->nvarnonz[v]; ++i)
