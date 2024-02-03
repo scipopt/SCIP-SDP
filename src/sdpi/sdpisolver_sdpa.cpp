@@ -3037,7 +3037,9 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
    {
       SCIP_Real* X;
       int blocksize;
+#ifndef NDEBUG
       int redsize;
+#endif
       int idx = 0;
       int sdpablock;
       int i;
@@ -3057,7 +3059,9 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalSolutionMatrix(
          sdpablock = sdpisolver->inputtoblockmapper[b];
          assert( sdpablock != -1 );
          X = sdpisolver->sdpa->getResultYMat(sdpablock);
+#ifndef NDEBUG
          redsize = (int) sdpisolver->sdpa->getBlockSize(sdpablock);
+#endif
 
          /* fill in matrix */
          for (i = 0; i < blocksize; ++i)
