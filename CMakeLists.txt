@@ -32,7 +32,7 @@ set(SYM bliss CACHE STRING "options for symmetry computation")  #create the vari
 set_property(CACHE SYM PROPERTY STRINGS bliss none )  #define list of values GUI will offer for the variable
 
 # if we want long long ints for Lapack, e.g., for Matlab
-option(LAPACKLONG "use long long int for Lapack" OFF)
+option(LAPACKLONG "use long long int for Lapack" ON)
 
 #set the correct rpath for OS X
 set(CMAKE_MACOSX_RPATH ON)

@@ -82,7 +82,7 @@ OMP		=	false
 OPENBLAS	=	false
 MUMPSSEQ	=	false
 STATICLAPACK	=	false
-LAPACKLONG	=	false
+LAPACKLONG	=	true
 PYTHON  	=   	none
 ARPACK		=	false
 
