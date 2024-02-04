@@ -6619,11 +6619,11 @@ SCIP_RETCODE addSymmetryInformation(
          /* add edges to dimension nodes */
          assert( 0 <= consdata->row[v][i] && consdata->row[v][i] < consdata->blocksize );
          node = dimnodeidx[consdata->row[v][i]];
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, TRUE, consdata->val[v][i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, FALSE, 0.0) );
 
          assert( 0 <= consdata->col[v][i] && consdata->col[v][i] < consdata->blocksize );
          node = dimnodeidx[consdata->col[v][i]];
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, TRUE, consdata->val[v][i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, FALSE, 0.0) );
       }
    }
 
@@ -6645,11 +6645,11 @@ SCIP_RETCODE addSymmetryInformation(
          /* add edges to dimension nodes */
          assert( 0 <= consdata->constrow[i] && consdata->constrow[i] < consdata->blocksize );
          node = dimnodeidx[consdata->constrow[i]];
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, TRUE, consdata->constval[i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, FALSE, 0.0) );
 
          assert( 0 <= consdata->constcol[i] && consdata->constcol[i] < consdata->blocksize );
          node = dimnodeidx[consdata->constcol[i]];
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, TRUE, consdata->constval[i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, FALSE, 0.0) );
       }
    }
 
