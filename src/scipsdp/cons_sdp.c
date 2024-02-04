@@ -206,6 +206,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             diaggezerocuts;     /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+   int                   symuniqueid;        /**< this variable is used to create unique ids within the symmetry callback */
    SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
    SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
    SCIP_Bool             prop3minors;        /**< Should 3x3 minors be propagated? */
@@ -6532,12 +6533,14 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 static
 SCIP_RETCODE addSymmetryInformation(
    SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
    SYM_SYMTYPE           symtype,            /**< type of symmetries that need to be added */
    SCIP_CONS*            cons,               /**< SDP constraint */
    SYM_GRAPH*            graph,              /**< symmetry detection graph */
    SCIP_Bool*            success             /**< pointer to store whether symmetry information could be added */
    )
 {
+   SCIP_CONSHDLRDATA* conshdlrdata;
    SCIP_CONSDATA* consdata;
    int* dimnodeidx = NULL;
    int consnodeidx;
@@ -6546,11 +6549,15 @@ SCIP_RETCODE addSymmetryInformation(
    int i;
 
    assert( scip != NULL );
+   assert( conshdlr != NULL );
    assert( cons != NULL );
    assert( graph != NULL );
    assert( success != NULL );
 
    *success = TRUE;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
 
    consdata = SCIPconsGetData(cons);
    assert( consdata != NULL );
@@ -6589,10 +6596,10 @@ SCIP_RETCODE addSymmetryInformation(
 
       varnodeidx = SCIPgetSymgraphVarnodeidx(scip, graph, consdata->vars[v]);
 
-      /* connect variables with unique matrices to constraint node with unique color (i.e., index + 1) to signify that they should be fixed */
+      /* connect variables with unique matrices to constraint node with unique color to signify that they should be fixed */
       if ( consdata->issymunique[v] )
       {
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, varnodeidx, consnodeidx, TRUE, v + 1.0) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, varnodeidx, consnodeidx, TRUE, conshdlrdata->symuniqueid++) );
          continue;
       }
       assert( dimnodeidx != NULL );
@@ -6688,6 +6695,7 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata->ncmir = 0;
    conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
    conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+   conshdlrdata->symuniqueid = 0;
    conshdlrdata->ncallspropub = 0;
    conshdlrdata->ncallsproptb = 0;
    conshdlrdata->ncallsprop3minor = 0;
@@ -9136,7 +9144,7 @@ SCIP_DECL_CONSGETNVARS(consGetNVarsSdp)
 static
 SCIP_DECL_CONSGETPERMSYMGRAPH(consGetPermsymGraphSdp)
 {  /*lint --e{715}*/
-   SCIP_CALL( addSymmetryInformation(scip, SYM_SYMTYPE_PERM, cons, graph, success) );
+   SCIP_CALL( addSymmetryInformation(scip, conshdlr, SYM_SYMTYPE_PERM, cons, graph, success) );
 
    return SCIP_OKAY;
 }
