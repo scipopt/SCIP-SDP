@@ -6607,31 +6607,23 @@ SCIP_RETCODE addSymmetryInformation(
       /* loop over all entries in the matrix */
       for (i = 0; i < consdata->nvarnonz[v]; ++i)
       {
-         int nodeidx1;
-         int nodeidx2;
+         int nodeidx;
          int node;
 
-         /* add two nodes for each symmetry row/col pair - we use values since this seems to improve the speed */
-         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->val[v][i], &nodeidx1) );
-         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->val[v][i], &nodeidx2) );
+         /* add node for each symmetry row/col pair - we use values since this seems to improve the speed */
+         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->val[v][i], &nodeidx) );
 
-         /* add edge between nodes */
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, nodeidx2, FALSE, 0.0) );
-
-         /* add edges to variable node */
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, varnodeidx, FALSE, 0.0) );
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, varnodeidx, FALSE, 0.0) );
+         /* add edge to variable node */
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, varnodeidx, FALSE, 0.0) );
 
          /* add edges to dimension nodes */
          assert( 0 <= consdata->row[v][i] && consdata->row[v][i] < consdata->blocksize );
          node = dimnodeidx[consdata->row[v][i]];
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->val[v][i]) );
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->val[v][i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, TRUE, consdata->val[v][i]) );
 
          assert( 0 <= consdata->col[v][i] && consdata->col[v][i] < consdata->blocksize );
          node = dimnodeidx[consdata->col[v][i]];
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->val[v][i]) );
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->val[v][i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, TRUE, consdata->val[v][i]) );
       }
    }
 
@@ -6644,27 +6636,20 @@ SCIP_RETCODE addSymmetryInformation(
        * nodes */
       for (i = 0; i < consdata->constnnonz; ++i)
       {
-         int nodeidx1;
-         int nodeidx2;
+         int nodeidx;
          int node;
 
-         /* add two nodes for each symmetry row/col pair - we use values since this seems to improve the speed */
-         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx1) );
-         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx2) );
-
-         /* add edge between nodes */
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, nodeidx2, FALSE, 0.0) );
+         /* add node for each symmetry row/col pair - we use values since this seems to improve the speed */
+         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx) );
 
          /* add edges to dimension nodes */
          assert( 0 <= consdata->constrow[i] && consdata->constrow[i] < consdata->blocksize );
          node = dimnodeidx[consdata->constrow[i]];
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->constval[i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, TRUE, consdata->constval[i]) );
 
          assert( 0 <= consdata->constcol[i] && consdata->constcol[i] < consdata->blocksize );
          node = dimnodeidx[consdata->constcol[i]];
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx1, node, TRUE, consdata->constval[i]) );
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx2, node, TRUE, consdata->constval[i]) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, node, TRUE, consdata->constval[i]) );
       }
    }
 
