@@ -1,5 +1,4 @@
-SCIP-SDP - A framework for solving mixed-integer semidefinite programs
-======================================================================
+# SCIP-SDP - A framework for solving mixed-integer semidefinite programs
 
 SCIP-SDP is a plugin for SCIP to solve mixed integer semidefinite
 programs (MISDPs), i.e., semidefinite programs (SDPs) in which some
@@ -24,8 +23,7 @@ To use the nonlinear branch-and-bound approach, one of the following
 SDP-solvers needs to be installed: DSDP, SDPA, or MOSEK. For more
 information about the installation of SCIP-SDP see the INSTALL file.
 
-Features
---------
+## Features
 
 - SCIP-SDP can read MISDPs in CBF or extended SDPA format.
 
@@ -43,8 +41,7 @@ Features
   similar to how this can be done for SCIP.
 
 
-Interesting Parameters
-----------------------
+## Interesting Parameters
 
 SCIP-SDP features many parameters to determine its behavior and it
 inherits all SCIP parameters. Here, we highlight some:
@@ -77,8 +74,7 @@ inherits all SCIP parameters. Here, we highlight some:
   yes and print warning for every problem not satisfying primal and
   dual Slater condition).
 
-Documentation
--------------
+## Documentation
 
 - A doxygen documentation is given at
   https://wwwopt.mathematik.tu-darmstadt.de/scipsdp/
@@ -97,3 +93,20 @@ Documentation
 
   Frederic Matter (2022) "Sparse Recovery Under Side Constraints Using
   Null Space Properties"
+
+## License
+
+Copyright 2011-2013 Discrete Optimization, TU Darmstadt and EDOM, FAU Erlangen-Nürnberg
+	  2014- Discrete Optimization, TU Darmstadt
+
+Licensed under the Apache License, Version 2.0 (the "License"), see the LICENSE file.
+You may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
