@@ -15,7 +15,7 @@ heuristics and propagators to SCIP.
 The MISDPs can be read in using either the CBF-format or an extended
 SDPA-format with support for integrality as well as rank-1
 constraints. For a description of the extended SDPA-format see the
-file "sdpa_format.txt". The CBF-format is supported up to version 2,
+file `sdpa_format.txt`. The CBF-format is supported up to version 2,
 see https://cblib.zib.de, and has also been extended to support rank-1
 constraints.
 
@@ -46,20 +46,20 @@ information about the installation of SCIP-SDP see the INSTALL file.
 SCIP-SDP features many parameters to determine its behavior and it
 inherits all SCIP parameters. Here, we highlight some:
 
-- "misc/solvesdps": Determines whether SDPs (1) or LPs (0) are
+- `misc/solvesdps`: Determines whether SDPs (1) or LPs (0) are
   solved. It depends on the instance which approach is faster.
 
-- "relaxing/SDP/sdpsolverthreads" sets the number of threads used for
+- `relaxing/SDP/sdpsolverthreads` sets the number of threads used for
   solving SDPs. By default it is set to 1, since this seems to be the
   fastest for most instances. For larger SDPs it might help to
-  increase this number, where a value of "-1" corresponds to an
+  increase this number, where a value of -1 corresponds to an
   automatic choice, if this is supported by the SDP solver.
 
-- Tolerances: "numerics/feastol" and "numerics/dualfeastol" (default
+- Tolerances: `numerics/feastol` and `numerics/dualfeastol` (default
   1e-5) are SCIP parameters that determine the feasibility
   tolerances. Note that the default is a bit weaker than the default
   SCIP parameter values (1e-6 and 1e-7, respectively).
-  "relaxing/SDP/sdpsolverfeastol" and "relaxing/SDP/sdpsolvergaptol"
+  `relaxing/SDP/sdpsolverfeastol` and `relaxing/SDP/sdpsolvergaptol`
   (default 1e-5) determine the tolerances used for the SDP-solvers.
   For Mosek the feasibility tolerance is always tightened by 0.1,
   because this generated more reliable results. Depending on the
@@ -70,14 +70,14 @@ inherits all SCIP parameters. Here, we highlight some:
 - Slater condition: The solution process of interior-point methods for
   SDPs depends on the Slater condition. One can determine the Slater
   condition for the primal and dual problem by changing
-  "relaxing/SDP/slatercheck" (0: no, 1: yes but only for statistics, 2:
+  `relaxing/SDP/slatercheck` (0: no, 1: yes but only for statistics, 2:
   yes and print warning for every problem not satisfying primal and
   dual Slater condition).
 
 ## Documentation
 
 - A doxygen documentation is given at
-  https://wwwopt.mathematik.tu-darmstadt.de/scipsdp/
+  https://wwwopt.mathematik.tu-darmstadt.de/scipsdp/ .
 
 - Reports for the SCIP Optimization Suites listed at
   https://www.scipopt.org/index.php#cite each contain a part on the
@@ -96,10 +96,13 @@ inherits all SCIP parameters. Here, we highlight some:
 
 ## License
 
-Copyright 2011-2013 Discrete Optimization, TU Darmstadt and EDOM, FAU Erlangen-Nürnberg
-	  2014- Discrete Optimization, TU Darmstadt
+Copyright:
 
-Licensed under the Apache License, Version 2.0 (the "License"), see the LICENSE file.
+2011-2013 Discrete Optimization, TU Darmstadt and EDOM, FAU Erlangen-Nürnberg
+
+2014- Discrete Optimization, TU Darmstadt
+
+Licensed under the Apache License, Version 2.0 (the "License"), see the `LICENSE` file.
 You may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
