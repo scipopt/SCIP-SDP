@@ -13,7 +13,7 @@ SDPA 7.4.4 (https://github.com/sdpaninf/SDPA)
 
 See the notes below for comments on the corresponding installation.
 
-Now you are ready to install SCIP-SDP. This can be done either via Makefile or via cmake. We first
+The building and installation of SCIP-SDP can be done either via Makefile or via cmake. We first
 discuss the makefile option.
 
 
@@ -65,9 +65,9 @@ For DSDP (assuming an installation path of /home/username/DSDP5.8 ) you need to 
 Setting Links for MOSEK
 -----------------------
 
-For SDPS=msk the following links need to be set, where /home/username/mosek/10 is the path to the
-MOSEK directory. Please note that the omp and cilk (for MOSEK 8) libraries must be available in the
-same directory as the given MOSEK library.
+For SDPS=msk the following links need to be set, where we assume that /home/username/mosek/10 is the
+path to the MOSEK directory. Please note that the omp and cilk (for MOSEK 8) libraries must be
+available in the same directory as the given MOSEK library.
 
 - preparing missing soft-link "lib/include/mosekh":
 > Enter soft-link target file or directory for "lib/include/mosekh" (return if not needed):
@@ -82,7 +82,8 @@ Setting Links for SDPA
 ----------------------
 
 In case of SDPA you also need to link to Mumps (this should be the same version used to build
-SDPA). Please note that you do not need to give the link to libsdpa.so if you linked to libsdpa.a.
+SDPA). You do not need to give the link to libsdpa.so if you linked to libsdpa.a. We assume that
+SDPA is installed in /home/username/sdpa.7.4.4:
 
 - preparing missing soft-link "lib/include/sdpainc":
 > Enter soft-link target file or directory for "lib/include/sdpainc" (return if not needed):
@@ -171,8 +172,8 @@ Using MOSEK as SDP-Solver
 MOSEK is currently the fastest and most stable SDP-solver interfaced with SCIP-SDP. One can apply for
 an academic license on the MOSEK web page, if applicable.
 
-One can determine the number of threads that MOSEK uses via the shell command "set relaxing SDP
-advanced sdpsolverthreads n". The default value of the parameter is 1, since this is usually
+One can determine the number of threads that MOSEK uses via the SCIP-SDP command line: "set relaxing
+SDP advanced sdpsolverthreads n". The default value of the parameter is 1, since this is usually
 faster. The value -1 would automatically detect and use the number of cores. Note that this will
 only parallelize the solution of the SDP-relaxations but not the eigenvalue computations in
 SCIP-SDP.
