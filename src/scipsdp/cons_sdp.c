@@ -73,6 +73,10 @@
 #include "scip/scip_cons.h"             /* for SCIPgetConsVars */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 #include "scip/def.h"
+#if SCIP_VERSION >= 900
+#include "scip/symmetry_graph.h"
+#include "symmetry/struct_symmetry.h"
+#endif
 
 #ifdef OMP
 #include "omp.h"                        /* for changing the number of threads */
@@ -177,6 +181,7 @@ struct SCIP_ConsData
    int*                  constcol;           /**< column indices of the constant nonzeros */
    int*                  constrow;           /**< row indices of the constant nonzeros */
    SCIP_Real*            constval;           /**< values of the constant nonzeros */
+   SCIP_Bool*            issymunique;        /**< for each matrix marks whether it is unique and cannot be symmetric */
    SCIP_Real             maxrhsentry;        /**< maximum entry of constant matrix (needed for DIMACS error norm) */
    SCIP_Bool             rankone;            /**< Should matrix be rank one? */
    int*                  maxevsubmat;        /**< two row indices of 2x2 subdeterminant with maximal eigenvalue [or -1,-1 if not available] */
@@ -201,6 +206,7 @@ struct SCIP_ConshdlrData
    SCIP_Bool             diaggezerocuts;     /**< Should linear cuts enforcing the non-negativity of diagonal entries of SDP-matrices be added? */
    int                   ndiaggezerocuts;    /**< this is used to give the diagGEzero-cuts distinguishable names */
    int                   n1x1blocks;         /**< this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+   int                   symuniqueid;        /**< this variable is used to create unique ids within the symmetry callback */
    SCIP_Bool             propupperbounds;    /**< Should upper bounds be propagated? */
    SCIP_Bool             propubpresol;       /**< Should upper bounds be propagated in presolving? */
    SCIP_Bool             prop3minors;        /**< Should 3x3 minors be propagated? */
@@ -4112,6 +4118,198 @@ SCIP_RETCODE checkVarsLocks(
 }
 #endif
 
+
+/* defines for lexicographic sorting macros */
+#define SORTTPL_NAMEEXT     RealRealIntInt
+#define SORTTPL_KEYTYPE     SCIP_Real
+#define SORTTPL_FIELD1TYPE  int
+#define SORTTPL_FIELD2TYPE  int
+#include "sorttpllex.c" /*lint !e451*/
+
+/** check which matrices are unique across all SDP constraints */
+static
+SCIP_RETCODE checkSymUniqueMatrices(
+   SCIP*                 scip,               /**< SCIP pointer */
+   int                   nconss,             /**< number of SDP constraints */
+   SCIP_CONS**           conss               /**< SDP constraints */
+   )
+{
+   SCIP_CONSDATA* consdata;
+   SCIP_Real* minvals;
+   SCIP_Real* maxvals;
+   int* nnonz;
+   int* considx;
+   int* varidx;
+   int nvars;
+   int nmatrices = 0;
+   int lastidx;
+   int currentidx;
+   int currentnnonz;
+   int c;
+   int v;
+   int i;
+   int j;
+
+   assert( scip != NULL );
+
+   if ( conss == NULL || nconss <= 0 )
+      return SCIP_OKAY;
+   assert( conss != NULL );
+
+   nvars = SCIPgetNVars(scip);
+   SCIP_CALL( SCIPallocBufferArray(scip, &nnonz, nconss * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &considx, nconss * nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &varidx, nconss * nvars) );
+
+   /* collect number of nonzeros of all matrices */
+   for (c = 0; c < nconss; ++c)
+   {
+      assert( conss[c] != NULL );
+      consdata = SCIPconsGetData(conss[c]);
+      assert( consdata != NULL );
+
+      /* init array */
+      if ( consdata->issymunique == NULL )
+      {
+         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->issymunique, consdata->nvars) );
+      }
+      else
+         continue; /* skip constraints that have been considered before */
+
+      /* collect data */
+      for (v = 0; v < consdata->nvars; ++v)
+      {
+         consdata->issymunique[v] = FALSE;
+
+         nnonz[nmatrices] = consdata->nvarnonz[v];
+         considx[nmatrices] = c;
+         varidx[nmatrices] = v;
+         ++nmatrices;
+      }
+   }
+   assert( nmatrices <= nconss * nvars );
+
+   /* possibly stop early */
+   if ( nmatrices == 0 )
+   {
+      SCIPfreeBufferArray(scip, &varidx);
+      SCIPfreeBufferArray(scip, &considx);
+      SCIPfreeBufferArray(scip, &nnonz);
+
+      return SCIP_OKAY;
+   }
+
+   /* sort according to number of nonzeros */
+   SCIPsortIntIntInt(nnonz, considx, varidx, nmatrices);
+
+   SCIP_CALL( SCIPallocBufferArray(scip, &minvals, nmatrices) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &maxvals, nmatrices) );
+
+   /* search matrices of equal number of nonzeros and compare w.r.t. min/max values */
+   currentidx = 0;
+   while ( currentidx < nmatrices )
+   {
+      /* find next matrix with different number of nonzeros */
+      lastidx = currentidx;
+      currentnnonz = nnonz[lastidx];
+      do
+      {
+         ++currentidx;
+      }
+      while ( currentidx < nmatrices && nnonz[currentidx] == currentnnonz );
+
+      /* if there are at least two matrices of the same size */
+      if ( currentidx > lastidx + 1 )
+      {
+         int nmat = 0;
+
+         /* loop through matrices and compute min/max values */
+         for (i = lastidx; i < currentidx; ++i)
+         {
+            SCIP_Real minval = SCIP_REAL_MAX;
+            SCIP_Real maxval = SCIP_REAL_MIN;
+
+            /* compute min/max values */
+            c = considx[i];
+            v = varidx[i];
+            assert( 0 <= c && c < nconss );
+            assert( conss[c] != NULL );
+            consdata = SCIPconsGetData(conss[c]);
+            assert( consdata != NULL );
+
+            assert( 0 <= v && v < consdata->nvars );
+            for (j = 0; j < consdata->nvarnonz[v]; ++j)
+            {
+               SCIP_Real val;
+
+               val = consdata->val[v][j];
+               if ( val < minval )
+                  minval = val;
+               if ( val > maxval )
+                  maxval = val;
+            }
+            SCIPdebugMsg(scip, "Constraint %d, variable %d: nnonz = %d, minval = %g, maxval = %g\n", c, v, consdata->nvarnonz[v], minval, maxval);
+
+            minvals[nmat] = minval;
+            maxvals[nmat] = maxval;
+            ++nmat;
+         }
+         assert( nmat >= 2 );
+
+         /* lexicographically sort entries according to minvals and maxvals */
+         SCIPlexSortRealRealIntInt(minvals, maxvals, &considx[lastidx], &varidx[lastidx], nmat);
+
+         /* loop through entries and check for different entries */
+         i = 0;
+         while ( i < nmat )
+         {
+            int len = 0;
+
+            while ( i < nmat - 1 && SCIPisEQ(scip, minvals[i], minvals[i+1]) && SCIPisEQ(scip, maxvals[i], maxvals[i+1]) )
+            {
+               ++i;
+               ++len;
+            }
+
+            /* if the entry is unique */
+            if ( len == 0 )
+            {
+               /* matrix is unique */
+               c = considx[lastidx + i];
+               v = varidx[lastidx + i];
+               assert( 0 <= c && c < nconss );
+               assert( conss[c] != NULL );
+               consdata = SCIPconsGetData(conss[c]);
+               assert( consdata != NULL );
+               consdata->issymunique[v] = TRUE;
+               SCIPdebugMsg(scip, "unique: constraint %d, variable %d\n", c, v);
+            }
+            ++i;
+         }
+      }
+      else
+      {
+         /* matrix is unique */
+         c = considx[lastidx];
+         v = varidx[lastidx];
+         assert( 0 <= c && c < nconss );
+         assert( conss[c] != NULL );
+         consdata = SCIPconsGetData(conss[c]);
+         assert( consdata != NULL );
+         consdata->issymunique[v] = TRUE;
+         SCIPdebugMsg(scip, "unique: constraint %d, variable %d\n", c, v);
+      }
+   }
+   SCIPfreeBufferArray(scip, &maxvals);
+   SCIPfreeBufferArray(scip, &minvals);
+   SCIPfreeBufferArray(scip, &varidx);
+   SCIPfreeBufferArray(scip, &considx);
+   SCIPfreeBufferArray(scip, &nnonz);
+
+   return SCIP_OKAY;
+}
+
+
 /** local function to perform (parts of) multiaggregation of a single variable within fixAndAggrVars */
 static
 SCIP_RETCODE multiaggrVar(
@@ -4173,6 +4371,10 @@ SCIP_RETCODE multiaggrVar(
    consdata->nvarnonz[v] = consdata->nvarnonz[consdata->nvars - 1];
    consdata->vars[v] = consdata->vars[consdata->nvars - 1];
    consdata->locks[v] = consdata->locks[consdata->nvars - 1];
+
+   /* free issymunique, because it is invalid */
+   SCIPfreeBlockMemoryArrayNull(scip, &consdata->issymunique, consdata->nvars);
+
    (consdata->nvars)--;
 
    /* iterate over all variables that variable v was aggregated to and insert the corresponding nonzeros */
@@ -4254,6 +4456,9 @@ SCIP_RETCODE multiaggrVar(
                consdata->val[consdata->nvars][cnt++] = scalars[aggrind] * vals[i];
          }
          consdata->nvarnonz[consdata->nvars] = cnt;
+
+         /* free issymunique, because it is invalid */
+         SCIPfreeBlockMemoryArrayNull(scip, &consdata->issymunique, consdata->nvars);
 
          consdata->locks[consdata->nvars] = -2;
          consdata->nvars++;
@@ -4400,7 +4605,7 @@ SCIP_RETCODE fixAndAggrVars(
 
             /* as the variables don't need to be sorted, we just put the last variable into the empty spot and decrease sizes by one (at the end) */
             SCIP_CALL( SCIPreleaseVar(scip, &(consdata->vars[v])) );
-            if ( v < consdata->nvars -1 )
+            if ( v < consdata->nvars - 1 )
             {
                consdata->col[v] = consdata->col[consdata->nvars - 1];
                consdata->row[v] = consdata->row[consdata->nvars - 1];
@@ -4409,6 +4614,10 @@ SCIP_RETCODE fixAndAggrVars(
                consdata->vars[v] = consdata->vars[consdata->nvars - 1];
                consdata->locks[v] = consdata->locks[consdata->nvars - 1];
             }
+
+            /* free issymunique, because it is invalid */
+            SCIPfreeBlockMemoryArrayNull(scip, &consdata->issymunique, consdata->nvars);
+
             consdata->nvars--;
             v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
          }
@@ -4482,6 +4691,10 @@ SCIP_RETCODE fixAndAggrVars(
                   consdata->vars[v] = consdata->vars[consdata->nvars - 1];
                   consdata->locks[v] = consdata->locks[consdata->nvars - 1];
                }
+
+               /* free issymunique, because it is invalid */
+               SCIPfreeBlockMemoryArrayNull(scip, &consdata->issymunique, consdata->nvars);
+
                consdata->nvars--;
                v--; /* we need to check again if the variable we just shifted to this position also needs to be fixed */
             }
@@ -4558,6 +4771,12 @@ SCIP_RETCODE fixAndAggrVars(
       consdata->nnonz = 0;
       for (v = 0; v < consdata->nvars; v++)
          consdata->nnonz += consdata->nvarnonz[v];
+
+      /* possibly update issymunique */
+      if ( consdata->issymunique == NULL )
+      {
+         SCIP_CALL( checkSymUniqueMatrices(scip, 1, &conss[c]) );
+      }
    }
 
    return SCIP_OKAY;
@@ -6305,6 +6524,149 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
 #endif
 
 
+#if SCIP_VERSION >= 900
+
+/* define indices for operator nodes in symmetry graph */
+#define OP_SDP_DIMENSION 1
+
+/** adds symmetry information of constraint to a symmetry detection graph */
+static
+SCIP_RETCODE addSymmetryInformation(
+   SCIP*                 scip,               /**< SCIP pointer */
+   SCIP_CONSHDLR*        conshdlr,           /**< constraint handler */
+   SYM_SYMTYPE           symtype,            /**< type of symmetries that need to be added */
+   SCIP_CONS*            cons,               /**< SDP constraint */
+   SYM_GRAPH*            graph,              /**< symmetry detection graph */
+   SCIP_Bool*            success             /**< pointer to store whether symmetry information could be added */
+   )
+{
+   SCIP_CONSHDLRDATA* conshdlrdata;
+   SCIP_CONSDATA* consdata;
+   int* dimnodeidx = NULL;
+   int consnodeidx;
+   int nunique = 0;
+   int v;
+   int i;
+
+   assert( scip != NULL );
+   assert( conshdlr != NULL );
+   assert( cons != NULL );
+   assert( graph != NULL );
+   assert( success != NULL );
+
+   *success = TRUE;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
+   assert( conshdlrdata != NULL );
+
+   consdata = SCIPconsGetData(cons);
+   assert( consdata != NULL );
+   assert( consdata->issymunique != NULL );
+
+   /* add node initializing constraint (with artificial rhs) */
+   SCIP_CALL( SCIPaddSymgraphConsnode(scip, graph, cons, 0.0, 0.0, &consnodeidx) );
+
+   /* check whether all variable matrices are unqiue */
+   for (v = 0; v < consdata->nvars; ++v)
+   {
+      if ( consdata->issymunique[v] )
+         ++nunique;
+   }
+
+   /* if there are some variable matrices that are not unique */
+   if ( nunique < consdata->nvars )
+   {
+      /* for each constraint, add nodes for the dimensions of the matrix */
+      SCIP_CALL( SCIPallocBufferArray(scip, &dimnodeidx, consdata->blocksize) );
+      for (i = 0; i < consdata->blocksize; ++i)
+      {
+         SCIP_CALL( SCIPaddSymgraphOpnode(scip, graph, OP_SDP_DIMENSION, &dimnodeidx[i]) );
+
+         /* connect new node to constraint node */
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, consnodeidx, dimnodeidx[i], FALSE, 0.0) );
+      }
+   }
+   SCIPdebugMsg(scip, "Constraint <%s> has %d unique variable matrices among %d.\n", SCIPconsGetName(cons), nunique, consdata->nvars);
+
+   /* for each variable matrix entry, add two nodes corresponding to row/column index and connect it with variable and
+    * dimension nodes */
+   for (v = 0; v < consdata->nvars; ++v)
+   {
+      int varnodeidx;
+
+      varnodeidx = SCIPgetSymgraphVarnodeidx(scip, graph, consdata->vars[v]);
+
+      /* connect variables with unique matrices to constraint node with unique color to signify that they should be fixed */
+      if ( consdata->issymunique[v] )
+      {
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, varnodeidx, consnodeidx, TRUE, conshdlrdata->symuniqueid++) );
+         continue;
+      }
+      assert( dimnodeidx != NULL );
+
+      /* loop over all entries in the matrix */
+      for (i = 0; i < consdata->nvarnonz[v]; ++i)
+      {
+         int nodeidx;
+         int noderow;
+         int nodecol;
+
+         /* add node for each symmetry row/col pair - we use values since this seems to improve the speed */
+         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->val[v][i], &nodeidx) );
+
+         /* add edge to variable node */
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, varnodeidx, FALSE, 0.0) );
+
+         /* add edges to dimension nodes */
+         assert( 0 <= consdata->row[v][i] && consdata->row[v][i] < consdata->blocksize );
+         noderow = dimnodeidx[consdata->row[v][i]];
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, noderow, FALSE, 0.0) );
+
+         assert( 0 <= consdata->col[v][i] && consdata->col[v][i] < consdata->blocksize );
+         nodecol = dimnodeidx[consdata->col[v][i]];
+         if ( noderow != nodecol )
+         {
+            SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, nodecol, FALSE, 0.0) );
+         }
+      }
+   }
+
+   /* if not all variable matrices are unique, we treat the constant matrix */
+   if ( nunique < consdata->nvars )
+   {
+      assert( dimnodeidx != NULL );
+
+      /* for each constant matrix entry, add two nodes corresponding to row/column index and connect it with dimension
+       * nodes */
+      for (i = 0; i < consdata->constnnonz; ++i)
+      {
+         int nodeidx;
+         int noderow;
+         int nodecol;
+
+         /* add node for each symmetry row/col pair - we use values since this seems to improve the speed */
+         SCIP_CALL( SCIPaddSymgraphValnode(scip, graph, consdata->constval[i], &nodeidx) );
+
+         /* add edges to dimension nodes */
+         assert( 0 <= consdata->constrow[i] && consdata->constrow[i] < consdata->blocksize );
+         noderow = dimnodeidx[consdata->constrow[i]];
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, noderow, FALSE, 0.0) );
+
+         assert( 0 <= consdata->constcol[i] && consdata->constcol[i] < consdata->blocksize );
+         nodecol = dimnodeidx[consdata->constcol[i]];
+         if ( noderow != nodecol )
+         {
+            SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, nodeidx, nodecol, FALSE, 0.0) );
+         }
+      }
+   }
+
+   SCIPfreeBufferArrayNull(scip, &dimnodeidx);
+
+   return SCIP_OKAY;
+}
+#endif
+
 
 /*
  * callbacks
@@ -6326,6 +6688,7 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
    conshdlrdata->ncmir = 0;
    conshdlrdata->ndiaggezerocuts = 0; /* this is used to give the diagGEzero-cuts distinguishable names */
    conshdlrdata->n1x1blocks = 0; /* this is used to give the lp constraints resulting from 1x1 sdp-blocks distinguishable names */
+   conshdlrdata->symuniqueid = 0;
    conshdlrdata->ncallspropub = 0;
    conshdlrdata->ncallsproptb = 0;
    conshdlrdata->ncallsprop3minor = 0;
@@ -6360,6 +6723,9 @@ SCIP_DECL_CONSINITPRE(consInitpreSdp)
       if ( conshdlrdata->sdpconshdlrdata->prop3minortime == NULL )
          SCIP_CALL( SCIPcreateClock(scip, &conshdlrdata->prop3minortime) );
    }
+
+   /* determine unique matrices */
+   SCIP_CALL( checkSymUniqueMatrices(scip, nconss, conss) );
 
    return SCIP_OKAY;
 }
@@ -7308,6 +7674,14 @@ SCIP_DECL_CONSTRANS(consTransSdp)
    /* copy the maxrhsentry */
    targetdata->maxrhsentry = sourcedata->maxrhsentry;
 
+   /* copy uniqueness information */
+   if ( sourcedata->issymunique != NULL )
+   {
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->issymunique), sourcedata->issymunique, sourcedata->nvars) );
+   }
+   else
+      targetdata->issymunique = NULL;
+
    /* copy rankone */
    targetdata->rankone = sourcedata->rankone;
 
@@ -8175,6 +8549,7 @@ SCIP_DECL_CONSDELETE(consDeleteSdp)
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixval, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixvar, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
    SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->matrixconst, (*consdata)->blocksize * ((*consdata)->blocksize + 1) / 2);
+   SCIPfreeBlockMemoryArrayNull(scip, &(*consdata)->issymunique, (*consdata)->nvars);
    SCIPfreeBlockMemory(scip, consdata);
 
    return SCIP_OKAY;
@@ -8311,6 +8686,16 @@ SCIP_DECL_CONSCOPY(consCopySdp)
       SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->locks), sourcedata->locks, sourcedata->nvars) );
       targetdata->allmatricespsd = sourcedata->allmatricespsd;
       targetdata->initallmatricespsd = sourcedata->initallmatricespsd;
+   }
+
+   /* copy issymunique information if available */
+   if ( sourcedata->issymunique != NULL )
+   {
+      SCIP_CONSDATA* targetdata;
+
+      targetdata = SCIPconsGetData(*cons);
+      assert( targetdata->issymunique == NULL );
+      SCIP_CALL( SCIPduplicateBlockMemoryArray(scip, &(targetdata->issymunique), sourcedata->issymunique, sourcedata->nvars) );
    }
 
    SCIPfreeBufferArray(scip, &targetvars);
@@ -8747,6 +9132,25 @@ SCIP_DECL_CONSGETNVARS(consGetNVarsSdp)
    return SCIP_OKAY;
 }
 
+#if SCIP_VERSION >= 900
+/** constraint handler method which returns the permutation symmetry detection graph of a constraint */
+static
+SCIP_DECL_CONSGETPERMSYMGRAPH(consGetPermsymGraphSdp)
+{  /*lint --e{715}*/
+   SCIP_CALL( addSymmetryInformation(scip, conshdlr, SYM_SYMTYPE_PERM, cons, graph, success) );
+
+   return SCIP_OKAY;
+}
+
+/** constraint handler method which returns the signed permutation symmetry detection graph of a constraint */
+static
+SCIP_DECL_CONSGETSIGNEDPERMSYMGRAPH(consGetSignedPermsymGraphSdp)
+{
+   *success = FALSE;
+   return SCIP_OKAY;
+}
+#endif
+
 /** creates the handler for SDP constraints and includes it in SCIP */
 SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP*                 scip                /**< SCIP data structure */
@@ -8809,7 +9213,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrDelete(scip, conshdlr, consDeleteSdp) );
    SCIP_CALL( SCIPsetConshdlrFree(scip, conshdlr, consFreeSdp) );
    SCIP_CALL( SCIPsetConshdlrCopy(scip, conshdlr, conshdlrCopySdp, consCopySdp) );
-   SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr,consInitpreSdp) );
+   SCIP_CALL( SCIPsetConshdlrInitpre(scip, conshdlr, consInitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrExit(scip, conshdlr, consExitSdp) );
    SCIP_CALL( SCIPsetConshdlrExitpre(scip, conshdlr, consExitpreSdp) );
    SCIP_CALL( SCIPsetConshdlrInitsol(scip, conshdlr, consInitsolSdp) );
@@ -8824,6 +9228,10 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
+#if SCIP_VERSION >= 900
+   SCIP_CALL( SCIPsetConshdlrGetPermsymGraph(scip, conshdlr, consGetPermsymGraphSdp) );
+   SCIP_CALL( SCIPsetConshdlrGetSignedPermsymGraph(scip, conshdlr, consGetSignedPermsymGraphSdp) );
+#endif
 
    /* add parameter */
 #ifdef OMP
@@ -9820,6 +10228,7 @@ SCIP_RETCODE SCIPcreateConsSdp(
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
    consdata->initallmatricespsd = FALSE;
+   consdata->issymunique = NULL;
 
    for (i = 0; i < nvars; i++)
    {
@@ -10058,6 +10467,7 @@ SCIP_RETCODE SCIPcreateConsSdpRank1(
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
    consdata->initallmatricespsd = FALSE;
+   consdata->issymunique = NULL;
 
    for (i = 0; i < nvars; i++)
    {
