@@ -97,10 +97,8 @@ inherits all SCIP parameters. Here, we highlight some:
 ## License
 
 Copyright:
-
-2011-2013 Discrete Optimization, TU Darmstadt and EDOM, FAU Erlangen-Nürnberg
-
-2014- Discrete Optimization, TU Darmstadt
+- 2011-2013 Discrete Optimization, TU Darmstadt and EDOM, FAU Erlangen-Nürnberg
+- 2014- Discrete Optimization, TU Darmstadt
 
 Licensed under the Apache License, Version 2.0 (the "License"), see the `LICENSE` file.
 You may not use this file except in compliance with the License.
