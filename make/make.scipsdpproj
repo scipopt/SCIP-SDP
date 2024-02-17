@@ -85,6 +85,7 @@ STATICLAPACK	=	false
 LAPACKLONG	=	true
 PYTHON  	=   	none
 ARPACK		=	false
+CLOCKTYPE	=	1
 
 #-----------------------------------------------------------------------------
 # include default project Makefile from SCIP
