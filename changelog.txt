@@ -1,5 +1,5 @@
-SCIP-SDP version NEXT
-======================
+SCIP-SDP version 4.3
+====================
 
 features:
 - improved handling of Mosek enivronments for concurrent mode: free data of corresponding thread
