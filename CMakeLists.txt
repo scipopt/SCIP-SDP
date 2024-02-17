@@ -38,7 +38,7 @@ option(LAPACKLONG "use long long int for Lapack" ON)
 set(CMAKE_MACOSX_RPATH ON)
 
 if(LAPACKLONG)
-    add_definitions(-DLAPACKLONG)
+  add_definitions(-DLAPACKLONG)
 endif()
 
 #set defines for Windows
