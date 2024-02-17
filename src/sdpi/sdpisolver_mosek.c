@@ -128,6 +128,7 @@ struct SCIP_SDPiSolver
    SCIP_Real*            fixedvarsval;       /**< entry i gives the lower and upper bound of the i-th fixed variable */
    SCIP_Real             fixedvarsobjcontr;  /**< total contribution to the objective of all fixed variables, computed as sum obj * val */
    SCIP_Real*            objcoefs;           /**< objective coefficients of all active variables */
+   int                   nlpvars;            /**< number of variables corresponding to LP constraints */
    int                   nvarbounds;         /**< number of variable bounds given to MOSEK, length of varboundpos */
    int*                  varboundpos;        /**< maps position of primal variable corresponding to variable bound to the positions
                                               *   of the corresponding variables, -n means lower bound of variable n, +n means upper bound;
@@ -767,7 +768,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    int ind;
    SCIP_Real* mosekvarbounds;
    int nfixedvars;
-   int nlpvars;
    int* mosekblocksizes;
    SCIP_Real one = 1.0; /* MOSEK always wants a pointer to factors for a sum of matrices, we always use a single matrix with factor one */
    int* mosekrow;
@@ -895,6 +895,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
    sdpisolver->nvars = nvars;
    sdpisolver->nactivevars = 0;
    sdpisolver->nvarbounds = 0;
+   sdpisolver->nlpvars = 0;
    nfixedvars = 0;
    sdpisolver->fixedvarsobjcontr = 0.0;
    for (i = 0; i < nvars; i++)
@@ -953,7 +954,6 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       sdpisolver->fixedvarsobjcontr = 0.0;
 
    /* determine total number of sides in LP-constraints */
-   nlpvars = 0;
    if ( nlpcons > 0 )
    {
       for (i = 0; i < nlpcons; i++)
@@ -968,7 +968,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( REALABS(lplhs[i]) > maxrhscoef )
                maxrhscoef = REALABS(lplhs[i]);
 #endif
-            ++nlpvars;
+            ++sdpisolver->nlpvars;
          }
 
          if ( lprhs[i] < SCIPsdpiSolverInfinity(sdpisolver) )
@@ -978,10 +978,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             if ( REALABS(lprhs[i]) > maxrhscoef )
                maxrhscoef = REALABS(lprhs[i]);
 #endif
-            ++nlpvars;
+            ++sdpisolver->nlpvars;
          }
       }
-      assert( nlpvars <= 2 * nlpcons ); /* factor 2 comes from left- and right-hand-sides */
+      assert( sdpisolver->nlpvars <= 2 * nlpcons ); /* factor 2 comes from left- and right-hand-sides */
    }
 
    /* create matrix variables */
@@ -999,10 +999,10 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
 
    /* create scalar variables (since we solve the primal problem, these are not the active variables but the dual variables for the
     * lp constraints and variable bounds) */
-   MOSEK_CALLM( MSK_appendvars(sdpisolver->msktask, nlpvars + sdpisolver->nvarbounds) );/*lint !e641*/
+   MOSEK_CALLM( MSK_appendvars(sdpisolver->msktask, sdpisolver->nlpvars + sdpisolver->nvarbounds) );/*lint !e641*/
 
    /* the variables for the LP constraints and variable bounds are non-negative */
-   MOSEK_CALLM( MSK_putvarboundsliceconst(sdpisolver->msktask, 0, nlpvars + sdpisolver->nvarbounds, MSK_BK_LO, 0.0, MSK_INFINITY) );/*li
+   MOSEK_CALLM( MSK_putvarboundsliceconst(sdpisolver->msktask, 0, sdpisolver->nlpvars + sdpisolver->nvarbounds, MSK_BK_LO, 0.0, MSK_INFINITY) );
 
    /* append empty constraints (since we solve the primal problem, we get one constraint for each active variable) */
    MOSEK_CALLM( MSK_appendcons(sdpisolver->msktask, (penaltyparam < sdpisolver->epsilon) ? sdpisolver->nactivevars : sdpisolver->nactivevars + 1) );/*lint !e641*/
@@ -1094,12 +1094,12 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          ++ind;
       }
    }
-   assert( ind == nlpvars );
+   assert( ind == sdpisolver->nlpvars );
 
    /* finally for those corresponding to variable bounds in the dual */
    for (i = 0; i < sdpisolver->nvarbounds; i++)
    {
-      MOSEK_CALL( MSK_putcj(sdpisolver->msktask, nlpvars + i, mosekvarbounds[i]) );/*lint !e641*/ /* for the ub's we already added a negative sign in mosekvarbounds */
+      MOSEK_CALL( MSK_putcj(sdpisolver->msktask, sdpisolver->nlpvars + i, mosekvarbounds[i]) );/*lint !e641*/ /* for the ub's we already added a negative sign in mosekvarbounds */
 
 #if 0
       /* We currently do not include variable bounds in maxrhscoef, because it does not seem to be beneficial
@@ -1118,14 +1118,14 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       {
          /* give the variable a meaningful name for debug output */
          (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lb#%d", sdpisolver->mosektoinputmapper[-1 * sdpisolver->varboundpos[i] - 1]);
-         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, nlpvars + i, name) );
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, sdpisolver->nlpvars + i, name) );
       }
       else /* upper bound */
       {
          assert( sdpisolver->varboundpos[i] > 0 ); /* we should not have value 0 so that we can clearly differentiate between positive and negative */
          /* give the variable a meaningful name for debug output */
          (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "ub#%d", sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]);
-         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, nlpvars + i, name) );
+         MOSEK_CALL( MSK_putvarname(sdpisolver->msktask, sdpisolver->nlpvars + i, name) );
       }
 #endif
    }
@@ -1293,7 +1293,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             MOSEK_CALL( MSK_putacol(sdpisolver->msktask, varcnt++, mosekind, mosekrow, mosekval) );/*lint !e641*/
          }
       }
-      assert( varcnt == nlpvars );
+      assert( varcnt == sdpisolver->nlpvars );
 
       BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekval);
       BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &mosekrow);
@@ -1315,7 +1315,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
          row = sdpisolver->varboundpos[i] - 1; /* minus one because we added one to get strictly positive/negative values */
          val = -1.0;
       }
-      MOSEK_CALL( MSK_putacol(sdpisolver->msktask, nlpvars + i, 1, &row, &val) );/*lint !e641*/
+      MOSEK_CALL( MSK_putacol(sdpisolver->msktask, sdpisolver->nlpvars + i, 1, &row, &val) );/*lint !e641*/
    }
 
    /* possibly scale objective */
@@ -1573,7 +1573,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
             MOSEK_CALL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, &pobj, &pviolcon, &pviolvar, &pviolbarvar, NULL, NULL,
                &dobj, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
 
-            nprimalvars = nlpvars + sdpisolver->nvarbounds;
+            nprimalvars = sdpisolver->nlpvars + sdpisolver->nvarbounds;
             nprimalmatrixvars = nsdpblocks - nremovedblocks;
 
             /* get current solution */
@@ -1795,11 +1795,11 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
                }
 
                /* add primal lp-variables */
-               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &x, nlpvars + sdpisolver->nvarbounds) );
+               BMS_CALL( BMSallocBufferMemoryArray(sdpisolver->bufmem, &x, sdpisolver->nlpvars + sdpisolver->nvarbounds) );
 
                MOSEK_CALL( MSK_getxx(sdpisolver->msktask, MSK_SOL_ITR, x) );/*lint !e641*/
 
-               for (i = 0; i < nlpvars; i++)
+               for (i = 0; i < sdpisolver->nlpvars; i++)
                   trace += x[i];
 
                BMSfreeBufferMemoryArrayNull(sdpisolver->bufmem, &x);
@@ -2430,14 +2430,14 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalBoundVars(
       if ( sdpisolver->varboundpos[i] < 0 )
       {
          /* the last nvarbounds entries correspond to the varbounds; we need to unscale these values */
-         lbvals[sdpisolver->mosektoinputmapper[- sdpisolver->varboundpos[i] -1]] = primalvals[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
+         lbvals[sdpisolver->mosektoinputmapper[- sdpisolver->varboundpos[i] -1]] = primalvals[sdpisolver->nlpvars + i] * sdpisolver->objscalefactor;
       }
       else
       {  /* this is an upper bound */
          assert( sdpisolver->varboundpos[i] > 0 );
 
          /* the last nvarbounds entries correspond to the varbounds; we need to unscale these values */
-         ubvals[sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]] = primalvals[nprimalvars - sdpisolver->nvarbounds + i] * sdpisolver->objscalefactor;
+         ubvals[sdpisolver->mosektoinputmapper[sdpisolver->varboundpos[i] - 1]] = primalvals[sdpisolver->nlpvars + i] * sdpisolver->objscalefactor;
       }
    }
 
