@@ -32,12 +32,10 @@ set(scipsdpsources
     scipsdp/heur_sdpinnerlp.c
     scipsdp/heur_sdpfracdiving.c
     scipsdp/heur_sdprand.c
-    scipsdp/prop_sdpsymmetry.c
     scipsdp/prop_sdpobbt.c
     scipsdp/prop_companalcent.c
     scipsdp/reader_cbf.c
     scipsdp/reader_sdpa.c
-    scipsdp/sdpsymmetry.c
     scipsdp/table_relaxsdp.c
     scipsdp/table_slater.c
     scipsdp/scipsdpdefplugins.c
@@ -48,6 +46,15 @@ set(scipsdpsources
     sdpi/sdpiclock.c
     scipsdpgithash.c
 )
+
+# we need our own symmetry code for older SCIP versions
+if(SCIP_VERSION_MAJOR LESS 9)
+  set(scipsdpsources
+    ${scipsdpsources}
+    scipsdp/prop_sdpsymmetry.c
+    scipsdp/sdpsymmetry.c
+    )
+endif()
 
 set(objscipsdpsources
 )
@@ -99,14 +106,21 @@ set(scipsdpheaders
     scipsdp/heur_sdprand.h
     scipsdp/prop_sdpobbt.h
     scipsdp/prop_companalcent.h
-    scipsdp/prop_sdpsymmetry.h
     scipsdp/reader_cbf.h
     scipsdp/reader_sdpa.h
-    scipsdp/sdpsymmetry.h
     scipsdp/table_relaxsdp.h
     scipsdp/table_slater.h
     scipsdp/scipsdpdefplugins.h
 )
+
+# we need our own symmetry code for older SCIP versions
+if(SCIP_VERSION_MAJOR LESS 9)
+  set(scipsdpheaders
+    ${scipsdpheaders}
+    scipsdp/prop_sdpsymmetry.h
+    scipsdp/sdpsymmetry.h
+    )
+endif()
 
 # all source files should be compiled with a c++ compiler
 if(CXXONLY)
