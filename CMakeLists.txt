@@ -28,8 +28,11 @@ include_directories(${SCIP_INCLUDE_DIRS})
 set(SDPS none CACHE STRING "options for SDP solver")          # create the variable
 set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp none)  # define list of values GUI will offer for the variable
 
-set(SYM bliss CACHE STRING "options for symmetry computation")  #create the variable
-set_property(CACHE SYM PROPERTY STRINGS bliss none )  #define list of values GUI will offer for the variable
+# we only need the symmetry option for older SCIP versions
+if(SCIP_VERSION_MAJOR LESS 9)
+  set(SYM bliss CACHE STRING "options for symmetry computation")  #create the variable
+  set_property(CACHE SYM PROPERTY STRINGS bliss none )  #define list of values GUI will offer for the variable
+endif()
 
 # if we want long long ints for Lapack, e.g., for Matlab
 option(LAPACKLONG "use long long int for Lapack" ON)
@@ -100,9 +103,11 @@ else()
   message(FATAL_ERROR "Blas not found")
 endif()
 
-# search the selected symmetry computation program
-message(STATUS "Finding symmetry computation program \"${SYM}\"")
-if(SYM STREQUAL "bliss")
+# we only need our own symmetry code for older SCIP versions
+if(${SCIP_VERSION_MAJOR} LESS 9)
+  # search the selected symmetry computation program
+  message(STATUS "Finding symmetry computation program \"${SYM}\"")
+  if(SYM STREQUAL "bliss")
     message(STATUS "Finding BLISS")
     # search for the bliss package delivered with SCIP
     find_library(BLISS_LIBRARY
@@ -110,30 +115,31 @@ if(SYM STREQUAL "bliss")
       HINTS ${SCIP_DIR}
       PATH_SUFFIXES lib)
     if(BLISS_LIBRARY)
-        message(STATUS "Finding BLISS - found")
-	find_path(BLISS_INCLUDE_DIRS
-	  NAMES bliss/abstractgraph.hh
-	  HINTS ${SCIP_DIR}
-	  PATH_SUFFIXES ../src/bliss/include)
-	include_directories(${BLISS_INCLUDE_DIRS})
-        set(sym symmetry/compute_symmetry_bliss.cpp)
-        set(SYM_LIBRARIES ${BLISS_LIBRARY})
-        set(SYM_PIC_LIBRARIES ${BLISS_LIBRARIES})
-        if(BLISS_DEFINITIONS STREQUAL "")
-            add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${BLISS_DEFINITIONS}>")
-        endif()
+      message(STATUS "Finding BLISS - found")
+      find_path(BLISS_INCLUDE_DIRS
+	NAMES bliss/abstractgraph.hh
+	HINTS ${SCIP_DIR}
+	PATH_SUFFIXES ../src/bliss/include)
+      include_directories(${BLISS_INCLUDE_DIRS})
+      set(sym symmetry/compute_symmetry_bliss.cpp)
+      set(SYM_LIBRARIES ${BLISS_LIBRARY})
+      set(SYM_PIC_LIBRARIES ${BLISS_LIBRARIES})
+      if(BLISS_DEFINITIONS STREQUAL "")
+        add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:${BLISS_DEFINITIONS}>")
+      endif()
     else()
-        message(STATUS "Finding BLISS - not found")
-        set(sym symmetry/compute_symmetry_none.cpp)
+      message(STATUS "Finding BLISS - not found")
+      set(sym symmetry/compute_symmetry_none.cpp)
     endif()
 
     # compute_symmetry_bliss.cpp needsC++-17
     set(CMAKE_CXX_STANDARD 17)
-elseif(SYM STREQUAL "none")
+  elseif(SYM STREQUAL "none")
     message(STATUS "Support SYM: OFF")
     set(sym symmetry/compute_symmetry_none.cpp)
-else()
+  else()
     message(FATAL_ERROR "option SYM has wrong value")
+  endif()
 endif()
 
 # search for the selected SDP solver library

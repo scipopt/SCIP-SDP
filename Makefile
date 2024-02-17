@@ -134,18 +134,18 @@ SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/openblasinc
 SDPIINC		+= 	-I$(SCIPSDPLIBDIR)/include/openblasinc
 endif
 
-ifeq ($(SYM),bliss)
-FLAGS		+=	-I$(SCIPDIR)/src/bliss/src -I$(SCIPDIR)/src/bliss/include
-endif
-
 LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(COMP)$(LINKLIBSUFFIX).$(ZIMPL)-$(ZIMPLOPT).$(IPOPT)-$(IPOPTOPT).$(GAMS)
 
 
 #-----------------------------------------------------------------------------
 
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
-			$(OBJDIR)/sdpi \
-			$(OBJDIR)/symmetry
+			$(OBJDIR)/sdpi
+
+# add symmetry code for older SCIP versions
+ifneq ($(SCIP_VERSION_MAJOR),9)
+SDPOBJSUBDIRS	+=	$(OBJDIR)/symmetry
+endif
 
 #-----------------------------------------------------------------------------
 # OMPSETTINGS (used to set number of threads for OMP)
@@ -183,9 +183,7 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			scipsdp/reader_sdpa.o \
 			scipsdp/prop_sdpobbt.o \
 			scipsdp/prop_companalcent.o \
-			scipsdp/prop_sdpsymmetry.o \
 			scipsdp/scipsdpdefplugins.o \
-			scipsdp/sdpsymmetry.o \
 			scipsdp/table_relaxsdp.o \
 			scipsdp/table_slater.o \
 			sdpi/sdpi.o \
@@ -196,10 +194,16 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/sdpiclock.o \
 			scipsdpgithash.o
 
+# add symmetry code for older SCIP versions
+ifneq ($(SCIP_VERSION_MAJOR),9)
+SCIPSDPCOBJ	+=	scipsdp/prop_sdpsymmetry.o \
+			scipsdp/sdpsymmetry.o
 ifeq ($(SYM),bliss)
 SCIPSDPCCOBJ 	=	symmetry/compute_symmetry_bliss.o
+FLAGS		+=	-I$(SCIPDIR)/src/bliss/src -I$(SCIPDIR)/src/bliss/include
 else
 SCIPSDPCCOBJ 	+=	symmetry/compute_symmetry_none.o
+endif
 endif
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
@@ -390,15 +394,17 @@ ifneq ($(OBJDIR),)
 		@-rm -f $(LASTSETTINGS)
 		@-rm -f $(OBJDIR)/scipsdp/*.o
 		@-rm -f $(OBJDIR)/sdpi/*.o
-		@-rm -f $(OBJDIR)/symmetry/*.o
 		@-rm -f $(OBJDIR)/*.o
 		@-rm -f $(OBJDIR)/scipsdp/*.d
 		@-rm -f $(OBJDIR)/sdpi/*.d
-		@-rm -f $(OBJDIR)/symmetry/*.d
 		@-rm -f $(OBJDIR)/*.d
 		@-rmdir $(OBJDIR)/scipsdp
 	 	@-rmdir $(OBJDIR)/sdpi
+ifneq ($(SCIP_VERSION_MAJOR),9)
+		@-rm -f $(OBJDIR)/symmetry/*.o
+		@-rm -f $(OBJDIR)/symmetry/*.d
 	 	@-rmdir $(OBJDIR)/symmetry
+endif
 		@-rmdir $(OBJDIR)
 endif
 		-rm -f $(SCIPSDPBINFILE)

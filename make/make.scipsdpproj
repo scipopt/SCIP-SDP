@@ -135,9 +135,11 @@ include $(SCIPDIR)/make/make.project
 
 # override DEBUGTOOL   =   none
 
+ifneq ($(SCIP_VERSION_MAJOR),9)
 # we need C++-11 for Bliss
 ifeq ($(SYM),bliss)
 CXXFLAGS += $(CXX11FLAG)
+endif
 endif
 
 #-----------------------------------------------------------------------------
