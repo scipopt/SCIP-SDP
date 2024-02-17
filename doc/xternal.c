@@ -36,7 +36,7 @@
 
 /**@mainpage Overview
  *
- * @version 4.2.0
+ * @version 4.3.0
  * @author Marc Pfetsch; Sonja Mars, Lars Schewe, Tristan Gally, Frederic Matter, Christopher Hojny
  * @date 2011-2024
  *

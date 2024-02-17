@@ -6,7 +6,7 @@ project(SCIP-SDP)
 # set variables
 set(EXECUTABLE_NAME "scipsdp")
 set(SCIPSDP_VERSION_MAJOR 4)
-set(SCIPSDP_VERSION_MINOR 2)
+set(SCIPSDP_VERSION_MINOR 3)
 set(SCIPSDP_VERSION_PATCH 0)
 
 set(SRC src)
