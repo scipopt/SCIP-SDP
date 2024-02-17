@@ -12,17 +12,18 @@
             <li class="dropdown"> <a href="http://www.opt.tu-darmstadt.de/scipsdp/doc/html" class="dropdown-toggle" data-toggle="dropdown">Documentation <b class="caret"></b></a>
                <ul class="dropdown-menu">
                     <!--choose right folder for both versions-->
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-4.2.0/html">SCIP-SDP 4.2.0</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-4.1.0/html">SCIP-SDP 4.1.0</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-4.0.0/html">SCIP-SDP 4.0.0</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-3.2.0/html">SCIP-SDP 3.2.0</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-3.1.2/html">SCIP-SDP 3.1.2</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-3.1.1/html">SCIP-SDP 3.1.1</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-3.1.0/html">SCIP-SDP 3.1.0</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-3.0.1/html">SCIP-SDP 3.0.1</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-3.0.0/html">SCIP-SDP 3.0.0</a></li>
-		    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-2.1.0/html">SCIP-SDP 2.1.0</a></li>
-                    <li><a href="http://www.opt.tu-darmstadt.de/scipsdp/doc-2.0.0/html">SCIP-SDP 2.0.0</a></li>
+		    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-4.3.0/html">SCIP-SDP 4.3.0</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-4.2.0/html">SCIP-SDP 4.2.0</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-4.1.0/html">SCIP-SDP 4.1.0</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-4.0.0/html">SCIP-SDP 4.0.0</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-3.2.0/html">SCIP-SDP 3.2.0</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-3.1.2/html">SCIP-SDP 3.1.2</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-3.1.1/html">SCIP-SDP 3.1.1</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-3.1.0/html">SCIP-SDP 3.1.0</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-3.0.1/html">SCIP-SDP 3.0.1</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-3.0.0/html">SCIP-SDP 3.0.0</a></li>
+		    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-2.1.0/html">SCIP-SDP 2.1.0</a></li>
+                    <li><a href="https://www.opt.tu-darmstadt.de/scipsdp/doc-2.0.0/html">SCIP-SDP 2.0.0</a></li>
                </ul>
             </li>
         </ul>
