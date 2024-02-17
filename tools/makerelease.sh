@@ -14,6 +14,10 @@ echo ""
 tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     --exclude="*~" \
     --exclude=".*" \
+    --exclude=$NAME/src/scipsdp/prop_sdpsymmetry.c \
+    --exclude=$NAME/src/scipsdp/prop_sdpsymmetry.h \
+    --exclude=$NAME/src/scipsdp/sdpsymmetry.h \
+    --exclude=$NAME/src/scipsdp/sdpsymmetry.c \
     $NAME/Makefile \
     $NAME/make/make.scipsdpproj \
     $NAME/doc/scipsdp.dxy \
@@ -21,17 +25,17 @@ tar --no-recursion --ignore-failed-read -cvzhf $NAME.tgz \
     $NAME/doc/layout.xml \
     $NAME/instances/* \
     $NAME/INSTALL \
-    $NAME/license.txt \
+    $NAME/LICENSE \
     $NAME/changelog.txt \
     $NAME/sdpa_format.txt \
     $NAME/src/scipsdp/*.c $NAME/src/scipsdp/*.h \
     $NAME/src/sdpi/*.c $NAME/src/sdpi/*.cpp $NAME/src/sdpi/*.h \
-    $NAME/src/symmetry/*.cpp $NAME/src/symmetry/*.h \
     $NAME/src/scipsdpgithash.c \
     $NAME/check/testset/short.test \
     $NAME/check/testset/short.solu \
     $NAME/check/configuration_tmpfile_setup_scipsdp.sh \
     $NAME/check/check.awk \
+    $NAME/check/cmpres.sh \
     $NAME/check/cmpres.awk \
     $NAME/settings/lp_approx.set \
     $NAME/settings/concurrent2.set \
