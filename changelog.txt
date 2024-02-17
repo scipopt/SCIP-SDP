@@ -5,11 +5,15 @@ features:
 - improved handling of Mosek enivronments for concurrent mode: free data of corresponding thread
 - improved propagation of 3x3 minors by using that rows/columns are equal and do not need to check diagonal for t
 - use current bounds in prepareLPData to detect fixed variables
+- starting with SCIP 9, SCIP-SDP uses the callback functions of SCIP to compute the symmetry graph. The old code in
+  src/symmetry is deprecated and will be removed in one of the next releases.
+- renamed the file src/sdpi/config.h to src/sdpi/configf77.h
 
 API changes:
 - use const in SDPI and SDPI-solver interfaces
 
-Parameters:
+parameters:
+
 fixed bugs:
 - fidxed bug with calling tightenRowCoefs()
 - fixed generation of primal matrix with Mosek
@@ -19,6 +23,8 @@ fixed bugs:
 - change behavior of dependencies: now computed on the fly, while previously they were collected in a file;
   a make clean is needed whenever new files are added
 - add parameter to choose "long long int" for Lapack (make ... LAPACKLONG=true, cmake .. -DLAPACKLONG=on; default: true/on)
+- try to improve building with cmake on MacOS
+- rework handling of SDPA (now adapted for SDPA 7.4.4)
 
 SCIP-SDP version 4.2.0
 ======================
