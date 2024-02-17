@@ -173,6 +173,28 @@ endif()
 # go to src/ and compile the code
 add_subdirectory(src)
 
+# --------------------------------------------------------------
+# write log file
+file(WRITE ${CMAKE_BINARY_DIR}/cmake.log "# cmake parameters:\n")
+file(APPEND ${CMAKE_BINARY_DIR}/cmake.log "-DSCIP_DIR=${SCIP_DIR}")
+if(NOT SHARED)
+  file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DSHARED=on")
+endif()
+if(NOT LAPACKLONG)
+  file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DLAPACKLONG=off")
+endif()
+file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DSDPS=${SDPS}")
+if(SDPS STREQUAL "msk")
+  file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DMOSEK_DIR=${MOSEK_DIR}")
+elseif(SDPS STREQUAL "sdpa")
+  file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DSDPA_DIR=${SDPA_DIR}")
+elseif(SDPS STREQUAL "dsdp")
+  file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DDSDP_DIR=${DSDP_DIR}")
+endif()
+file(APPEND ${CMAKE_BINARY_DIR}/cmake.log "\n")
+message(STATUS "Written log file to ${CMAKE_BINARY_DIR}/cmake.log.")
+# --------------------------------------------------------------
+
 include(CTest)
 
 #
