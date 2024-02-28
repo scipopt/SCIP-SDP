@@ -81,7 +81,8 @@ jobs:
           name: upstream
 
   linux:
-    uses: sagemath/sage/.github/workflows/docker.yml@develop
+    # uses: sagemath/sage/.github/workflows/docker.yml@develop
+    uses: mkoeppe/sage/.github/workflows/docker.yml@scip_9
     with:
       # Extra system packages to install. See available packages at
       # https://github.com/sagemath/sage/tree/develop/build/pkgs
@@ -89,8 +90,8 @@ jobs:
       # Sage distribution packages to build
       targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES="soplex,scipoptsuite,dsdp,scip_sdp" scip_sdp
       # Standard setting: Test the current beta release of Sage:
-      sage_repo: sagemath/sage
-      sage_ref: develop
+      sage_repo:         sagemath/sage
+      sage_ref:          refs/pull/37494/head
       upstream_artifact: upstream
       # Docker targets (stages) to tag
       docker_targets: "with-targets"
@@ -101,10 +102,10 @@ jobs:
 
   macos:
     # Use https://github.com/sagemath/sage/pull/37237
-    uses: mkoeppe/sage/.github/workflows/macos.yml@ci-macos-2024
+    uses: mkoeppe/sage/.github/workflows/macos.yml@scip_9
     with:
       targets:           SAGE_CHECK=no SAGE_CHECK_PACKAGES="soplex,scipoptsuite,dsdp,scip_sdp" scip_sdp
       sage_repo:         sagemath/sage
-      sage_ref:          refs/pull/37237/head
+      sage_ref:          refs/pull/37494/head
       upstream_artifact: upstream
     needs: [dist]
