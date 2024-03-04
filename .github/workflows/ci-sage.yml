@@ -73,6 +73,7 @@ jobs:
           && mkdir -p upstream && cp build/pkgs/${{ env.SPKG }}/src/*.tar.gz upstream/${{ env.SPKG }}-git.tar.gz \
           && echo "sage-package create ${{ env.SPKG }} --version git --tarball ${{ env.SPKG }}-git.tar.gz --type=standard" > upstream/update-pkgs.sh \
           && if [ -n "${{ env.REMOVE_PATCHES }}" ]; then echo "(cd ../build/pkgs/${{ env.SPKG }}/patches && rm -f ${{ env.REMOVE_PATCHES }}; :)" >> upstream/update-pkgs.sh; fi \
+          && echo 'sed -i.bak s/4-9/5-9/ ../build/pkgs/gcc/spkg-configure.m4' >> upstream/update-pkgs.sh \
           && echo 'sed -i.bak s/PAPILO=on/PAPILO=off/ ../build/pkgs/{scip*,soplex}/spkg-install.in; sed -i.bak s/papilo// ../build/pkgs/{scip*,soplex}/dependencies' >> upstream/update-pkgs.sh \
           && ls -l upstream/
       - uses: actions/upload-artifact@v3
