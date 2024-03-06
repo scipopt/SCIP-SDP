@@ -73,6 +73,7 @@ jobs:
           && mkdir -p upstream && cp build/pkgs/${{ env.SPKG }}/src/*.tar.gz upstream/${{ env.SPKG }}-git.tar.gz \
           && echo "sage-package create ${{ env.SPKG }} --version git --tarball ${{ env.SPKG }}-git.tar.gz --type=standard" > upstream/update-pkgs.sh \
           && if [ -n "${{ env.REMOVE_PATCHES }}" ]; then echo "(cd ../build/pkgs/${{ env.SPKG }}/patches && rm -f ${{ env.REMOVE_PATCHES }}; :)" >> upstream/update-pkgs.sh; fi \
+          && echo 'sed -i.bak s/4-9/5-9/ ../build/pkgs/gcc/spkg-configure.m4' >> upstream/update-pkgs.sh \
           && echo 'sed -i.bak s/PAPILO=on/PAPILO=off/ ../build/pkgs/{scip*,soplex}/spkg-install.in; sed -i.bak s/papilo// ../build/pkgs/{scip*,soplex}/dependencies' >> upstream/update-pkgs.sh \
           && ls -l upstream/
       - uses: actions/upload-artifact@v3
@@ -81,16 +82,20 @@ jobs:
           name: upstream
 
   linux:
-    uses: sagemath/sage/.github/workflows/docker.yml@develop
+    # Use https://github.com/sagemath/sage/pull/37494
+    # uses: sagemath/sage/.github/workflows/docker.yml@develop
+    uses: mkoeppe/sage/.github/workflows/docker.yml@scip_9
     with:
       # Extra system packages to install. See available packages at
       # https://github.com/sagemath/sage/tree/develop/build/pkgs
       extra_sage_packages: "patch cmake gfortran openblas"
       # Sage distribution packages to build
-      targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES="soplex,scipoptsuite,dsdp,scip_sdp" scip_sdp
+      # Only warn, do not stop, on soplex test suite failures
+      # https://github.com/scipopt/soplex/issues/35
+      targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES="?soplex,scipoptsuite,dsdp,scip_sdp" scip_sdp
       # Standard setting: Test the current beta release of Sage:
-      sage_repo: sagemath/sage
-      sage_ref: develop
+      sage_repo:         sagemath/sage
+      sage_ref:          refs/pull/37494/head
       upstream_artifact: upstream
       # Docker targets (stages) to tag
       docker_targets: "with-targets"
@@ -100,11 +105,16 @@ jobs:
     needs: [dist]
 
   macos:
-    # Use https://github.com/sagemath/sage/pull/37237
-    uses: mkoeppe/sage/.github/workflows/macos.yml@ci-macos-2024
+    # Use https://github.com/sagemath/sage/pull/37494
+    uses: mkoeppe/sage/.github/workflows/macos.yml@scip_9
     with:
-      targets:           SAGE_CHECK=no SAGE_CHECK_PACKAGES="soplex,scipoptsuite,dsdp,scip_sdp" scip_sdp
+      # Only warn, do not stop, on soplex test suite failures
+      # https://github.com/scipopt/soplex/issues/35
+      targets:           SAGE_CHECK=no SAGE_CHECK_PACKAGES="?soplex,scipoptsuite,dsdp,scip_sdp" scip_sdp
+      # Naming the stage "1...anything" triggers "sage-local" artifacts to be uploaded
+      stage:             1-with-custom-targets
+      # Use https://github.com/sagemath/sage/pull/37494
       sage_repo:         sagemath/sage
-      sage_ref:          refs/pull/37237/head
+      sage_ref:          refs/pull/37494/head
       upstream_artifact: upstream
     needs: [dist]
