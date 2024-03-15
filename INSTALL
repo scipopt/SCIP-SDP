@@ -30,7 +30,7 @@ cd ..
 
 where /home/username/scipoptsuite-9.0.0/scip is the path to your SCIP directory.  Afterwards you can
 use "make" to compile the plugin. For SCIP-SDP the makefile option SDPS is mandatory. It defines the
-SDP-solver that should be used. You can choose between "dsdp", "mdk", "sdpa", and "none". (In the
+SDP-solver that should be used. You can choose between "dsdp", "msk", "sdpa", and "none". (In the
 latter case, you can only use LP-relaxations with additional cutting planes enforcing the positive
 semidefiniteness and need to disable SDP-relaxations by setting the relaxing/SDP/solvesds to
 false.)
