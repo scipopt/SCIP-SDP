@@ -251,7 +251,7 @@ SCIP_RETCODE SCIPlapackComputeIthEigenvalue(
 
    /* allocate workspace */
    LWORK = SCIP_RealTOINT(WSIZE);
-   LIWORK = WISIZE;
+   LIWORK = MAX(1, 10 * N);  /* the size is also returned in WISIZE, but is always equal to the value used here */
 
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORK, (int) LWORK) );
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IWORK, (int) LIWORK) );
@@ -470,7 +470,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorsNegative(
 
    /* allocate workspace */
    LWORK = SCIP_RealTOINT(WSIZE);
-   LIWORK = WISIZE;
+   LIWORK = MAX(1, 10 * N);  /* the size is also returned in WISIZE, but is always equal to the value used here */
 
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORK, (int) LWORK) );
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IWORK, (int) LIWORK) );
@@ -572,7 +572,7 @@ SCIP_RETCODE SCIPlapackComputeEigenvectorDecomposition(
 
    /* allocate workspace */
    LWORK = SCIP_RealTOINT(WSIZE);
-   LIWORK = WISIZE;
+   LIWORK = MAX(1, 10 * N);  /* the size is also returned in WISIZE, but is always equal to the value used here */
 
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &WORK, (int) LWORK) );
    BMS_CALL( BMSallocBufferMemoryArray(bufmem, &IWORK, (int) LIWORK) );
