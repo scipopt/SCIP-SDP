@@ -4644,7 +4644,11 @@ SCIP_RETCODE fixAndAggrVars(
             }
 
             /* get the variables this var was aggregated to */
+#if SCIP_VERSION_MAJOR >= 10
+            SCIP_CALL( SCIPgetProbvarLinearSum(scip, aggrvars, scalars, &naggrvars, globalnvars, &constant, &requiredsize) );
+#else
             SCIP_CALL( SCIPgetProbvarLinearSum(scip, aggrvars, scalars, &naggrvars, globalnvars, &constant, &requiredsize, TRUE) );
+#endif
             assert( requiredsize <= globalnvars ); /* requiredsize is the number of empty spots in aggrvars needed, globalnvars is the number
                                                     * of spots we provided */
 

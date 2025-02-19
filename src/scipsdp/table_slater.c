@@ -303,10 +303,17 @@ SCIP_RETCODE SCIPincludeTableSlater(
    SCIP_CALL( SCIPallocMemory(scip, &tabledata) );
 
    /* include statistics table (deactivated by default since it needs relax/slatercheck) */
+#if SCIP_VERSION_MAJOR >= 10
+   SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, FALSE,
+         tableCopySlater, tableFreeSlater, NULL, NULL,
+         tableInitsolSlater, NULL, tableOutputSlater, NULL,
+         tabledata, TABLE_POSITION, TABLE_EARLIEST_STAGE) );
+#else
    SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, FALSE,
          tableCopySlater, tableFreeSlater, NULL, NULL,
          tableInitsolSlater, NULL, tableOutputSlater,
          tabledata, TABLE_POSITION, TABLE_EARLIEST_STAGE) );
+#endif
 
    /* add "absolute" parameter */
    SCIP_CALL( SCIPaddBoolParam( scip, "table/slater/absolute", "Should statistics be printed in absolute numbers (true) or percentages (false)?",

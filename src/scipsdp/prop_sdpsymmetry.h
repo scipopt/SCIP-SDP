@@ -28,7 +28,7 @@
 
 /**@file   prop_sdpsymmetry.h
  * @ingroup PROPAGATORS
- * @brief  propagator for symmetry handling
+ * @brief  propagator for handling symmetries (only to be downward compatible)
  * @author Marc Pfetsch
  * @author Thomas Rehn
  * @author Christopher Hojny

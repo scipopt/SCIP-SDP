@@ -1231,7 +1231,11 @@ SCIP_RETCODE computeConflictCut(
          SCIP_Real locbound;
 
          /* only try to eliminate continuous variables from the cut */
+#if SCIP_VERSION_MAJOR >= 10
+         if ( SCIPvarGetType(vars[j]) != SCIP_VARTYPE_CONTINUOUS && SCIPvarGetImplType(vars[j]) == SCIP_IMPLINTTYPE_NONE )
+#else
          if ( SCIPvarGetType(vars[j]) != SCIP_VARTYPE_CONTINUOUS && SCIPvarGetType(vars[j]) != SCIP_VARTYPE_IMPLINT )
+#endif
             continue;
 
          QUAD_ARRAY_LOAD(c, cutcoefs, j);

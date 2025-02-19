@@ -28,7 +28,7 @@
 
 /**@file   prop_sdpsymmetry.c
  * @ingroup DEFPLUGINS_PROP
- * @brief  propagator for handling symmetries
+ * @brief  propagator for handling symmetries (only to be downward compatible)
  * @author Marc Pfetsch
  * @author Thomas Rehn
  * @author Christopher Hojny
@@ -165,6 +165,9 @@
 #include <scip/symmetry.h>
 
 #include <string.h>
+
+/* we only want to be downward compatible */
+#if SCIP_VERSION < 900
 
 /* propagator properties */
 #define PROP_NAME            "sdpsymmetry"
@@ -8165,3 +8168,5 @@ int SCIPgetSdpSymmetryNGenerators(
    else
       return propdata->nperms;
 }
+
+#endif /* SCIP_VERSION < 900 */

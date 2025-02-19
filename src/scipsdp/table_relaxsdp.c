@@ -273,10 +273,17 @@ SCIP_RETCODE SCIPincludeTableRelaxSdp(
    SCIP_CALL( SCIPallocMemory(scip, &tabledata) );
 
    /* include statistics table */
+#if SCIP_VERSION_MAJOR >= 10
+   SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, TABLE_ACTIVE,
+         tableCopyRelaxSdp, tableFreeRelaxSdp, NULL, NULL,
+         tableInitsolRelaxSdp, NULL, tableOutputRelaxSdp, NULL,
+         tabledata, TABLE_POSITION, TABLE_EARLIEST_STAGE) );
+#else
    SCIP_CALL( SCIPincludeTable(scip, TABLE_NAME, TABLE_DESC, TABLE_ACTIVE,
          tableCopyRelaxSdp, tableFreeRelaxSdp, NULL, NULL,
          tableInitsolRelaxSdp, NULL, tableOutputRelaxSdp,
          tabledata, TABLE_POSITION, TABLE_EARLIEST_STAGE) );
+#endif
 
    /* add "absolute" parameter */
    SCIP_CALL( SCIPaddBoolParam( scip, "table/relaxsdp/absolute", "Should statistics be printed in absolute numbers (true) or percentages (false)?",
