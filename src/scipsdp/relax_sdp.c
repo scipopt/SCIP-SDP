@@ -5450,6 +5450,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPsetRelaxCopy(scip, relax, relaxCopySdp) );
 
    /* add the following general parameter here, so it is copied to sub-SCIPs */
+   /* This parameter has type int, because we might want to add an "auto" option. */
    SCIP_CALL( SCIPaddIntParam(scip, "misc/solvesdps", "solve SDPs (1) or LPs (0)", NULL, FALSE, 1, 0, 1, SCIPparamChgdSolvesdps, NULL) );
 
    /* add parameters for SDP-solver */
