@@ -8886,6 +8886,7 @@ SCIP_DECL_CONSPARSE(consParseSdp)
    consdata->tracebound = -2.0;
    consdata->allmatricespsd = FALSE;
    consdata->initallmatricespsd = FALSE;
+   consdata->issymunique = NULL;
 
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->nvarnonz, nvars) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &consdata->col, nvars) );
