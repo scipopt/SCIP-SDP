@@ -78,11 +78,6 @@
 #define READER_EXTENSION        "cbf"
 
 #define CBF_VERSION_NR         3         /**< version number for CBF format */
-#define CBF_CHECK_NONNEG       TRUE      /**< when writing: check linear constraints and move nonnegativity(-positivity)
-                                           *  constraints to definition of variables (which are now defined in non-negative
-                                           *  orthant) */
-                                          /*  TODO: currently doesn't work for ranged rows (which are not created by sdpa
-                                           *  reader) */
 
 /* lengths of strings */
 #define CBF_MAX_LINE  512       /* Last 3 chars reserved for '\r\n\0' */
@@ -2590,18 +2585,21 @@ static
 SCIP_DECL_READERWRITE(readerWriteCbf)
 {  /*lint --e{715,818}*/
    const char* conshdlrname;
+   SCIP_CONS* cons;
    SCIP_VAR** linvars;
    SCIP_Real* linvals;
    SCIP_VAR** sdpvars;
    SCIP_Real** sdpval;
    SCIP_Real* sdpconstval;
+   SCIP_Real* linlhs;
+   SCIP_Real* linrhs;
+   int* linnvars;
    int** sdpcol;
    int** sdprow;
    int* sdpconstcol;
    int* sdpconstrow;
    int* sdpnvarnonz;
    int* varsenses;
-   int* consssenses;
    int nsdpconss;
    int nrank1sdpconss;
    int sdpnvars;
@@ -2615,9 +2613,12 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    int nnonz;
    int nbnonz;
    int nsenses;
-   int nconsssenses;
    int lastsense;
    int consind;
+   int nlinequations;
+   int nlinleq;
+   int nlingeq;
+   int cnt;
    int c;
    int i;
    int v;
@@ -2672,113 +2673,30 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       SCIP_Real lb;
       SCIP_Real ub;
 
-      assert( SCIPvarGetStatus(vars[v]) == SCIP_VARSTATUS_ORIGINAL );
-
-      lb = SCIPvarGetLbOriginal(vars[v]);
-      ub = SCIPvarGetUbOriginal(vars[v]);
-
-      varsenses[v] = 0;
-      if ( SCIPisZero(scip, lb) )
-         varsenses[v] = 1;
-      else
+      if ( transformed )
       {
-         if ( ! SCIPisInfinity(scip, -lb) )
-         {
-            SCIPerrorMessage("Can only handle variables with lower bound 0 or minus infinity.\n");
-            SCIPfreeBufferArray(scip, &varsenses);
-            return SCIP_READERROR; /*lint !e527*/
-         }
-      }
-
-      if ( SCIPisZero(scip, ub) )
-         varsenses[v] = -1;
-      else
-      {
-         if ( ! SCIPisInfinity(scip, ub) )
-         {
-            SCIPerrorMessage("Can only handle variables with upper bound 0 or infinity.\n");
-            SCIPfreeBufferArray(scip, &varsenses);
-            return SCIP_READERROR; /*lint !e527*/
-         }
-      }
-   }
-
-   /* now determine senses of constraints - possibly disable constraints */
-   SCIP_CALL( SCIPallocBufferArray(scip, &consssenses, nconss) );
-   for (c = 0; c < nconss; c++)
-   {
-      SCIP_Real lhs;
-      SCIP_Real rhs;
-
-      consssenses[c] = 2;
-
-      /* only count linear constraints */
-      if ( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") != 0 )
-         continue;
-
-      lhs = SCIPgetLhsLinear(scip, conss[c]);
-      rhs = SCIPgetRhsLinear(scip, conss[c]);
-
-#ifdef CBF_CHECK_NONNEG
-      /* check if there are constraints that would determine senses of variables */
-      if ( SCIPgetNVarsLinear(scip, conss[c]) == 1 && ! SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) )
-      {
-         /* the nonzero should be a true nonzero */
-         assert( ! SCIPisZero(scip, SCIPgetValsLinear(scip, conss[c])[0]) );
-         assert( SCIPgetVarsLinear(scip, conss[c]) != NULL );
-
-         v = SCIPvarGetProbindex(SCIPgetVarsLinear(scip, conss[c])[0]);
-         assert( 0 <= v && v < nvars );
-
-         if ( SCIPgetValsLinear(scip, conss[c])[0] > 0.0 )
-         {
-            if ( SCIPisZero(scip, lhs) )
-            {
-               varsenses[v] = 1;
-               continue;
-            }
-            else if ( SCIPisZero(scip, rhs) )
-            {
-               varsenses[v] = -1;
-               continue;
-            }
-         }
-         else
-         {
-            if ( SCIPisZero(scip, lhs) )
-            {
-               varsenses[v] = -1;
-               continue;
-            }
-            else if ( SCIPisZero(scip, rhs) )
-            {
-               varsenses[v] = 1;
-               continue;
-            }
-         }
-      }
-#endif
-
-      if ( SCIPisEQ(scip, lhs, rhs) )
-      {
-         assert( ! SCIPisInfinity(scip, -lhs) );
-         assert( ! SCIPisInfinity(scip, rhs) );
-         consssenses[c] = 0;
+         lb = SCIPvarGetLbLocal(vars[v]);
+         ub = SCIPvarGetUbLocal(vars[v]);
       }
       else
       {
-         if ( ! SCIPisInfinity(scip, -lhs) && ! SCIPisInfinity(scip, rhs) )
-         {
-            SCIPerrorMessage("Cannot handle ranged rows.\n");
-            SCIPfreeBufferArray(scip, &varsenses);
-            SCIPfreeBufferArray(scip, &consssenses);
-            return SCIP_READERROR; /*lint !e527*/
-         }
+         assert( SCIPvarGetStatus(vars[v]) == SCIP_VARSTATUS_ORIGINAL );
 
-         if ( ! SCIPisInfinity(scip, -lhs) )
-            consssenses[c] = 1;
-         else if ( ! SCIPisInfinity(scip, rhs) )
-            consssenses[c] = -1;
+         lb = SCIPvarGetLbOriginal(vars[v]);
+         ub = SCIPvarGetUbOriginal(vars[v]);
+      }
+
+      varsenses[v] = 0;  /* variable is free */
+
+      /* variable fixings are always handled through linear constraints */
+      if ( ! SCIPisEQ(scip, lb, ub) )
+      {
+         /* Handle 0 bounds directly; handle general bounds as linear constraints below (variable is marke as free) */
+         if ( SCIPisZero(scip, lb) )
+            varsenses[v] = 1;
+
+         if ( SCIPisZero(scip, ub) )
+            varsenses[v] = -1;
       }
    }
 
@@ -2839,74 +2757,123 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       SCIPinfoMessage(scip, file, "\n");
    }
 
-   /* compute different consssenses */
-   nsenses = 0;
-   lastsense = 3;
-   i = 0;
-   for (c = 0; c < nconss; c++)
+   /* determine number of equations and geq/leq linear constraints */
+   SCIP_CALL( SCIPallocBufferArray(scip, &linlhs, nconss + nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &linrhs, nconss + nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &linnvars, nconss + nvars) );
+   nlinequations = 0;
+   nlinleq = 0;
+   nlingeq = 0;
+   for (c = 0; c < nconss; ++c)
    {
-      if ( consssenses[c] == 2 )
-         continue;
+      SCIP_Real lhs;
+      SCIP_Real rhs;
+      int nlinvars;
 
-      ++i;
-      if ( consssenses[c] != lastsense )
+      /* only count linear constraints */
+      cons = conss[c];
+      conshdlrname = SCIPconshdlrGetName(SCIPconsGetHdlr(cons));
+      if ( strcmp(conshdlrname, "linear") == 0 )
       {
-         ++nsenses;
-         lastsense = consssenses[c];
+         lhs = SCIPgetLhsLinear(scip, cons);
+         rhs = SCIPgetRhsLinear(scip, cons);
+         nlinvars = SCIPgetNVarsLinear(scip, cons);
       }
-   }
-
-   assert( nsenses == 0 || i > 0 );
-   assert( nsenses > 0 || i == 0 );
-
-   /* write constraint senses if there are any linear constraints */
-   if ( nsenses > 0 )
-   {
-      SCIPinfoMessage(scip, file, "CON\n%d %d\n", i, nsenses);
-      nconsssenses = nsenses;
-      c = 0;
-      while (c < nconss && consssenses[c] == 2)
-         ++c;
-      if ( c < nconss )
-      {
-         lastsense = consssenses[c];
-         nsenses = 1;
-         ++c;
-         for (; c < nconss; ++c)
-         {
-            if ( consssenses[c] == 2 )
-               continue;
-
-            if ( consssenses[c] != lastsense )
-            {
-               if ( lastsense == 0 )
-                  SCIPinfoMessage(scip, file, "L= %d\n", nsenses);
-               else if ( lastsense == -1 )
-                  SCIPinfoMessage(scip, file, "L- %d\n", nsenses);
-               else
-               {
-                  assert( lastsense == 1 );
-                  SCIPinfoMessage(scip, file, "L+ %d\n", nsenses);
-               }
-               nsenses = 0;
-               lastsense = consssenses[c];
-            }
-            ++nsenses;
-         }
-      }
-      if ( lastsense == 0 )
-         SCIPinfoMessage(scip, file, "L= %d\n\n", nsenses);
-      else if ( lastsense == -1 )
-         SCIPinfoMessage(scip, file, "L- %d\n\n", nsenses);
       else
       {
-         assert( lastsense == 1 );
-         SCIPinfoMessage(scip, file, "L+ %d\n\n", nsenses);
+         linlhs[c] = SCIP_INVALID;
+         linrhs[c] = SCIP_INVALID;
+         linnvars[c] = -1;
+         continue;
       }
+
+      if ( SCIPisEQ(scip, lhs, rhs) )
+      {
+         assert( ! SCIPisInfinity(scip, -lhs) );
+         assert( ! SCIPisInfinity(scip, rhs) );
+         ++nlinequations;
+      }
+      else
+      {
+         if ( ! SCIPisInfinity(scip, -lhs) )
+            ++nlingeq;
+         if ( ! SCIPisInfinity(scip, rhs) )
+            ++nlinleq;
+      }
+
+      linlhs[c] = lhs;
+      linrhs[c] = rhs;
+      linnvars[c] = nlinvars;
    }
-   else
+
+   /* treat nonzero bounds */
+   for (v = 0; v < nvars; ++v)
    {
-      nconsssenses = 0;
+      SCIP_Real lb;
+      SCIP_Real ub;
+
+      if ( transformed )
+      {
+         lb = SCIPvarGetLbLocal(vars[v]);
+         ub = SCIPvarGetUbLocal(vars[v]);
+      }
+      else
+      {
+         assert( SCIPvarGetStatus(vars[v]) == SCIP_VARSTATUS_ORIGINAL );
+
+         lb = SCIPvarGetLbOriginal(vars[v]);
+         ub = SCIPvarGetUbOriginal(vars[v]);
+      }
+
+      if ( SCIPisEQ(scip, lb, ub) )
+      {
+         assert( ! SCIPisInfinity(scip, -lb) );
+         assert( ! SCIPisInfinity(scip, ub) );
+         ++nlinequations;
+      }
+      else
+      {
+         if ( ! SCIPisInfinity(scip, -lb) )
+         {
+            if ( ! SCIPisZero(scip, lb) )
+               ++nlingeq;
+            else
+               lb = - SCIPinfinity(scip);  /* remove variable bound (already covered by cones above) */
+         }
+         if ( ! SCIPisInfinity(scip, ub) )
+         {
+            if ( ! SCIPisZero(scip, ub) )
+               ++nlinleq;
+            else
+               ub = SCIPinfinity(scip);  /* remove variable bound (already covered by cones above) */
+         }
+      }
+
+      linlhs[nconss + v] = lb;
+      linrhs[nconss + v] = ub;
+      linnvars[nconss + v] = 1;
+   }
+
+   /* write constraint senses if there are any linear constraints */
+   if ( nlinequations + nlinleq + nlingeq > 0 )
+   {
+      cnt = 0;
+      if (nlinequations > 0 )
+         ++cnt;
+      if (nlinleq > 0 )
+         ++cnt;
+      if ( nlingeq > 0 )
+         ++cnt;
+
+      SCIPinfoMessage(scip, file, "CON\n%d %d\n", nlinequations + nlinleq + nlingeq, cnt);
+      if ( nlinequations > 0 )
+         SCIPinfoMessage(scip, file, "L= %d\n", nlinequations);
+      if ( nlingeq > 0 )
+         SCIPinfoMessage(scip, file, "L+ %d\n", nlingeq);
+      if ( nlinleq > 0 )
+         SCIPinfoMessage(scip, file, "L- %d\n", nlinleq);
+
+      SCIPinfoMessage(scip, file, "\n");
    }
 
    /* write SDP constraints if there are any */
@@ -2967,87 +2934,214 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    SCIPinfoMessage(scip, file, "\n");
 
    /* write coefficients of linear constraints */
-   if ( nconsssenses > 0 )
+   if ( nlinequations + nlinleq + nlingeq > 0 )
    {
       /* count number of nonzero coefficients in linear constraints */
       nnonz = 0;
       nbnonz = 0;
-      for (c = 0; c < nconss; c++)
+      for (c = 0; c < nconss + nvars; ++c)
       {
-         if ( consssenses[c] == -1 )
+         /* ignore constraints which are not linear */
+         if ( linnvars[c] < 0 )
+            continue;
+
+         assert( linlhs[c] != SCIP_INVALID );
+         assert( linrhs[c] != SCIP_INVALID );
+
+         if ( SCIPisEQ(scip, linlhs[c], linrhs[c]) )
          {
-            assert( ! SCIPisInfinity(scip, SCIPgetRhsLinear(scip, conss[c])) );
-            nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-            if ( ! SCIPisZero(scip, SCIPgetRhsLinear(scip, conss[c])) )
+            assert( ! SCIPisInfinity(scip, -linlhs[c]) );
+            assert( ! SCIPisInfinity(scip, linrhs[c]) );
+            nnonz += linnvars[c];
+            if ( ! SCIPisZero(scip, linlhs[c]) )
                ++nbnonz;
          }
-         else if ( consssenses[c] == 1 )
+         else
          {
-            assert( ! SCIPisInfinity(scip, -SCIPgetLhsLinear(scip, conss[c])) );
-            nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-            if ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
-               ++nbnonz;
-         }
-         else if ( consssenses[c] == 0 )
-         {
-            assert( SCIPisEQ(scip, SCIPgetLhsLinear(scip, conss[c]), SCIPgetRhsLinear(scip, conss[c])) );
-            nnonz += SCIPgetNVarsLinear(scip, conss[c]);
-            if ( ! SCIPisZero(scip, SCIPgetLhsLinear(scip, conss[c])) )
-               ++nbnonz;
+            if ( ! SCIPisInfinity(scip, -linlhs[c]) )
+            {
+               nnonz += linnvars[c];
+               if ( ! SCIPisZero(scip, linlhs[c]) )
+                  ++nbnonz;
+            }
+            if ( ! SCIPisInfinity(scip, linrhs[c]) )
+            {
+               nnonz += linnvars[c];
+               if ( ! SCIPisZero(scip, linrhs[c]) )
+                  ++nbnonz;
+            }
          }
       }
 
       /* write linear nonzero coefficients */
       SCIPinfoMessage(scip, file, "ACOORD\n%d\n", nnonz);
+
+      /* start with equations */
       consind = 0;
-      for (c = 0; c < nconss; c++)
+      cnt = 0;
+      for (c = 0; c < nconss + nvars; ++c)
       {
-         if ( consssenses[c] == -1 || consssenses[c] == 0 || consssenses[c] == 1 )
+         /* ignore constraints which are not linear */
+         if ( linnvars[c] < 0 )
+            continue;
+
+         if ( SCIPisEQ(scip, linlhs[c], linrhs[c]) )
          {
-            assert( strcmp(SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c])), "linear") == 0 );
-
-            linvars = SCIPgetVarsLinear(scip, conss[c]);
-            linvals = SCIPgetValsLinear(scip, conss[c]);
-
-            for (v = 0; v < SCIPgetNVarsLinear(scip, conss[c]); v++)
+            if ( c < nconss )
             {
-               i = SCIPvarGetProbindex(linvars[v]);
-               assert( 0 <= i && i < nvars );
-               SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, linvals[v]);
+               cons = conss[c];
+               linvars = SCIPgetVarsLinear(scip, cons);
+               linvals = SCIPgetValsLinear(scip, cons);
+
+               for (v = 0; v < linnvars[c]; ++v)
+               {
+                  i = SCIPvarGetProbindex(linvars[v]);
+                  assert( 0 <= i && i < nvars );
+                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, linvals[v]);
+                  ++cnt;
+               }
+               ++consind;
             }
-            ++consind;
+            else
+            {
+               /* handle variable fixings through linear constraints */
+               SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, c - nconss, 1.0);
+               ++consind;
+               ++cnt;
+            }
          }
       }
+
+      /* >= constraints */
+      for (c = 0; c < nconss + nvars; ++c)
+      {
+         /* ignore constraints which are not linear */
+         if ( linnvars[c] < 0 )
+            continue;
+
+         if ( ! SCIPisInfinity(scip, -linlhs[c]) && ! SCIPisEQ(scip, linlhs[c], linrhs[c]) )
+         {
+            if ( c < nconss )
+            {
+               cons = conss[c];
+               linvars = SCIPgetVarsLinear(scip, cons);
+               linvals = SCIPgetValsLinear(scip, cons);
+
+               for (v = 0; v < linnvars[c]; ++v)
+               {
+                  i = SCIPvarGetProbindex(linvars[v]);
+                  assert( 0 <= i && i < nvars );
+                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, linvals[v]);
+                  ++cnt;
+               }
+               ++consind;
+            }
+            else
+            {
+               SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, c - nconss, 1.0);
+               ++consind;
+               ++cnt;
+            }
+         }
+      }
+
+      /* <= constraints */
+      for (c = 0; c < nconss + nvars; ++c)
+      {
+         /* ignore constraints which are not linear */
+         if ( linnvars[c] < 0 )
+            continue;
+
+         if ( ! SCIPisInfinity(scip, linrhs[c]) && ! SCIPisEQ(scip, linlhs[c], linrhs[c]) )
+         {
+            if ( c < nconss )
+            {
+               cons = conss[c];
+               linvars = SCIPgetVarsLinear(scip, cons);
+               linvals = SCIPgetValsLinear(scip, cons);
+
+               for (v = 0; v < linnvars[c]; ++v)
+               {
+                  i = SCIPvarGetProbindex(linvars[v]);
+                  assert( 0 <= i && i < nvars );
+                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, linvals[v]);
+                  ++cnt;
+               }
+               ++consind;
+            }
+            else
+            {
+               SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, c - nconss, 1.0);
+               ++consind;
+               ++cnt;
+            }
+         }
+      }
+      assert( cnt == nnonz );
+      assert( consind == nlinequations + nlinleq + nlingeq );
       SCIPinfoMessage(scip, file, "\n");
 
       /* write constant part of linear constraints */
       SCIPinfoMessage(scip, file, "BCOORD\n%d\n", nbnonz);
+
+      /* equations */
       consind = 0;
-      for (c = 0; c < nconss; c++)
+      cnt = 0;
+      for (c = 0; c < nconss + nvars; ++c)
       {
-         SCIP_Real val;
-         if ( consssenses[c] == -1 )
+         /* ignore constraints which are not linear */
+         if ( linnvars[c] < 0 )
+            continue;
+
+         if ( SCIPisEQ(scip, linlhs[c], linrhs[c]) )
          {
-            val = SCIPgetRhsLinear(scip, conss[c]);
-            if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, -val);
-            consind++;
-         }
-         else if ( consssenses[c] == 1 )
-         {
-            val = SCIPgetLhsLinear(scip, conss[c]);
-            if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, -val);
-            consind++;
-         }
-         else if ( consssenses[c] == 0 )
-         {
-            val = SCIPgetLhsLinear(scip, conss[c]);
-            if ( ! SCIPisZero(scip, val) )
-               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, -val);
-            consind++;
+            if ( ! SCIPisZero(scip, linlhs[c]) )
+            {
+               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, - linlhs[c]);
+               ++cnt;
+            }
+            ++consind;
          }
       }
+
+      /* >= inequalities */
+      for (c = 0; c < nconss + nvars; ++c)
+      {
+         /* ignore constraints which are not linear */
+         if ( linnvars[c] < 0 )
+            continue;
+
+         if ( ! SCIPisInfinity(scip, -linlhs[c]) && ! SCIPisEQ(scip, linlhs[c], linrhs[c]) )
+         {
+            if ( ! SCIPisZero(scip, linlhs[c]) )
+            {
+               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, - linlhs[c]);
+               ++cnt;
+            }
+            ++consind;
+         }
+      }
+
+      /* <= inequalities */
+      for (c = 0; c < nconss + nvars; ++c)
+      {
+         /* ignore constraints which are not linear */
+         if ( linnvars[c] < 0 )
+            continue;
+
+         if ( ! SCIPisInfinity(scip, linrhs[c]) && ! SCIPisEQ(scip, linlhs[c], linrhs[c]) )
+         {
+            if ( ! SCIPisZero(scip, linrhs[c]) )
+            {
+               SCIPinfoMessage(scip, file, "%d %.15g\n", consind, - linrhs[c]);
+               ++cnt;
+            }
+            ++consind;
+         }
+      }
+      assert( cnt == nbnonz );
+      assert( consind == nlinequations + nlinleq + nlingeq );
+
       SCIPinfoMessage(scip, file, "\n");
    }
 
@@ -3151,7 +3245,9 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    SCIPfreeBufferArray(scip, &sdprow);
    SCIPfreeBufferArray(scip, &sdpcol);
    SCIPfreeBufferArray(scip, &sdpnvarnonz);
-   SCIPfreeBufferArray(scip, &consssenses);
+   SCIPfreeBufferArray(scip, &linnvars);
+   SCIPfreeBufferArray(scip, &linrhs);
+   SCIPfreeBufferArray(scip, &linlhs);
    SCIPfreeBufferArray(scip, &varsenses);
 
    *result = SCIP_SUCCESS;
