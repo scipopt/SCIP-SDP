@@ -2867,35 +2867,40 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
 
    /* write variable senses */
    SCIPinfoMessage(scip, file, "VAR\n%d %d\n", nvars, nsenses);
-   lastsense = varsenses[0];
-   nsenses = 1;
-   for (v = 1; v < nvars; v++)
+   if ( nvars > 0 )
    {
-      if ( varsenses[v] != lastsense )
+      lastsense = varsenses[0];
+      nsenses = 1;
+      for (v = 1; v < nvars; v++)
       {
-         if ( lastsense == 0 )
-            SCIPinfoMessage(scip, file, "F %d\n", nsenses);
-         else if ( lastsense == -1 )
-            SCIPinfoMessage(scip, file, "L- %d\n", nsenses);
-         else
+         if ( varsenses[v] != lastsense )
          {
-            assert( lastsense == 1 );
-            SCIPinfoMessage(scip, file, "L+ %d\n", nsenses);
+            if ( lastsense == 0 )
+               SCIPinfoMessage(scip, file, "F %d\n", nsenses);
+            else if ( lastsense == -1 )
+               SCIPinfoMessage(scip, file, "L- %d\n", nsenses);
+            else
+            {
+               assert( lastsense == 1 );
+               SCIPinfoMessage(scip, file, "L+ %d\n", nsenses);
+            }
+            nsenses = 0;
+            lastsense = varsenses[v];
          }
-         nsenses = 0;
-         lastsense = varsenses[v];
+         ++nsenses;
       }
-      ++nsenses;
+      if ( lastsense == 0 )
+         SCIPinfoMessage(scip, file, "F %d\n\n", nsenses);
+      else if ( lastsense == -1 )
+         SCIPinfoMessage(scip, file, "L- %d\n\n", nsenses);
+      else
+      {
+         assert( lastsense == 1 );
+         SCIPinfoMessage(scip, file, "L+ %d\n\n", nsenses);
+      }
    }
-   if ( lastsense == 0 )
-      SCIPinfoMessage(scip, file, "F %d\n\n", nsenses);
-   else if ( lastsense == -1 )
-      SCIPinfoMessage(scip, file, "L- %d\n\n", nsenses);
    else
-   {
-      assert( lastsense == 1 );
-      SCIPinfoMessage(scip, file, "L+ %d\n\n", nsenses);
-   }
+      SCIPinfoMessage(scip, file, "\n");
 
    /* write integrality constraints */
    if ( nbinvars + nintvars > 0 )
