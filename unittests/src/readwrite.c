@@ -296,6 +296,41 @@ Test(readwrite, test17)
 }
 
 /** Test 18 */
+Test(readwrite, test18)
+{
+   SCIP_Real obj1;
+   SCIP_Real obj2;
+   SCIP_Real obj3;
+
+   /* read problem and solve it */
+   SCIP_CALL_STOP( SCIPreadProb(scipsdp, "../lib/scip/check/instances/MIP/stein27.fzn", NULL) );
+
+   /* write problem in CBF format */
+   SCIP_CALL_STOP( SCIPwriteOrigProblem(scipsdp, "test18.cbf", "cbf", FALSE) );
+
+   /* write presolved problem */
+   SCIP_CALL_STOP( SCIPpresolve(scipsdp) );
+   SCIP_CALL_STOP( SCIPwriteTransProblem(scipsdp, "test18-pre.cbf", "cbf", FALSE) );
+
+   /* now solve */
+   SCIP_CALL_STOP( SCIPsolve(scipsdp) );
+   obj1 = SCIPgetDualbound(scipsdp);
+
+   /* read CBF problem again */
+   SCIP_CALL_STOP( SCIPreadProb(scipsdp, "test18.cbf", NULL) );
+   SCIP_CALL_STOP( SCIPsolve(scipsdp) );
+   obj2 = SCIPgetDualbound(scipsdp);
+
+   /* read CBF presolved problem again */
+   SCIP_CALL_STOP( SCIPreadProb(scipsdp, "test18-pre.cbf", NULL) );
+   SCIP_CALL_STOP( SCIPsolve(scipsdp) );
+   obj3 = SCIPgetDualbound(scipsdp);
+
+   cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA original) != %g (CBF written)\n", obj1, obj2);
+   cr_assert_float_eq(obj1, obj3, EPS, "Optimal values differ: %g (SDPA original) != %g (presolved CBF written)\n", obj1, obj3);
+}
+
+/** Test 19 */
 Test(readwrite, sign)
 {
    SCIP_Real obj1;
