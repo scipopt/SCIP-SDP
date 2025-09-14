@@ -2837,7 +2837,7 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       }
       else
       {
-         SCIPerrorMessage("CBF reader currently only supports linear and SDP constraints!\n");
+         SCIPerrorMessage("The CBF reader currently only supports linear/knapsack/logicor/setppc/varbound and SDP constraints!\n");
          return SCIP_READERROR; /*lint !e527*/
       }
    }
