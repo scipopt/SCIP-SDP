@@ -70,9 +70,11 @@
 
 #include "scipsdp/reader_cbf.h"
 #include "scipsdp/cons_sdp.h"
-#include "scip/cons_linear.h"
 #include "scip/cons_knapsack.h"
+#include "scip/cons_linear.h"
+#include "scip/cons_logicor.h"
 #include "scip/cons_setppc.h"
+#include "scip/cons_varbound.h"
 
 
 #define READER_NAME             "cbfreader"
@@ -2636,6 +2638,34 @@ SCIP_RETCODE getActiveVariables(
          activevals[v] = (SCIP_Real) weights[v];
       }
    }
+   else if ( strcmp(conshdlrname, "logicor") == 0 )
+   {
+      SCIP_VAR** logicorvars;
+
+      *lhs = 1.0;
+      *rhs = SCIPinfinity(scip);
+      *nactivevars = SCIPgetNVarsLogicor(scip, cons);
+
+      logicorvars = SCIPgetVarsLogicor(scip, cons);
+      for (v = 0; v < *nactivevars; ++v)
+      {
+         activevars[v] = logicorvars[v];
+         activevals[v] = 1.0;
+      }
+   }
+   else if ( strcmp(conshdlrname, "varbound") == 0 )
+   {
+      *lhs = SCIPgetLhsVarbound(scip, cons);
+      *rhs = SCIPgetRhsVarbound(scip, cons);
+
+      activevars[0] = SCIPgetVarVarbound(scip, cons);
+      activevals[0] = 1.0;
+
+      activevars[1] = SCIPgetVbdvarVarbound(scip, cons);
+      activevals[1] = SCIPgetVbdcoefVarbound(scip, cons);
+
+      *nactivevars = 2;
+   }
    else if ( strcmp(conshdlrname, "setppc") == 0 )
    {
       SCIP_SETPPCTYPE type;
@@ -2760,7 +2790,11 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          continue;
       if ( strcmp(conshdlrname, "knapsack") == 0 )
          continue;
+      if ( strcmp(conshdlrname, "logicor") == 0 )
+         continue;
       if ( strcmp(conshdlrname, "setppc") == 0 )
+         continue;
+      if ( strcmp(conshdlrname, "varbound") == 0 )
          continue;
       else if ( strcmp(conshdlrname, "SDP") == 0 )
          ++nsdpconss;
