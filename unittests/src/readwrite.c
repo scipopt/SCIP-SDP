@@ -303,7 +303,7 @@ Test(readwrite, test18)
    SCIP_Real obj3;
 
    /* read problem and solve it */
-   SCIP_CALL_STOP( SCIPreadProb(scipsdp, "../lib/scip/check/instances/MIP/stein27.fzn", NULL) );
+   SCIP_CALL_STOP( SCIPreadProb(scipsdp, "../lib/scip/check/instances/MIP/gt2.mps", NULL) );
 
    /* write problem in CBF format */
    SCIP_CALL_STOP( SCIPwriteOrigProblem(scipsdp, "test18.cbf", "cbf", FALSE) );
