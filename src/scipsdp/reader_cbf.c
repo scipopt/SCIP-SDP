@@ -71,6 +71,8 @@
 #include "scipsdp/reader_cbf.h"
 #include "scipsdp/cons_sdp.h"
 #include "scip/cons_linear.h"
+#include "scip/cons_knapsack.h"
+#include "scip/cons_setppc.h"
 
 
 #define READER_NAME             "cbfreader"
@@ -2580,19 +2582,138 @@ SCIP_DECL_READERREAD(readerReadCbf)
 }
 
 
+/** active variables for contraint */
+static
+SCIP_RETCODE getActiveVariables(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONS*            cons,               /**< given constraint */
+   SCIP_Bool             transformed,        /**< whether we are transposed */
+   int                   size,               /**< size of arrays */
+   SCIP_Real*            lhs,                /**< resulting lsh */
+   SCIP_Real*            rhs,                /**< resulting lsh */
+   SCIP_VAR**            activevars,         /**< resulting active variables */
+   SCIP_Real*            activevals,         /**< resulting active coefficients */
+   int*                  nactivevars         /**< pointer to number of active variables */
+   )
+{
+   const char* conshdlrname;
+   SCIP_Real constant = 0.0;
+   int requiredsize;
+   int v;
+
+   assert( scip != NULL );
+   assert( cons != NULL );
+   assert( lhs != NULL );
+   assert( rhs != NULL );
+   assert( activevars != NULL );
+   assert( activevals != NULL );
+   assert( nactivevars != NULL );
+
+   conshdlrname = SCIPconshdlrGetName(SCIPconsGetHdlr(cons));
+   if ( strcmp(conshdlrname, "linear") == 0 )
+   {
+      *lhs = SCIPgetLhsLinear(scip, cons);
+      *rhs = SCIPgetRhsLinear(scip, cons);
+      *nactivevars = SCIPgetNVarsLinear(scip, cons);
+
+      BMScopyMemoryArray(activevars, SCIPgetVarsLinear(scip, cons), *nactivevars);
+      BMScopyMemoryArray(activevals, SCIPgetValsLinear(scip, cons), *nactivevars);
+   }
+   else if ( strcmp(conshdlrname, "knapsack") == 0 )
+   {
+      SCIP_VAR** knapvars;
+      SCIP_Longint* weights;
+
+      *lhs = - SCIPinfinity(scip);
+      *rhs = (SCIP_Real) SCIPgetCapacityKnapsack(scip, cons);
+      *nactivevars = SCIPgetNVarsKnapsack(scip, cons);
+
+      knapvars = SCIPgetVarsKnapsack(scip, cons);
+      weights = SCIPgetWeightsKnapsack(scip, cons);
+      for (v = 0; v < *nactivevars; ++v)
+      {
+         activevars[v] = knapvars[v];
+         activevals[v] = (SCIP_Real) weights[v];
+      }
+   }
+   else if ( strcmp(conshdlrname, "setppc") == 0 )
+   {
+      SCIP_SETPPCTYPE type;
+
+      type = SCIPgetTypeSetppc(scip, cons);
+      if ( type == SCIP_SETPPCTYPE_PARTITIONING )
+      {
+         *lhs = 1.0;
+         *rhs = 1.0;
+      }
+      else if ( type == SCIP_SETPPCTYPE_PACKING )
+      {
+         *lhs = - SCIPinfinity(scip);
+         *rhs = 1.0;
+      }
+      else
+      {
+         *lhs = 1.0;
+         *rhs = SCIPinfinity(scip);
+      }
+      *nactivevars = SCIPgetNVarsSetppc(scip, cons);
+
+      BMScopyMemoryArray(activevars, SCIPgetVarsSetppc(scip, cons), *nactivevars);
+      for (v = 0; v < *nactivevars; ++v)
+         activevals[v] = 1.0;
+   }
+   else
+   {
+      *lhs = SCIP_INVALID;
+      *rhs = SCIP_INVALID;
+      *nactivevars = -1;
+      return SCIP_OKAY;
+   }
+
+   if ( transformed )
+   {
+      SCIP_CALL( SCIPgetProbvarLinearSum(scip, activevars, activevals, nactivevars, size, &constant, &requiredsize, TRUE) );
+      assert( requiredsize <= size );
+   }
+   else
+   {
+      for (v = 0; v < *nactivevars; ++v)
+      {
+         SCIP_CALL( SCIPvarGetOrigvarSum(&activevars[v], &activevals[v], &constant) );
+
+         /* negated variables with an original counterpart may also be returned by SCIPvarGetOrigvarSum(); make sure we
+          * get the original variable in that case. */
+         if ( SCIPvarGetStatus(activevars[v]) == SCIP_VARSTATUS_NEGATED )
+         {
+            activevars[v] = SCIPvarGetNegatedVar(activevars[v]);
+            constant += activevals[v];
+            activevals[v] *= -1.0;
+         }
+      }
+   }
+
+   if ( ! SCIPisInfinity(scip, -(*lhs)) )
+      *lhs -= constant;
+   if ( ! SCIPisInfinity(scip, *rhs) )
+      *rhs -= constant;
+
+   return SCIP_OKAY;
+}
+
+
 /** problem writing method of reader */
 static
 SCIP_DECL_READERWRITE(readerWriteCbf)
 {  /*lint --e{715,818}*/
    const char* conshdlrname;
-   SCIP_CONS* cons;
-   SCIP_VAR** linvars;
-   SCIP_Real* linvals;
    SCIP_VAR** sdpvars;
    SCIP_Real** sdpval;
    SCIP_Real* sdpconstval;
    SCIP_Real* linlhs;
    SCIP_Real* linrhs;
+   SCIP_VAR** activevars = NULL;
+   SCIP_Real* activevals = NULL;
+   int nactivevars;
    int* linnvars;
    int** sdpcol;
    int** sdprow;
@@ -2629,12 +2750,6 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    SCIPdebugMsg(scip, "Writing problem in CBF format to file.\n");
    *result = SCIP_DIDNOTRUN;
 
-   if ( transformed )
-   {
-      SCIPerrorMessage("CBF reader currently only supports writing original problems!\n");
-      return SCIP_READERROR; /*lint !e527*/
-   }
-
    /* check types of constraints and count number of sdp constraints */
    nsdpconss = 0;
    nrank1sdpconss = 0;
@@ -2642,6 +2757,10 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    {
       conshdlrname = SCIPconshdlrGetName(SCIPconsGetHdlr(conss[c]));
       if ( strcmp(conshdlrname, "linear") == 0 )
+         continue;
+      if ( strcmp(conshdlrname, "knapsack") == 0 )
+         continue;
+      if ( strcmp(conshdlrname, "setppc") == 0 )
          continue;
       else if ( strcmp(conshdlrname, "SDP") == 0 )
          ++nsdpconss;
@@ -2761,6 +2880,9 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    SCIP_CALL( SCIPallocBufferArray(scip, &linlhs, nconss + nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &linrhs, nconss + nvars) );
    SCIP_CALL( SCIPallocBufferArray(scip, &linnvars, nconss + nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &activevars, nvars) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &activevals, nvars) );
+
    nlinequations = 0;
    nlinleq = 0;
    nlingeq = 0;
@@ -2768,24 +2890,17 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    {
       SCIP_Real lhs;
       SCIP_Real rhs;
-      int nlinvars;
 
-      /* only count linear constraints */
-      cons = conss[c];
-      conshdlrname = SCIPconshdlrGetName(SCIPconsGetHdlr(cons));
-      if ( strcmp(conshdlrname, "linear") == 0 )
-      {
-         lhs = SCIPgetLhsLinear(scip, cons);
-         rhs = SCIPgetRhsLinear(scip, cons);
-         nlinvars = SCIPgetNVarsLinear(scip, cons);
-      }
-      else
-      {
-         linlhs[c] = SCIP_INVALID;
-         linrhs[c] = SCIP_INVALID;
-         linnvars[c] = -1;
+      /* get information on linear constraints */
+      SCIP_CALL( getActiveVariables(scip, conss[c], transformed, nvars, &lhs, &rhs, activevars, activevals, &nactivevars) );
+
+      linlhs[c] = lhs;
+      linrhs[c] = rhs;
+      linnvars[c] = nactivevars;
+
+      /* skip constraints that are not linear */
+      if ( nactivevars < 0 )
          continue;
-      }
 
       if ( SCIPisEQ(scip, lhs, rhs) )
       {
@@ -2800,10 +2915,6 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          if ( ! SCIPisInfinity(scip, rhs) )
             ++nlinleq;
       }
-
-      linlhs[c] = lhs;
-      linrhs[c] = rhs;
-      linnvars[c] = nlinvars;
    }
 
    /* treat nonzero bounds */
@@ -2936,6 +3047,9 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    /* write coefficients of linear constraints */
    if ( nlinequations + nlinleq + nlingeq > 0 )
    {
+      SCIP_Real lhs;
+      SCIP_Real rhs;
+
       /* count number of nonzero coefficients in linear constraints */
       nnonz = 0;
       nbnonz = 0;
@@ -2989,15 +3103,15 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          {
             if ( c < nconss )
             {
-               cons = conss[c];
-               linvars = SCIPgetVarsLinear(scip, cons);
-               linvals = SCIPgetValsLinear(scip, cons);
+               /* get information on linear constraints */
+               SCIP_CALL( getActiveVariables(scip, conss[c], transformed, nvars, &lhs, &rhs, activevars, activevals, &nactivevars) );
+               assert( nactivevars == linnvars[c] );
 
-               for (v = 0; v < linnvars[c]; ++v)
+               for (v = 0; v < nactivevars; ++v)
                {
-                  i = SCIPvarGetProbindex(linvars[v]);
+                  i = SCIPvarGetProbindex(activevars[v]);
                   assert( 0 <= i && i < nvars );
-                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, linvals[v]);
+                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, activevals[v]);
                   ++cnt;
                }
                ++consind;
@@ -3023,15 +3137,15 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          {
             if ( c < nconss )
             {
-               cons = conss[c];
-               linvars = SCIPgetVarsLinear(scip, cons);
-               linvals = SCIPgetValsLinear(scip, cons);
+               /* get information on linear constraints */
+               SCIP_CALL( getActiveVariables(scip, conss[c], transformed, nvars, &lhs, &rhs, activevars, activevals, &nactivevars) );
+               assert( nactivevars == linnvars[c] );
 
-               for (v = 0; v < linnvars[c]; ++v)
+               for (v = 0; v < nactivevars; ++v)
                {
-                  i = SCIPvarGetProbindex(linvars[v]);
+                  i = SCIPvarGetProbindex(activevars[v]);
                   assert( 0 <= i && i < nvars );
-                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, linvals[v]);
+                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, activevals[v]);
                   ++cnt;
                }
                ++consind;
@@ -3056,15 +3170,15 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
          {
             if ( c < nconss )
             {
-               cons = conss[c];
-               linvars = SCIPgetVarsLinear(scip, cons);
-               linvals = SCIPgetValsLinear(scip, cons);
+               /* get information on linear constraints */
+               SCIP_CALL( getActiveVariables(scip, conss[c], transformed, nvars, &lhs, &rhs, activevars, activevals, &nactivevars) );
+               assert( nactivevars == linnvars[c] );
 
-               for (v = 0; v < linnvars[c]; ++v)
+               for (v = 0; v < nactivevars; ++v)
                {
-                  i = SCIPvarGetProbindex(linvars[v]);
+                  i = SCIPvarGetProbindex(activevars[v]);
                   assert( 0 <= i && i < nvars );
-                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, linvals[v]);
+                  SCIPinfoMessage(scip, file, "%d %d %.15g\n", consind, i, activevals[v]);
                   ++cnt;
                }
                ++consind;
@@ -3245,6 +3359,8 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
    SCIPfreeBufferArray(scip, &sdprow);
    SCIPfreeBufferArray(scip, &sdpcol);
    SCIPfreeBufferArray(scip, &sdpnvarnonz);
+   SCIPfreeBufferArray(scip, &activevars);
+   SCIPfreeBufferArray(scip, &activevals);
    SCIPfreeBufferArray(scip, &linnvars);
    SCIPfreeBufferArray(scip, &linrhs);
    SCIPfreeBufferArray(scip, &linlhs);
