@@ -3,6 +3,12 @@ SCIP-SDP version 4.4
 
 features:
 - adapted to SCIP 10
+- allow to write transformed problems in CBF format; this includes:
+  + The following general types of linear constraints are handled: knapsack, linear, logicor, setppc, varbound.
+  + Ranged constraints (lhs and rhs) are allowed now.
+  + General variables bounds are allowed now.
+  + The objective offset is read and written.
+  + The corresponding unit tests have been extended significantly.
 
 fixed bugs:
 - make Lapack call to eigenvalue computation even more independent of integer size
