@@ -3110,14 +3110,14 @@ SCIP_DECL_READERWRITE(readerWriteCbf)
       obj = SCIPvarGetObj(vars[v]);
       if ( ! SCIPisZero(scip, obj) )
       {
-         SCIPinfoMessage(scip, file, "%d %.15g\n", v, obj);
+         SCIPinfoMessage(scip, file, "%d %.15g\n", v, objscale * obj);
       }
    }
    SCIPinfoMessage(scip, file, "\n");
 
    /* write objective offset */
    if ( ! SCIPisZero(scip, objoffset) )
-      SCIPinfoMessage(scip, file, "OBJBCOORD\n%g\n\n", objoffset);
+      SCIPinfoMessage(scip, file, "OBJBCOORD\n%g\n\n", objscale * objoffset);
 
    /* write coefficients of linear constraints */
    if ( nlinequations + nlinleq + nlingeq > 0 )
