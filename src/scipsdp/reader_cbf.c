@@ -1327,6 +1327,39 @@ SCIP_RETCODE CBFreadObjAcoord(
    return SCIP_OKAY;
 }
 
+/** reads objective offset from given CBF-file */
+static
+SCIP_RETCODE CBFreadObjBcoord(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_READERDATA*      readerdata,         /**< reader data */
+   CBF_DATA*             data,               /**< data pointer to save the results in */
+   SCIP_FILE*            pfile,              /**< file to read from */
+   SCIP_Longint*         linecount           /**< current linecount */
+   )
+{  /*lint --e{818}*/
+   SCIP_Real val;
+
+   assert( scip != NULL );
+   assert( data != NULL );
+   assert( pfile != NULL );
+   assert( linecount != NULL );
+
+   /* skip first line */
+   SCIP_CALL( CBFfgets(scip, data, pfile, linecount, TRUE) );
+
+   if ( sscanf(data->linebuffer, "%lf", &val) != 1 )
+   {
+      SCIPerrorMessage("Could not read entry of OBJBCOORD in line %" SCIP_LONGINT_FORMAT ".\n", *linecount);
+      SCIP_CALL( CBFfreeData(scip, pfile, data) );
+      return SCIP_READERROR;
+   }
+
+   assert( SCIPisEQ(scip, SCIPgetOrigObjoffset(scip), 0.0) );
+   SCIP_CALL( SCIPaddOrigObjoffset(scip, val) );
+
+   return SCIP_OKAY;
+}
+
 /** reads matrix variable coefficients from given CBF-file */
 static
 SCIP_RETCODE CBFreadFcoord(
@@ -2359,9 +2392,8 @@ SCIP_DECL_READERREAD(readerReadCbf)
             }
             else if ( strcmp(data->namebuffer, "OBJBCOORD") == 0 )
             {
-               SCIPerrorMessage("constant part in objective value not supported by SCIP!\n");
-               SCIP_CALL( CBFfreeData(scip, scipfile, data) );
-               return SCIP_READERROR; /*lint !e527*/
+               SCIPdebugMsg(scip, "Reading OBJbCOORD\n");
+               SCIP_CALL( CBFreadObjBcoord(scip, readerdata, data, scipfile, &linecount) );
             }
             else if ( strcmp(data->namebuffer, "FCOORD") == 0 )
             {
