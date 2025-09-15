@@ -54,7 +54,7 @@ SCIPSDPLIBDIR	=	$(SCIPSDPREALPATH)/lib
 # own variables
 #-----------------------------------------------------------------------------
 
-SCIPSDPVERSION	=	4.3.0
+SCIPSDPVERSION	=	4.4.0
 SCIPSDPGITHASH	=
 SDPS		=	none
 
