@@ -1500,7 +1500,11 @@ SCIP_RETCODE generateConflictCons(
 #ifndef WITH_DEBUG_SOLUTION
       if ( cnt > 0 )
       {
+#if SCIP_VERSION < 1000
          SCIP_CALL( SCIPaddConflict(scip, NULL, cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut && ! SCIPisInfinity(scip, SCIPgetCutoffbound(scip))) );
+#else
+         SCIP_CALL( SCIPaddConflict(scip, NULL, &cons, NULL, SCIP_CONFTYPE_UNKNOWN, relaxdata->conflictobjcut && ! SCIPisInfinity(scip, SCIPgetCutoffbound(scip))) );
+#endif
       }
       else
 #endif

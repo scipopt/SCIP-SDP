@@ -67,8 +67,10 @@
 
 #include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
 #include "scip/cons_nonlinear.h"        /* for newer SCIP versions */
+#if SCIP_VERSION < 1000
 #include "scip/cons_quadratic.h"        /* for SCIPcreateConsBasicQuadratic */
 #include "scip/cons_soc.h"              /* for SCIPcreateConsSOC */
+#endif
 #include "scip/cons_linear.h"           /* for separateSol() */
 #include "scip/scip_cons.h"             /* for SCIPgetConsVars */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */

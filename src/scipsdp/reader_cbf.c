@@ -2734,7 +2734,11 @@ SCIP_RETCODE getActiveVariables(
 
    if ( transformed )
    {
+#if SCIP_VERSION < 1000
       SCIP_CALL( SCIPgetProbvarLinearSum(scip, activevars, activevals, nactivevars, size, &constant, &requiredsize, TRUE) );
+#else
+      SCIP_CALL( SCIPgetProbvarLinearSum(scip, activevars, activevals, nactivevars, size, &constant, &requiredsize) );
+#endif
       assert( requiredsize <= size );
    }
    else
