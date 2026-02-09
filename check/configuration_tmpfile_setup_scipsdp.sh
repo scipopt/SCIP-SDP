@@ -53,7 +53,7 @@ CLOCKTYPE="${21}"      # - clocktype (1 = CPU, 2 = wallclock)
 SOLFILE=$CLIENTTMPDIR/${USER}-tmpdir/$SOLBASENAME.sol
 
 # reset TMPFILE
-echo > $TMPFILE
+echo > ${TMPFILE}
 
 # read in settings (even when using default, see bugzilla 600)
 SETTINGS=$SCIPPATH/../settings/$SETNAME.set
@@ -67,34 +67,34 @@ echo set load $SETTINGS            >>  $TMPFILE
 # set non-default feasibility tolerance
 if test $FEASTOL != "default"
 then
-    echo set numerics feastol $FEASTOL >> $TMPFILE
+    echo set numerics feastol $FEASTOL >> ${TMPFILE}
 fi
 
 # if permutation counter is positive add permutation seed (0 = default)
 PERM=$(($p + $STARTPERM))
 if test $PERM -gt 0
 then
-    echo set randomization permutationseed $PERM   >> $TMPFILE
+    echo set randomization permutationseed $PERM   >> ${TMPFILE}
 fi
 
 # set random seed shift
 SEED=$(($s + $GLBSEEDSHIFT))
 if test $SEED -gt 0
 then
-    echo set randomization randomseedshift $SEED >> $TMPFILE
+    echo set randomization randomseedshift $SEED >> ${TMPFILE}
 fi
 
 # avoid solving LPs in case of LPS=none
 if test "$LPS" = "none"
 then
-    echo set lp solvefreq -1           >> $TMPFILE
+    echo set lp solvefreq -1           >> ${TMPFILE}
 fi
 
 # set reference value
 if test "$OBJECTIVEVAL" != ""
 then
     #echo "Reference value $OBJECTIVEVAL"
-    echo set misc referencevalue $OBJECTIVEVAL      >> $TMPFILE
+    echo set misc referencevalue $OBJECTIVEVAL      >> ${TMPFILE}
 fi
 
 INSTANCENAME=${INSTANCE%%.gz}
@@ -105,57 +105,61 @@ done
 INSTANCESETTINGSFILE=${INSTANCENAME}.set
 if test -f $INSTANCESETTINGSFILE
 then
-    echo set load ${INSTANCESETTINGSFILE} >> $TMPFILE
+    echo set load ${INSTANCESETTINGSFILE} >> ${TMPFILE}
 fi
 
 if  [ "${EMPHBENCHMARK}" = true ] ; then
     echo "set emphasis benchmark"        >> "${TMPFILE}" # avoid switching to dfs etc. - better abort with memory error; this has to be first
 fi
-echo "set limits time ${TIMELIMIT}"        >> $TMPFILE
-echo "set limits nodes ${NODELIMIT}"       >> $TMPFILE
-echo "set limits memory ${MEMLIMIT}"       >> $TMPFILE
-echo "set lp advanced threads ${THREADS}"  >> $TMPFILE
-echo "set relaxing SDP advanced sdpsolverthreads ${THREADS}" >> $TMPFILE    # adaptation for SCIPSDP
-echo "set timing clocktype ${CLOCKTYPE}"   >> $TMPFILE
-echo "set display freq ${DISPFREQ}"        >> $TMPFILE
-echo "set save ${SETFILE}"                 >> $TMPFILE
+echo "set limits time ${TIMELIMIT}"        >> ${TMPFILE}
+echo "set limits nodes ${NODELIMIT}"       >> ${TMPFILE}
+echo "set limits memory ${MEMLIMIT}"       >> ${TMPFILE}
+if [[ "${OPTCOMMAND}" =~ ^concurrent ]] ; then
+    echo "set parallel maxnthreads ${THREADS}" >> ${TMPFILE}
+else
+    echo "set lp advanced threads ${THREADS}"  >> ${TMPFILE}
+    echo "set relaxing SDP advanced sdpsolverthreads ${THREADS}" >> ${TMPFILE}    # adaptation for SCIPSDP
+fi
+echo "set timing clocktype ${CLOCKTYPE}"   >> ${TMPFILE}
+echo "set display freq ${DISPFREQ}"        >> ${TMPFILE}
+echo "set save ${SETFILE}"                 >> ${TMPFILE}
 
 if test "$VISUALIZE" = true
 then
     BAKFILENAME="`basename $TMPFILE .tmp`.dat"
     echo visualization output set to "$BAKFILENAME"
-    echo set visual bakfilename "$OUTPUTDIR/${BAKFILENAME}" >> $TMPFILE
+    echo set visual bakfilename "$OUTPUTDIR/${BAKFILENAME}" >> ${TMPFILE}
 fi
 
 if test "$REOPT" = false
 then
     # read and solve the instance
-    echo read $INSTANCE         >> $TMPFILE
+    echo read $INSTANCE         >> ${TMPFILE}
     INSTANCENAME=${INSTANCE%%.gz}
     # if a decomposition in gzipped format (.dec.gz) with the basename of the instance lies in the same directory,
     # read it into SCIP, as well
     DECOMP=${INSTANCENAME}.dec.gz
     if test -f $DECOMP
     then
-	echo read $DECOMP            >> $TMPFILE
+	echo read $DECOMP            >> ${TMPFILE}
     fi
     # set objective limit: optimal solution value from solu file, if existent
     if test $SETCUTOFF = 1 || test $SETCUTOFF = true
     then
         if test ""$OBJECTIVEVAL != ""
         then
-            echo set limits objective $OBJECTIVEVAL >> $TMPFILE
+            echo set limits objective $OBJECTIVEVAL >> ${TMPFILE}
         fi
-        echo set heur emph off                 >> $TMPFILE
+        echo set heur emph off                 >> ${TMPFILE}
     fi
 
-    echo display parameters                >> $TMPFILE
-    echo $OPTCOMMAND                       >> $TMPFILE
-    echo display statistics                >> $TMPFILE
-    echo checksol                          >> $TMPFILE
+    echo display parameters                >> ${TMPFILE}
+    echo $OPTCOMMAND                       >> ${TMPFILE}
+    echo display statistics                >> ${TMPFILE}
+    echo checksol                          >> ${TMPFILE}
 else
     # read the difflist file
-    cat $INSTANCE                >> $TMPFILE
+    cat $INSTANCE                >> ${TMPFILE}
 fi
 
 # currently, the solution checker only supports .mps-files.
@@ -165,6 +169,6 @@ TMPINSTANCE=`basename $INSTANCE .gz`
 TMPINSTANCEB=`basename $TMPINSTANCE .mps`
 if test "$TMPINSTANCEB" != "$TMPINSTANCE"
 then
-   echo write sol $SOLFILE             >> $TMPFILE
+   echo write sol $SOLFILE             >> ${TMPFILE}
 fi
-echo quit                              >> $TMPFILE
+echo quit                              >> ${TMPFILE}
