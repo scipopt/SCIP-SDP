@@ -3495,6 +3495,7 @@ SCIP_RETCODE addRank1QuadConss(
    int*                  naddconss           /**< pointer to store how many constraints were added */
    )
 {
+   SCIP_CONSHDLRDATA* conshdlrdata;
    int c;
 
    assert( scip != NULL );
@@ -3503,6 +3504,8 @@ SCIP_RETCODE addRank1QuadConss(
 
    if ( conss == NULL )
       return SCIP_OKAY;
+
+   conshdlrdata = SCIPconshdlrGetData(conshdlr);
 
    for (c = 0; c < nconss; ++c)
    {
@@ -3674,6 +3677,10 @@ SCIP_RETCODE addRank1QuadConss(
                SCIP_CALL( SCIPprintCons(scip, quadcons, NULL) );
                SCIPinfoMessage(scip, NULL, "\n");
 #endif
+
+               /* if upgrading is turned on mark quadratic constraint not to be upgraded */
+               if ( conshdlrdata->sdpconshdlrdata->upgradequadconss )
+                  SCIPconsAddUpgradeLocks(quadcons, 1);
 
                SCIP_CALL( SCIPaddCons(scip, quadcons) );
                SCIP_CALL( SCIPreleaseCons(scip, &quadcons) );
@@ -6085,12 +6092,12 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
    }
    else
    {
+      /* mark quadratic constraint to not be upgraded again */
+      SCIPconsAddUpgradeLocks(cons, 1);
+
       /* todo: Check whether adding the linear constraints helps */
       *nupgdconss = 0;          /* the original quadratic constraint should be kept in the problem */
    }
-
-   /* turn off upgrading in order to avoid a possibly infinite loop */
-   conshdlrdata->sdpconshdlrdata->upgradequadconss = FALSE;
 
    return SCIP_OKAY;
 }
