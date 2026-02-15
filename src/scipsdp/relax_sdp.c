@@ -834,8 +834,12 @@ SCIP_RETCODE putLpDataInInterface(
       assert( row != 0 );
 
       rownnonz = SCIProwGetNNonz(row);
-      rowlhs = SCIProwGetLhs(row) - SCIProwGetConstant(row);
-      rowrhs = SCIProwGetRhs(row) - SCIProwGetConstant(row);
+      rowlhs = SCIProwGetLhs(row);
+      if ( ! SCIPisInfinity(scip, -rowlhs) )
+         rowlhs -= SCIProwGetConstant(row);
+      rowrhs = SCIProwGetRhs(row);
+      if ( ! SCIPisInfinity(scip, rowrhs) )
+         rowrhs -= SCIProwGetConstant(row);
       rowvals = SCIProwGetVals(row);
       rowcols = SCIProwGetCols(row);
 
