@@ -5719,15 +5719,6 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
       SCIP_Real constval = -1.0;
       int nquadconss = 0;
 
-      /* todo: The arrays quadconsidx and quadconsvars are needed to check if variables have already been seen in a
-         quadratic constraint. This could be replaced with a hashmap. */
-      nvars = SCIPgetNTotalVars(scip);
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars) );
-      conshdlrdata->sdpconshdlrdata->nquadconsidx = nvars;
-      for (j = 0; j < nvars; ++j)
-         conshdlrdata->sdpconshdlrdata->quadconsidx[j] = -1;
-
       nonlinearconshdlr = SCIPfindConshdlr(scip, "nonlinear");
       if ( nonlinearconshdlr == NULL )
       {
@@ -5735,6 +5726,15 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
          return SCIP_PLUGINNOTFOUND;
       }
       assert( nonlinearconshdlr != NULL );
+
+      /* todo: The arrays quadconsidx and quadconsvars are needed to check if variables have already been seen in a
+       * quadratic constraint. This could be replaced with a hashmap. */
+      nvars = SCIPgetNTotalVars(scip);
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars) );
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars) );
+      conshdlrdata->sdpconshdlrdata->nquadconsidx = nvars;
+      for (j = 0; j < nvars; ++j)
+         conshdlrdata->sdpconshdlrdata->quadconsidx[j] = -1;
 
       conss = SCIPconshdlrGetConss(nonlinearconshdlr);
       nconss = SCIPconshdlrGetNConss(nonlinearconshdlr);
@@ -5833,8 +5833,8 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
          return SCIP_OKAY;
       }
 
-      /* do not perform upgrade, if there are too many variables in the quadratic constraints, since we need sdpvars *
-         sdpvars many variables for the (dual) SDPrank1 constraint */
+      /* do not perform upgrade, if there are too many variables in the quadratic constraints, since we need
+       * sdpvars * sdpvars many variables for the (dual) SDPrank1 constraint */
       if ( nsdpvars > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
       {
          SCIPdebugMsg(scip, "There are %d many variables present in the quadratic constraints, thus do not upgrade quadratic constraints to an SDPrank1 constraint\n", nsdpvars);
@@ -5978,7 +5978,7 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
       SCIPexprGetQuadraticData(SCIPgetExprNonlinear(cons), NULL, &nlinvarterms, &linexprs, &linvalsterms, &nquadvarterms, &nbilinterms, NULL, NULL);
 
       /* a quadvarterm consists of a variable x and two coefficients, one for the linear term x and one for the quadratic
-         term x^2, where at least one of the two coefficients is nonzero  */
+       * term x^2, where at least one of the two coefficients is nonzero  */
       nlinconsterms = nlinvarterms + 2 * nquadvarterms + nbilinterms;
       SCIP_CALL( SCIPallocBufferArray(scip, &linconsvars, nlinconsterms) );
       SCIP_CALL( SCIPallocBufferArray(scip, &linconsvals, nlinconsterms) );
