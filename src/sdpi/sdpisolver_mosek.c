@@ -1926,6 +1926,14 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
+   {
+      SCIP_Real pfeas;
+      MOSEK_CALL_BOOL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_INTPNT_PRIMAL_FEAS, &pfeas) );
+      if ( pfeas < sdpisolver->feastol )
+         return TRUE;
+      break;
+   }
+
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_PRIM_INFEAS_CER:
@@ -2000,6 +2008,14 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    switch ( sdpisolver->solstat )
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
+   {
+      SCIP_Real dfeas;
+      MOSEK_CALL_BOOL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_INTPNT_DUAL_FEAS, &dfeas) );
+      if ( dfeas < sdpisolver->feastol )
+         return TRUE;
+      break;
+   }
+
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
