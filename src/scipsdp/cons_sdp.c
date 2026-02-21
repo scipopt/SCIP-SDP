@@ -7042,9 +7042,6 @@ SCIP_DECL_CONSINITSOL(consInitsolSdp)
       int naddconss = 0;
       SCIP_CALL( addRank1QuadConss(scip, conshdlr, conss, nconss, &naddconss) );
       SCIPdebugMsg(scip, "Added %d quadratic constraints for rank 1 constraints.\n", naddconss);
-
-      /* turn off upgrading in order to avoid upgrading to a rank-1 constraint again */
-      conshdlrdata->sdpconshdlrdata->upgradequadconss = FALSE;
    }
 
    return SCIP_OKAY;
@@ -7565,9 +7562,6 @@ SCIP_DECL_CONSPRESOL(consPresolSdp)
          SCIPdebugMsg(scip, "Added %d quadratic constraints for rank 1 constraints.\n", *naddconss - noldaddconss);
          if ( noldaddconss != *naddconss )
             *result = SCIP_SUCCESS;
-
-         /* turn off upgrading in order to avoid upgrading to a rank-1 constraint again */
-         conshdlrdata->sdpconshdlrdata->upgradequadconss = FALSE;
       }
    }
 
