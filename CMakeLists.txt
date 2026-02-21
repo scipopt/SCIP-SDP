@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 set(PROJECT_NAME SCIPSDP)
 project(SCIP-SDP)
@@ -28,10 +28,9 @@ include_directories(${SCIP_INCLUDE_DIRS})
 set(SDPS none CACHE STRING "options for SDP solver")          # create the variable
 set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp none)  # define list of values GUI will offer for the variable
 
-# we only need the symmetry option for older SCIP versions
-if(SCIP_VERSION_MAJOR LESS 9)
-  set(SYM bliss CACHE STRING "options for symmetry computation")  #create the variable
-  set_property(CACHE SYM PROPERTY STRINGS bliss none )  #define list of values GUI will offer for the variable
+# we need SCIP 10
+if(SCIP_VERSION_MAJOR LESS 10)
+  message(FATAL_ERROR "This version of SCIP-SDP need at least version 10 of SCIP.")
 endif()
 
 # if we want long long ints for Lapack, e.g., for Matlab
