@@ -6575,7 +6575,7 @@ SCIP_DECL_CONSEXIT(consExitSdp)
       if ( conshdlrdata->sdpconshdlrdata->prop3minortime != NULL )
          SCIP_CALL( SCIPfreeClock(scip, &conshdlrdata->sdpconshdlrdata->prop3minortime) );
    }
-   assert( conshdlrdata->sdpconshdlrdata->nquadconsidx <= 0 );
+   assert( conshdlrdata->sdpconshdlrdata->nquadconsidx < 0 );
    assert( conshdlrdata->sdpconshdlrdata->quadconsidx == NULL );
    assert( conshdlrdata->sdpconshdlrdata->quadconsvars == NULL );
 
@@ -6611,6 +6611,7 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
       }
       SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X, conshdlrdata->sdpconshdlrdata->nsdpvars);
    }
+   conshdlrdata->sdpconshdlrdata->nquadconsidx = -1;
 
    if ( conshdlrdata->sdpconshdlrdata->sdpcons != NULL )
    {
