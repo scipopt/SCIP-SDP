@@ -128,7 +128,6 @@
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
 #define DEFAULT_UPGRADEQUADCONSS  FALSE /**< Should quadratic constraints be upgraded? */
 #define DEFAULT_UPGRADEADDRANK1   FALSE /**< Keep quadratic constraints and add non-rank1 SDP constraint after upgrading? */
-#define DEFAULT_UPGRADELINCONSS    TRUE /**< Add linear constraints expressed in lifted variables in upgrading? */
 #define DEFAULT_MAXNVARSQUADUPGD   1000 /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #define DEFAULT_SEPARATEONECUT    FALSE /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
@@ -227,7 +226,6 @@ struct SCIP_ConshdlrData
    SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
    SCIP_Bool             upgradequadconss;   /**< Should quadratic constraints be upgraded? */
    SCIP_Bool             upgradeaddrank1;    /**< Add rank1 SDP constraint during upgrading? */
-   SCIP_Bool             upgradelinconss;    /**< Add linear constraints expressed in lifted variables in upgrading? */
    SCIP_Bool             separateonecut;     /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
    SCIP_Bool             cutstopool;         /**< Should the cuts be added to the pool? */
    SCIP_Bool             sparsifycut;        /**< Should the eigenvector cuts be sparsified? */
@@ -249,7 +247,7 @@ struct SCIP_ConshdlrData
 #endif
    int*                  quadconsidx;        /**< store index of variables appearing in quadratic constraints for upgrading */
    SCIP_VAR**            quadconsvars;       /**< temporary array to store variables appearing in quadratic constraints for upgrading */
-   int                   nquadconsidx;       /**< size of quadconsidx/quadconsvars arrays */
+   int                   nquadconsidx;       /**< size of quadconsidx/quadconsvars arrays (-1 if not tried, 0 if unsuccessful) */
    SCIP_VAR***           X;                  /**< matrix variables added within upgrading */
    int                   nsdpvars;           /**< number of variables in SDP constraint for quadratic constraints */
    SCIP_CONS*            sdpcons;            /**< SDP rank 1 constraint for quadratic constraints */
@@ -5637,8 +5635,303 @@ SCIP_RETCODE propagate3Minors(
    return SCIP_OKAY;
 }
 
+/** collect all nonlinear quadratic constraints and create variables and SDP constraint */
+static
+SCIP_RETCODE collectQuadraticVariables(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_CONSHDLRDATA*    conshdlrdata,       /**< SDP constraint handler data */
+   SCIP_Bool*            success             /**< pointer to return whether the procedure was successful */
+   )
+{
+   char name[SCIP_MAXSTRLEN];
+   SCIP_CONSHDLR* nonlinearconshdlr;
+   SCIP_CONS** conss;
+   int** cols;
+   int** rows;
+   SCIP_Real** vals;
+   SCIP_VAR** vars;
+   SCIP_Real constval = -1.0;
+   int* nvarnonz;
+   int nquadvarterms;
+   int nbilinterms;
+   int nnonz;
+   int nvarscnt;
+   int constcol = 0;
+   int constrow = 0;
+   int nquadconss = 0;
+   int nsdpvars = 0;
+   int nconss;
+   int nvars;
+   int c;
+   int i;
+   int j;
 
-#if ( SCIP_VERSION >= 800 || ( SCIP_VERSION < 800 && SCIP_APIVERSION >= 100 ) )
+   assert( scip != NULL );
+   assert( conshdlrdata != NULL );
+   assert( success != NULL );
+   assert( conshdlrdata->sdpconshdlrdata->quadconsidx == NULL );
+   assert( conshdlrdata->sdpconshdlrdata->quadconsvars == NULL );
+   assert( conshdlrdata->sdpconshdlrdata->nquadconsidx == -1 );
+   *success = TRUE;
+
+   nonlinearconshdlr = SCIPfindConshdlr(scip, "nonlinear");
+   if ( nonlinearconshdlr == NULL )
+   {
+      SCIPerrorMessage("Nonlinear constraint handler not found\n");
+      *success = FALSE;
+      return SCIP_PLUGINNOTFOUND;
+   }
+   assert( nonlinearconshdlr != NULL );
+
+   /* todo: The arrays quadconsidx and quadconsvars are needed to check if variables have already been seen in a
+    * quadratic constraint. This could be replaced by a hashmap. */
+   nvars = SCIPgetNTotalVars(scip);
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars) );
+   conshdlrdata->sdpconshdlrdata->nquadconsidx = nvars;
+   for (j = 0; j < nvars; ++j)
+      conshdlrdata->sdpconshdlrdata->quadconsidx[j] = -1;
+
+   conss = SCIPconshdlrGetConss(nonlinearconshdlr);
+   nconss = SCIPconshdlrGetNConss(nonlinearconshdlr);
+
+   for (c = 0; c < nconss; ++c)
+   {
+      SCIP_Bool isquadratic;
+
+      assert( conss[c] != NULL );
+
+      SCIP_CALL( SCIPcheckQuadraticNonlinear(scip, conss[c], &isquadratic) );
+      if ( ! isquadratic )
+         continue;
+
+      if ( ! SCIPexprAreQuadraticExprsVariables(SCIPgetExprNonlinear(conss[c])) )
+         continue;
+
+      ++nquadconss;
+
+      /* Do not perform upgrade, if there are too many quadratic constraints present. */
+      if ( nquadconss > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
+      {
+         SCIPwarningMessage(scip, "There are %d many quadratic constraints present in the problem, thus do not upgrade quadratic constraints to an SDPrank1 constraint.\n", nquadconss);
+         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
+         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
+         *success = FALSE;
+         return SCIP_OKAY;
+      }
+
+#ifdef SCIP_MORE_DEBUG
+      SCIPinfoMessage(scip, NULL, "Found quadratic constraint to upgrade:\n");
+      SCIP_CALL( SCIPprintCons(scip, conss[c], NULL) );
+      SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+      SCIPexprGetQuadraticData(SCIPgetExprNonlinear(conss[c]), NULL, NULL, NULL, NULL, &nquadvarterms, &nbilinterms, NULL, NULL);
+      assert( nquadvarterms + nbilinterms > 0 );
+
+      for (i = 0; i < nquadvarterms; ++i)
+      {
+         SCIP_VAR* var;
+         SCIP_EXPR* expr;
+         int idx;
+
+         /* get quadratic expression */
+         SCIPexprGetQuadraticQuadTerm(SCIPgetExprNonlinear(conss[c]), i, &expr, NULL, NULL, NULL, NULL, NULL);
+
+         var = SCIPgetVarExprVar(expr);
+         assert( var != NULL );
+         idx = SCIPvarGetProbindex(var);
+         assert( 0 <= idx && idx < nvars );
+         if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
+         {
+            conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
+            conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
+         }
+      }
+
+      for (i = 0; i < nbilinterms; ++i)
+      {
+         SCIP_VAR* var;
+         SCIP_EXPR* expr1;
+         SCIP_EXPR* expr2;
+         int idx;
+
+         /* get bilinear expression */
+         SCIPexprGetQuadraticBilinTerm(SCIPgetExprNonlinear(conss[c]), i, &expr1, &expr2, NULL, NULL, NULL);
+
+         var = SCIPgetVarExprVar(expr1);
+         assert( var != NULL );
+         idx = SCIPvarGetProbindex(var);
+         assert( 0 <= idx && idx < nvars );
+         if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
+         {
+            conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
+            conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
+         }
+
+         var = SCIPgetVarExprVar(expr2);
+         assert( var != NULL );
+         idx = SCIPvarGetProbindex(var);
+         assert( 0 <= idx && idx < nvars );
+         if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
+         {
+            conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
+            conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
+         }
+      }
+   }
+
+   /* do not perform upgrade, if no sdpvars have been added */
+   if ( nsdpvars == 0 )
+   {
+      SCIPdebugMsg(scip, "No sdp variables have been added.\n");
+      SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
+      SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
+      *success = FALSE;
+      return SCIP_OKAY;
+   }
+
+   /* do not perform upgrade, if there are too many variables in the quadratic constraints, since we need
+    * sdpvars * sdpvars many variables for the (dual) SDPrank1 constraint */
+   if ( nsdpvars > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
+   {
+      SCIPwarningMessage(scip, "There are %d many variables present in the quadratic constraints, thus do not upgrade quadratic constraints to an SDPrank1 constraint.\n", nsdpvars);
+      SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
+      SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
+      *success = FALSE;
+      return SCIP_OKAY;
+   }
+
+   /* create bilinear variables */
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X, nsdpvars) );
+   conshdlrdata->sdpconshdlrdata->nsdpvars = nsdpvars;
+
+   for (i = 0; i < nsdpvars; ++i)
+   {
+      SCIP_Real lb1;
+      SCIP_Real ub1;
+      SCIP_VAR* var1;
+
+      var1 = conshdlrdata->sdpconshdlrdata->quadconsvars[i];
+      assert( var1 != NULL );
+      lb1 = SCIPvarGetLbGlobal(var1);
+      ub1 = SCIPvarGetUbGlobal(var1);
+
+      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X[i], nsdpvars) );
+
+      for (j = 0; j <= i; ++j)
+      {
+         SCIP_VARTYPE vartype;
+         SCIP_VAR* var2;
+         SCIP_Real lb2;
+         SCIP_Real ub2;
+         SCIP_Real lb;
+         SCIP_Real ub;
+
+         var2 = conshdlrdata->sdpconshdlrdata->quadconsvars[j];
+         assert( var2 != NULL );
+         lb2 = SCIPvarGetLbGlobal(var2);
+         ub2 = SCIPvarGetUbGlobal(var2);
+
+#ifndef NDEBUG
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "X#%s#%s", SCIPvarGetName(var1), SCIPvarGetName(var2));
+#else
+         (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "X%d#%d", i, j);
+#endif
+
+         lb = MIN3(lb1 * lb2, lb1 * ub2, ub1 * lb2);
+         lb = MIN(lb, ub1 * ub2);
+         ub = MAX3(lb1 * lb2, lb1 * ub2, ub1 * lb2);
+         ub = MAX(ub, ub1 * ub2);
+
+         if ( SCIPvarIsBinary(var1) && SCIPvarIsBinary(var2) )
+            vartype = SCIP_VARTYPE_BINARY;
+         else if ( SCIPvarIsIntegral(var1) && SCIPvarIsIntegral(var2) )
+            vartype = SCIP_VARTYPE_INTEGER;
+         else
+            vartype = SCIP_VARTYPE_CONTINUOUS;
+
+         SCIP_CALL( SCIPcreateVarBasic(scip, &(conshdlrdata->sdpconshdlrdata->X[i][j]), name, lb, ub, 0.0, vartype) );
+         SCIP_CALL( SCIPaddVar(scip, conshdlrdata->sdpconshdlrdata->X[i][j]) );
+      }
+   }
+
+   /* fill SDP data */
+   nnonz = nsdpvars + nsdpvars * (nsdpvars + 1) / 2;
+   SCIP_CALL( SCIPallocBufferArray(scip, &cols, nnonz) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &rows, nnonz) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vals, nnonz) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &vars, nnonz) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &nvarnonz, nnonz) );
+
+   /* first the terms for the original variables */
+   for (j = 0; j < nsdpvars; ++j)
+   {
+      SCIP_CALL( SCIPallocBufferArray(scip, &cols[j], 1) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &rows[j], 1) );
+      SCIP_CALL( SCIPallocBufferArray(scip, &vals[j], 1) );
+      nvarnonz[j] = 1;
+      cols[j][0] = 0;
+      rows[j][0] = 1 + j;
+      vals[j][0] = 1.0;
+      vars[j] = conshdlrdata->sdpconshdlrdata->quadconsvars[j];
+   }
+
+   /* now the terms for the bilinear terms */
+   nvarscnt = nsdpvars;
+   for (i = 0; i < nsdpvars; ++i)
+   {
+      for (j = 0; j <= i; ++j)
+      {
+         SCIP_CALL( SCIPallocBufferArray(scip, &cols[nvarscnt], 1) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &rows[nvarscnt], 1) );
+         SCIP_CALL( SCIPallocBufferArray(scip, &vals[nvarscnt], 1) );
+         nvarnonz[nvarscnt] = 1;
+         cols[nvarscnt][0] = 1 + j;
+         rows[nvarscnt][0] = 1 + i;
+         vals[nvarscnt][0] = 1.0;
+         vars[nvarscnt] = conshdlrdata->sdpconshdlrdata->X[i][j];
+         ++nvarscnt;
+      }
+   }
+   assert( nvarscnt == nsdpvars + nsdpvars * (nsdpvars + 1)/2 );
+
+   /* create corresponding rank 1 SDP constraint */
+   if ( conshdlrdata->sdpconshdlrdata->upgradeaddrank1 )
+   {
+      SCIP_CALL( SCIPcreateConsSdpRank1(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPrank1cons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
+            cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
+      SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
+   }
+   else
+   {
+      SCIP_CALL( SCIPcreateConsSdp(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPcons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
+            cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
+      SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
+   }
+
+#ifdef SCIP_MORE_DEBUG
+   SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDP constraint has been added:\n");
+   SCIP_CALL( SCIPprintCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons, NULL) );
+   SCIPinfoMessage(scip, NULL, "\n");
+#endif
+
+   /* free local memory */
+   for (j = nvarscnt - 1; j >= 0; --j)
+   {
+      SCIPfreeBufferArray(scip, &vals[j]);
+      SCIPfreeBufferArray(scip, &rows[j]);
+      SCIPfreeBufferArray(scip, &cols[j]);
+   }
+   SCIPfreeBufferArray(scip, &nvarnonz);
+   SCIPfreeBufferArray(scip, &vars);
+   SCIPfreeBufferArray(scip, &vals);
+   SCIPfreeBufferArray(scip, &rows);
+   SCIPfreeBufferArray(scip, &cols);
+
+   return SCIP_OKAY;
+}
+
 
 /** upgrade quadratic constraints to an SDP constraint with rank 1 */
 static
@@ -5651,6 +5944,10 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
    SCIP_VAR** linconsvars;
    SCIP_Real* linconsvals;
    SCIP_Real* linvalsterms;
+   SCIP_EXPR** linexprs;
+   SCIP_EXPR* expr;
+   SCIP_Bool success;
+   int cnt = 0;
    int nlinvarterms;
    int nquadvarterms;
    int nbilinterms;
@@ -5664,6 +5961,10 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
 
    *nupgdconss = 0;
 
+   /* return if constraint is upgrading locked */
+   if ( SCIPconsGetNUpgradeLocks(cons) > 0 )
+      return SCIP_OKAY;
+
    /* do not upgrade modifiable/sticking at node constraints */
    if ( SCIPconsIsModifiable(cons) || SCIPconsIsStickingAtNode(cons) )
       return SCIP_OKAY;
@@ -5675,13 +5976,6 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
    /* do not upgrade after a restart */
    if ( SCIPgetNRuns(scip) > 1 )
       return SCIP_OKAY;
-
-   /* make sure there is enough space to store the replacing constraints */
-   if ( upgdconsssize < 1 )
-   {
-      *nupgdconss = -1;
-      return SCIP_OKAY;
-   }
 
    conshdlr = SCIPfindConshdlr(scip, CONSHDLRRANK1_NAME);
    if ( conshdlr == NULL )
@@ -5698,845 +5992,168 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
    if ( ! conshdlrdata->sdpconshdlrdata->upgradequadconss )
       return SCIP_OKAY;
 
-   /* we have to collect all variables appearing in quadratic constraints first */
-   if ( conshdlrdata->sdpconshdlrdata->quadconsvars == NULL )
+   /* make sure there is enough space to store the replacing constraints */
+   if ( upgdconsssize < 1 )
    {
-      SCIP_CONSHDLR* nonlinearconshdlr;
-      SCIP_CONS** conss;
-      int nconss;
-      int nvars;
-      int c;
-      int i;
-      int nsdpvars = 0;
-
-      int** cols;
-      int** rows;
-      SCIP_Real** vals;
-      SCIP_VAR** vars;
-      int* nvarnonz;
-      int nnonz;
-      int nvarscnt;
-      int constcol = 0;
-      int constrow = 0;
-      SCIP_Real constval = -1.0;
-      int nquadconss = 0;
-
-      nonlinearconshdlr = SCIPfindConshdlr(scip, "nonlinear");
-      if ( nonlinearconshdlr == NULL )
-      {
-         SCIPerrorMessage("Nonlinear constraint handler not found\n");
-         return SCIP_PLUGINNOTFOUND;
-      }
-      assert( nonlinearconshdlr != NULL );
-
-      /* todo: The arrays quadconsidx and quadconsvars are needed to check if variables have already been seen in a
-       * quadratic constraint. This could be replaced with a hashmap. */
-      nvars = SCIPgetNTotalVars(scip);
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars) );
-      conshdlrdata->sdpconshdlrdata->nquadconsidx = nvars;
-      for (j = 0; j < nvars; ++j)
-         conshdlrdata->sdpconshdlrdata->quadconsidx[j] = -1;
-
-      conss = SCIPconshdlrGetConss(nonlinearconshdlr);
-      nconss = SCIPconshdlrGetNConss(nonlinearconshdlr);
-
-      for (c = 0; c < nconss; ++c)
-      {
-         SCIP_Bool isquadratic;
-
-         assert( conss[c] != NULL );
-
-         SCIP_CALL( SCIPcheckQuadraticNonlinear(scip, conss[c], &isquadratic) );
-         if ( ! isquadratic )
-            continue;
-
-         if ( ! SCIPexprAreQuadraticExprsVariables(SCIPgetExprNonlinear(conss[c])) )
-            continue;
-
-         ++nquadconss;
-
-         /* Do not perform upgrade, if there are too many quadratic constraints present. */
-         if ( nquadconss > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
-         {
-            SCIPdebugMsg(scip, "There are %d many quadratic constraints present in the problem, thus do not upgrade quadratic constraints to an SDPrank1 constraint.\n", nquadconss);
-            SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
-            SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
-            return SCIP_OKAY;
-         }
-
-#ifdef SCIP_MORE_DEBUG
-         SCIPinfoMessage(scip, NULL, "Found quadratic constraint to upgrade:\n");
-         SCIP_CALL( SCIPprintCons(scip, conss[c], NULL) );
-         SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-         SCIPexprGetQuadraticData(SCIPgetExprNonlinear(conss[c]), NULL, NULL, NULL, NULL, &nquadvarterms, &nbilinterms, NULL, NULL);
-         assert( nquadvarterms + nbilinterms > 0 );
-
-         for (i = 0; i < nquadvarterms; ++i)
-         {
-            SCIP_VAR* var;
-            SCIP_EXPR* expr;
-            int idx;
-
-            /* get quadratic expression */
-            SCIPexprGetQuadraticQuadTerm(SCIPgetExprNonlinear(conss[c]), i, &expr, NULL, NULL, NULL, NULL, NULL);
-
-            var = SCIPgetVarExprVar(expr);
-            assert( var != NULL );
-            idx = SCIPvarGetIndex(var);
-            assert( 0 <= idx && idx < nvars );
-            if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
-            {
-               conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
-               conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
-            }
-         }
-
-         for (i = 0; i < nbilinterms; ++i)
-         {
-            SCIP_VAR* var;
-            SCIP_EXPR* expr1;
-            SCIP_EXPR* expr2;
-            int idx;
-
-            /* get bilinear expression */
-            SCIPexprGetQuadraticBilinTerm(SCIPgetExprNonlinear(conss[c]), i, &expr1, &expr2, NULL, NULL, NULL);
-
-            var = SCIPgetVarExprVar(expr1);
-            assert( var != NULL );
-            idx = SCIPvarGetIndex(var);
-            assert( 0 <= idx && idx < nvars );
-            if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
-            {
-               conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
-               conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
-            }
-
-            var = SCIPgetVarExprVar(expr2);
-            assert( var != NULL );
-            idx = SCIPvarGetIndex(var);
-            assert( 0 <= idx && idx < nvars );
-            if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
-            {
-               conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
-               conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
-            }
-         }
-      }
-
-      /* do not perform upgrade, if no sdpvars have been added */
-      if ( nsdpvars == 0 )
-      {
-         SCIPdebugMsg(scip, "No sdp variables have been added.\n");
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
-         return SCIP_OKAY;
-      }
-
-      /* do not perform upgrade, if there are too many variables in the quadratic constraints, since we need
-       * sdpvars * sdpvars many variables for the (dual) SDPrank1 constraint */
-      if ( nsdpvars > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
-      {
-         SCIPdebugMsg(scip, "There are %d many variables present in the quadratic constraints, thus do not upgrade quadratic constraints to an SDPrank1 constraint.\n", nsdpvars);
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
-         return SCIP_OKAY;
-      }
-
-      /* create bilinear variables */
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X, nsdpvars) );
-      conshdlrdata->sdpconshdlrdata->nsdpvars = nsdpvars;
-
-      for (i = 0; i < nsdpvars; ++i)
-      {
-         SCIP_Real lb1;
-         SCIP_Real ub1;
-         SCIP_VAR* var1;
-
-         var1 = conshdlrdata->sdpconshdlrdata->quadconsvars[i];
-         assert( var1 != NULL );
-         lb1 = SCIPvarGetLbGlobal(var1);
-         ub1 = SCIPvarGetUbGlobal(var1);
-
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X[i], nsdpvars) );
-
-         for (j = 0; j <= i; ++j)
-         {
-            SCIP_VARTYPE vartype;
-            SCIP_VAR* var2;
-            SCIP_Real lb2;
-            SCIP_Real ub2;
-            SCIP_Real lb;
-            SCIP_Real ub;
-
-            var2 = conshdlrdata->sdpconshdlrdata->quadconsvars[j];
-            assert( var2 != NULL );
-            lb2 = SCIPvarGetLbGlobal(var2);
-            ub2 = SCIPvarGetUbGlobal(var2);
-
-            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "X%d#%d", i, j);
-
-            lb = MIN3(lb1 * lb2, lb1 * ub2, ub1 * lb2);
-            lb = MIN(lb, ub1 * ub2);
-            ub = MAX3(lb1 * lb2, lb1 * ub2, ub1 * lb2);
-            ub = MAX(ub, ub1 * ub2);
-
-            if ( SCIPvarIsBinary(var1) && SCIPvarIsBinary(var2) )
-               vartype = SCIP_VARTYPE_BINARY;
-            else if ( SCIPvarIsIntegral(var1) && SCIPvarIsIntegral(var2) )
-               vartype = SCIP_VARTYPE_INTEGER;
-            else
-               vartype = SCIP_VARTYPE_CONTINUOUS;
-
-            SCIP_CALL( SCIPcreateVarBasic(scip, &(conshdlrdata->sdpconshdlrdata->X[i][j]), name, lb, ub, 0.0, vartype) );
-            SCIP_CALL( SCIPaddVar(scip, conshdlrdata->sdpconshdlrdata->X[i][j]) );
-         }
-      }
-
-      /* fill SDP data */
-      nnonz = nsdpvars + nsdpvars * (nsdpvars + 1) / 2;
-      SCIP_CALL( SCIPallocBufferArray(scip, &cols, nnonz) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &rows, nnonz) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &vals, nnonz) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &vars, nnonz) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &nvarnonz, nnonz) );
-
-      /* first the terms for the original variables */
-      for (j = 0; j < nsdpvars; ++j)
-      {
-         SCIP_CALL( SCIPallocBufferArray(scip, &cols[j], 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &rows[j], 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &vals[j], 1) );
-         nvarnonz[j] = 1;
-         cols[j][0] = 0;
-         rows[j][0] = 1 + j;
-         vals[j][0] = 1.0;
-         vars[j] = conshdlrdata->sdpconshdlrdata->quadconsvars[j];
-      }
-
-      /* now the terms for the bilinear terms */
-      nvarscnt = nsdpvars;
-      for (i = 0; i < nsdpvars; ++i)
-      {
-         for (j = 0; j <= i; ++j)
-         {
-            SCIP_CALL( SCIPallocBufferArray(scip, &cols[nvarscnt], 1) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &rows[nvarscnt], 1) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &vals[nvarscnt], 1) );
-            nvarnonz[nvarscnt] = 1;
-            cols[nvarscnt][0] = 1 + j;
-            rows[nvarscnt][0] = 1 + i;
-            vals[nvarscnt][0] = 1.0;
-            vars[nvarscnt] = conshdlrdata->sdpconshdlrdata->X[i][j];
-            ++nvarscnt;
-         }
-      }
-      assert( nvarscnt == nsdpvars + nsdpvars * (nsdpvars + 1)/2 );
-
-      /* create corresponding rank 1 SDP constraint */
-      if ( conshdlrdata->sdpconshdlrdata->upgradeaddrank1 )
-      {
-         SCIP_CALL( SCIPcreateConsSdpRank1(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPrank1cons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
-               cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
-         SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
-      }
-      else
-      {
-         SCIP_CALL( SCIPcreateConsSdp(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPcons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
-               cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
-         SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
-      }
-
-#ifdef SCIP_MORE_DEBUG
-      SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDP constraint has been added:\n");
-      SCIP_CALL( SCIPprintCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons, NULL) );
-      SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-      /* free local memory */
-      for (j = nvarscnt - 1; j >= 0; --j)
-      {
-         SCIPfreeBufferArray(scip, &vals[j]);
-         SCIPfreeBufferArray(scip, &rows[j]);
-         SCIPfreeBufferArray(scip, &cols[j]);
-      }
-      SCIPfreeBufferArray(scip, &nvarnonz);
-      SCIPfreeBufferArray(scip, &vars);
-      SCIPfreeBufferArray(scip, &vals);
-      SCIPfreeBufferArray(scip, &rows);
-      SCIPfreeBufferArray(scip, &cols);
+      *nupgdconss = -1;
+      return SCIP_OKAY;
    }
 
-   /* create linear constraint for quadratic constraint */
-   if ( conshdlrdata->sdpconshdlrdata->upgradelinconss )
+   /* if we have unsuccessfully tried to find quadratic constraints and variables */
+   if ( conshdlrdata->sdpconshdlrdata->nquadconsidx == 0 )
+      return SCIP_OKAY;
+
+   /* we have to collect all variables appearing in quadratic constraints first */
+   if ( conshdlrdata->sdpconshdlrdata->nquadconsidx < 0 )
    {
-      SCIP_EXPR** linexprs;
-      SCIP_EXPR* expr;
-      int cnt = 0;
-
-      /* get information */
-      SCIPexprGetQuadraticData(SCIPgetExprNonlinear(cons), NULL, &nlinvarterms, &linexprs, &linvalsterms, &nquadvarterms, &nbilinterms, NULL, NULL);
-
-      /* a quadvarterm consists of a variable x and two coefficients, one for the linear term x and one for the quadratic
-       * term x^2, where at least one of the two coefficients is nonzero  */
-      nlinconsterms = nlinvarterms + 2 * nquadvarterms + nbilinterms;
-      SCIP_CALL( SCIPallocBufferArray(scip, &linconsvars, nlinconsterms) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &linconsvals, nlinconsterms) );
-
-      /* fill in constraint */
-      for (j = 0; j < nlinvarterms; ++j)
+      SCIP_CALL( collectQuadraticVariables(scip, conshdlrdata, &success) );
+      if ( ! success )
       {
-         linconsvals[cnt] = linvalsterms[j];
+         /* mark that we were unsuccessful in nquadconsidx */
+         conshdlrdata->sdpconshdlrdata->nquadconsidx = 0;
+         return SCIP_OKAY;
+      }
+   }
+   assert( conshdlrdata->sdpconshdlrdata->nquadconsidx > 0 );
+   assert( conshdlrdata->sdpconshdlrdata->quadconsvars != NULL );
+   assert( conshdlrdata->sdpconshdlrdata->quadconsidx != NULL );
 
-         SCIPexprGetQuadraticQuadTerm(SCIPgetExprNonlinear(cons), j, &expr, NULL, NULL, NULL, NULL, NULL);
-         linconsvars[cnt] = SCIPgetVarExprVar(linexprs[j]);;
+   /* create linear constraint for quadratic constraint */
+   SCIPexprGetQuadraticData(SCIPgetExprNonlinear(cons), NULL, &nlinvarterms, &linexprs, &linvalsterms, &nquadvarterms, &nbilinterms, NULL, NULL);
+
+   /* a quadvarterm consists of a variable x and two coefficients, one for the linear term x and one for the quadratic
+    * term x^2, where at least one of the two coefficients is nonzero  */
+   nlinconsterms = nlinvarterms + 2 * nquadvarterms + nbilinterms;
+   SCIP_CALL( SCIPallocBufferArray(scip, &linconsvars, nlinconsterms) );
+   SCIP_CALL( SCIPallocBufferArray(scip, &linconsvals, nlinconsterms) );
+
+   /* fill in constraint */
+   for (j = 0; j < nlinvarterms; ++j)
+   {
+      linconsvals[cnt] = linvalsterms[j];
+
+      SCIPexprGetQuadraticQuadTerm(SCIPgetExprNonlinear(cons), j, &expr, NULL, NULL, NULL, NULL, NULL);
+      linconsvars[cnt] = SCIPgetVarExprVar(linexprs[j]);;
+      assert( linconsvars[cnt] != NULL );
+      ++cnt;
+   }
+   assert( cnt == nlinvarterms );
+
+   for (j = 0; j < nquadvarterms; ++j)
+   {
+      SCIP_Real lincoef;
+      SCIP_Real sqrcoef;
+      SCIP_VAR* var;
+      int idx;
+
+      /* get quadratic expression */
+      SCIPexprGetQuadraticQuadTerm(SCIPgetExprNonlinear(cons), j, &expr, &lincoef, &sqrcoef, NULL, NULL, NULL);
+      var = SCIPgetVarExprVar(expr);
+      assert( var != NULL );
+
+      idx = SCIPvarGetProbindex(var);
+      idx = conshdlrdata->sdpconshdlrdata->quadconsidx[idx];
+      assert( 0 <= idx && idx < conshdlrdata->sdpconshdlrdata->nsdpvars );
+
+      /* add coefficient for linear term corresponding to the current variable (may be zero) */
+      if ( ! SCIPisZero(scip, lincoef) )
+      {
+         linconsvals[cnt] = lincoef;
+         linconsvars[cnt] = var;
          assert( linconsvars[cnt] != NULL );
          ++cnt;
       }
-      assert( cnt == nlinvarterms );
 
-      for (j = 0; j < nquadvarterms; ++j)
+      /* add coefficient for quadratic term corresponding to the current variable (may be zero) */
+      if ( ! SCIPisZero(scip, sqrcoef) )
       {
-         SCIP_Real lincoef;
-         SCIP_Real sqrcoef;
-         SCIP_VAR* var;
-         int idx;
-
-         /* get quadratic expression */
-         SCIPexprGetQuadraticQuadTerm(SCIPgetExprNonlinear(cons), j, &expr, &lincoef, &sqrcoef, NULL, NULL, NULL);
-         var = SCIPgetVarExprVar(expr);
-         assert( var != NULL );
-
-         idx = SCIPvarGetIndex(var);
-         idx = conshdlrdata->sdpconshdlrdata->quadconsidx[idx];
-         assert( 0 <= idx && idx < conshdlrdata->sdpconshdlrdata->nsdpvars );
-
-         /* add coefficient for linear term corresponding to the current variable (may be zero) */
-         if ( ! SCIPisZero(scip, lincoef) )
-         {
-            linconsvals[cnt] = lincoef;
-            linconsvars[cnt] = var;
-            assert( linconsvars[cnt] != NULL );
-            ++cnt;
-         }
-
-         /* add coefficient for quadratic term corresponding to the current variable (may be zero) */
-         if ( ! SCIPisZero(scip, sqrcoef) )
-         {
-            linconsvals[cnt] = sqrcoef;
-            linconsvars[cnt] = conshdlrdata->sdpconshdlrdata->X[idx][idx];
-            assert( linconsvars[cnt] != NULL );
-            ++cnt;
-         }
-
-         SCIPdebugMsg(scip, "New variable %s corresponds to squared original variable %s\n",
-            SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx][idx]), SCIPvarGetName(var));
-      }
-      assert( cnt <= nlinvarterms + 2 * nquadvarterms );
-
-      for (j = 0; j < nbilinterms; ++j)
-      {
-         SCIP_EXPR* expr1;
-         SCIP_EXPR* expr2;
-         SCIP_Real coef;
-         SCIP_VAR* var1;
-         SCIP_VAR* var2;
-         int idx1;
-         int idx2;
-
-         /* get bilinear expression */
-         SCIPexprGetQuadraticBilinTerm(SCIPgetExprNonlinear(cons), j, &expr1, &expr2, &coef, NULL, NULL);
-
-         var1 = SCIPgetVarExprVar(expr1);
-         assert( var1 != NULL );
-         idx1 = SCIPvarGetIndex(var1);
-         idx1 = conshdlrdata->sdpconshdlrdata->quadconsidx[idx1];
-         assert( 0 <= idx1 && idx1 < conshdlrdata->sdpconshdlrdata->nsdpvars );
-
-         var2 = SCIPgetVarExprVar(expr2);
-         assert( var2 != NULL );
-         idx2 = SCIPvarGetIndex(var2);
-         idx2 = conshdlrdata->sdpconshdlrdata->quadconsidx[idx2];
-         assert( 0 <= idx2 && idx2 < conshdlrdata->sdpconshdlrdata->nsdpvars );
-
-         if ( idx2 > idx1 )
-            SCIPswapInts(&idx1, &idx2);
-
-         linconsvals[cnt] = coef;
-         linconsvars[cnt] = conshdlrdata->sdpconshdlrdata->X[idx1][idx2];
+         linconsvals[cnt] = sqrcoef;
+         linconsvars[cnt] = conshdlrdata->sdpconshdlrdata->X[idx][idx];
          assert( linconsvars[cnt] != NULL );
          ++cnt;
-
-         SCIPdebugMsg(scip, "New variable %s corresponds to product of original variables %s and %s\n",
-            SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx1][idx2]), SCIPvarGetName(var1), SCIPvarGetName(var2));
       }
-      assert( cnt <= nlinvarterms + 2 * nquadvarterms + nbilinterms );
 
-      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lin_%s", SCIPconsGetName(cons));
-      SCIP_CALL( SCIPcreateConsLinear(scip, &lincons, name, cnt, linconsvars, linconsvals, SCIPgetLhsNonlinear(cons), SCIPgetRhsNonlinear(cons),
-            SCIPconsIsInitial(cons), SCIPconsIsSeparated(cons), SCIPconsIsEnforced(cons), SCIPconsIsChecked(cons), SCIPconsIsPropagated(cons), SCIPconsIsLocal(cons),
-            FALSE, SCIPconsIsDynamic(cons), SCIPconsIsRemovable(cons), FALSE) );
+      SCIPdebugMsg(scip, "New variable <%s> corresponds to squared original variable <%s>.\n",
+         SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx][idx]), SCIPvarGetName(var));
+   }
+   assert( cnt <= nlinvarterms + 2 * nquadvarterms );
+
+   for (j = 0; j < nbilinterms; ++j)
+   {
+      SCIP_EXPR* expr1;
+      SCIP_EXPR* expr2;
+      SCIP_Real coef;
+      SCIP_VAR* var1;
+      SCIP_VAR* var2;
+      int idx1;
+      int idx2;
+
+      /* get bilinear expression */
+      SCIPexprGetQuadraticBilinTerm(SCIPgetExprNonlinear(cons), j, &expr1, &expr2, &coef, NULL, NULL);
+
+      var1 = SCIPgetVarExprVar(expr1);
+      assert( var1 != NULL );
+      idx1 = SCIPvarGetProbindex(var1);
+      idx1 = conshdlrdata->sdpconshdlrdata->quadconsidx[idx1];
+      assert( 0 <= idx1 && idx1 < conshdlrdata->sdpconshdlrdata->nsdpvars );
+
+      var2 = SCIPgetVarExprVar(expr2);
+      assert( var2 != NULL );
+      idx2 = SCIPvarGetProbindex(var2);
+      idx2 = conshdlrdata->sdpconshdlrdata->quadconsidx[idx2];
+      assert( 0 <= idx2 && idx2 < conshdlrdata->sdpconshdlrdata->nsdpvars );
+
+      if ( idx2 > idx1 )
+         SCIPswapInts(&idx1, &idx2);
+
+      linconsvals[cnt] = coef;
+      linconsvars[cnt] = conshdlrdata->sdpconshdlrdata->X[idx1][idx2];
+      assert( linconsvars[cnt] != NULL );
+      ++cnt;
+
+      SCIPdebugMsg(scip, "New variable <%s> corresponds to product of original variables <%s> and <%s>.\n",
+         SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx1][idx2]), SCIPvarGetName(var1), SCIPvarGetName(var2));
+   }
+   assert( cnt <= nlinvarterms + 2 * nquadvarterms + nbilinterms );
+
+   (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lin_%s", SCIPconsGetName(cons));
+   SCIP_CALL( SCIPcreateConsLinear(scip, &lincons, name, cnt, linconsvars, linconsvals, SCIPgetLhsNonlinear(cons), SCIPgetRhsNonlinear(cons),
+         SCIPconsIsInitial(cons), SCIPconsIsSeparated(cons), SCIPconsIsEnforced(cons), SCIPconsIsChecked(cons), SCIPconsIsPropagated(cons), SCIPconsIsLocal(cons),
+         FALSE, SCIPconsIsDynamic(cons), SCIPconsIsRemovable(cons), FALSE) );
 
 #ifdef SCIP_MORE_DEBUG
-      SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following linear constraint has been added:\n");
-      SCIP_CALL( SCIPprintCons(scip, lincons, NULL) );
-      SCIPinfoMessage(scip, NULL, "\n");
+   SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following linear constraint has been added:\n");
+   SCIP_CALL( SCIPprintCons(scip, lincons, NULL) );
+   SCIPinfoMessage(scip, NULL, "\n");
 #endif
 
-      /* fill in upgdconss - do not mention SDP constraint, since this has been added already */
+   SCIPfreeBufferArray(scip, &linconsvals);
+   SCIPfreeBufferArray(scip, &linconsvars);
+
+   /* Return values to upgrading mechanism: the SDP constraint is not mentioned, because it was already added and
+    * upgrading would add it again. */
+
+   /* if we added a rank 1 constraint, the quadratic constraint is replaced, because this is equivalent */
+   if ( conshdlrdata->sdpconshdlrdata->upgradeaddrank1 )
+   {
+      /* the linear constraint is added by the upgrading mechanism */
       upgdconss[0] = lincons;
       *nupgdconss = 1;
-
-      SCIPfreeBufferArray(scip, &linconsvals);
-      SCIPfreeBufferArray(scip, &linconsvars);
    }
    else
    {
+      /* add linear constraint */
+      SCIP_CALL( SCIPaddCons(scip, lincons) );
+      SCIP_CALL( SCIPreleaseCons(scip, &lincons) );
+
       /* mark quadratic constraint to not be upgraded again */
       SCIPconsAddUpgradeLocks(cons, 1);
 
-      /* todo: Check whether adding the linear constraints helps */
       *nupgdconss = 0;          /* the original quadratic constraint should be kept in the problem */
    }
 
    return SCIP_OKAY;
 }
-
-
-/* -----------------------------------------------------------------*/
-#else
-/* -----------------------------------------------------------------*/
-
-
-/** upgrade quadratic constraints to an SDP constraint with rank 1 */
-static
-SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
-{
-   char name[SCIP_MAXSTRLEN];
-   SCIP_CONSHDLR* conshdlr;
-   SCIP_CONSHDLRDATA* conshdlrdata;
-   SCIP_CONS* lincons;
-   SCIP_VAR** linconsvars;
-   SCIP_Real* linconsvals;
-   SCIP_VAR** linvarsterms;
-   SCIP_Real* linvalsterms;
-   SCIP_QUADVARTERM* quadvarterms;
-   SCIP_BILINTERM* bilinterms;
-   int nlinvarterms;
-   int nquadvarterms;
-   int nbilinterms;
-   int nlinconsterms;
-   int j;
-
-   assert( scip != NULL );
-   assert( cons != NULL );
-   assert( nupgdconss != NULL );
-   assert( upgdconss != NULL );
-
-   *nupgdconss = 0;
-
-   /* do not upgrade modifiable/sticking at node constraints */
-   if ( SCIPconsIsModifiable(cons) || SCIPconsIsStickingAtNode(cons) )
-      return SCIP_OKAY;
-
-   /* do not run in sub-SCIPs to avoid recursive reformulations due to rank 1 constraints */
-   if ( SCIPgetSubscipDepth(scip) > 0 )
-      return SCIP_OKAY;
-
-   /* do not upgrade after a restart */
-   if ( SCIPgetNRuns(scip) > 1 )
-      return SCIP_OKAY;
-
-   /* make sure there is enough space to store the replacing constraints */
-   if ( upgdconsssize < 1 )
-   {
-      *nupgdconss = -1;
-      return SCIP_OKAY;
-   }
-
-   conshdlr = SCIPfindConshdlr(scip, CONSHDLRRANK1_NAME);
-   if ( conshdlr == NULL )
-   {
-      SCIPerrorMessage("rank 1 SDP constraint handler not found\n");
-      return SCIP_PLUGINNOTFOUND;
-   }
-   assert( conshdlr != NULL );
-
-   conshdlrdata = SCIPconshdlrGetData(conshdlr);
-   assert( conshdlrdata != NULL );
-
-   /* check whether upgrading should be performed */
-   if ( ! conshdlrdata->sdpconshdlrdata->upgradequadconss )
-      return SCIP_OKAY;
-
-   /* we have to collect all variables appearing in quadratic constraints first */
-   if ( conshdlrdata->sdpconshdlrdata->quadconsvars == NULL )
-   {
-      SCIP_CONSHDLR* quadconshdlr;
-      SCIP_CONS** conss;
-      int nconss;
-      int nvars;
-      int c;
-      int i;
-      int nsdpvars = 0;
-
-      int** cols;
-      int** rows;
-      SCIP_Real** vals;
-      SCIP_VAR** vars;
-      int* nvarnonz;
-      int nnonz;
-      int nvarscnt;
-      int constcol = 0;
-      int constrow = 0;
-      SCIP_Real constval = -1.0;
-
-      /* todo: The arrays quadconsidx and quadconsvars are needed to check if variables have already been seen in a
-         quadratic constraint. This could be replaced with a hashmap. */
-      nvars = SCIPgetNTotalVars(scip);
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars) );
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars) );
-      conshdlrdata->sdpconshdlrdata->nquadconsidx = nvars;
-      for (j = 0; j < nvars; ++j)
-         conshdlrdata->sdpconshdlrdata->quadconsidx[j] = -1;
-
-      quadconshdlr = SCIPfindConshdlr(scip, "quadratic");
-      if ( quadconshdlr == NULL )
-      {
-         SCIPerrorMessage("Quadratic constraint handler not found\n");
-         return SCIP_PLUGINNOTFOUND;
-      }
-      assert( quadconshdlr != NULL );
-
-      conss = SCIPconshdlrGetConss(quadconshdlr);
-      nconss = SCIPconshdlrGetNConss(quadconshdlr);
-
-      /* Do not perform upgrade, if there are too many quadratic constraints present. */
-      if ( nconss > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
-      {
-         SCIPdebugMsg(scip, "There are %d many quadratic constraints present in the problem, thus do not upgrade quadratic constraints to an SDPrank1 constraint\n", nconss);
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
-         return SCIP_OKAY;
-      }
-
-      for (c = 0; c < nconss; ++c)
-      {
-         assert( conss[c] != NULL );
-#ifdef SCIP_MORE_DEBUG
-         SCIPinfoMessage(scip, NULL, "Found quadratic constraint to upgrade:\n");
-         SCIP_CALL( SCIPprintCons(scip, conss[c], NULL) );
-         SCIPinfoMessage(scip, NULL, "\n");
-#endif
-         nquadvarterms = SCIPgetNQuadVarTermsQuadratic(scip, conss[c]);
-         quadvarterms = SCIPgetQuadVarTermsQuadratic(scip, conss[c]);
-
-         for (i = 0; i < nquadvarterms; ++i)
-         {
-            SCIP_VAR* var;
-            int idx;
-
-            assert( quadvarterms != NULL );
-            var = quadvarterms[i].var;
-            idx = SCIPvarGetIndex(var);
-            assert( 0 <= idx && idx < nvars );
-            if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
-            {
-               conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
-               conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
-            }
-         }
-
-         nbilinterms = SCIPgetNBilinTermsQuadratic(scip, conss[c]);
-         bilinterms =  SCIPgetBilinTermsQuadratic(scip, conss[c]);
-
-         for (i = 0; i < nbilinterms; ++i)
-         {
-            SCIP_VAR* var;
-            int idx;
-
-            assert( bilinterms != NULL );
-            var = bilinterms[i].var1;
-            idx = SCIPvarGetIndex(var);
-            assert( 0 <= idx && idx < nvars );
-            if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
-            {
-               conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
-               conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
-            }
-
-            var = bilinterms[i].var2;
-            idx = SCIPvarGetIndex(var);
-            assert( 0 <= idx && idx < nvars );
-            if ( conshdlrdata->sdpconshdlrdata->quadconsidx[idx] < 0 )
-            {
-               conshdlrdata->sdpconshdlrdata->quadconsvars[nsdpvars] = var;
-               conshdlrdata->sdpconshdlrdata->quadconsidx[idx] = nsdpvars++;
-            }
-         }
-      }
-
-      /* do not perform upgrade, if no sdpvars have been added */
-      if ( nsdpvars == 0 )
-      {
-         SCIPdebugMsg(scip, "No sdp variables have been added\n");
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
-         return SCIP_OKAY;
-      }
-
-      /* do not perform upgrade, if there are too many variables in the quadratic constraints, since we need sdpvars *
-         sdpvars many variables for the (dual) SDPrank1 constraint */
-      if ( nsdpvars > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
-      {
-         SCIPdebugMsg(scip, "There are %d many variables present in the quadratic constraints, thus do not upgrade quadratic constraints to an SDPrank1 constraint\n", nsdpvars);
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
-         SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
-         return SCIP_OKAY;
-      }
-
-      /* create bilinear variables */
-      SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X, nsdpvars) );
-      conshdlrdata->sdpconshdlrdata->nsdpvars = nsdpvars;
-
-      for (i = 0; i < nsdpvars; ++i)
-      {
-         SCIP_Real lb1;
-         SCIP_Real ub1;
-         SCIP_VAR* var1;
-
-         var1 = conshdlrdata->sdpconshdlrdata->quadconsvars[i];
-         assert( var1 != NULL );
-         lb1 = SCIPvarGetLbGlobal(var1);
-         ub1 = SCIPvarGetUbGlobal(var1);
-
-         SCIP_CALL( SCIPallocBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->X[i], nsdpvars) );
-
-         for (j = 0; j <= i; ++j)
-         {
-            SCIP_VARTYPE vartype;
-            SCIP_VAR* var2;
-            SCIP_Real lb2;
-            SCIP_Real ub2;
-            SCIP_Real lb;
-            SCIP_Real ub;
-
-            var2 = conshdlrdata->sdpconshdlrdata->quadconsvars[j];
-            assert( var2 != NULL );
-            lb2 = SCIPvarGetLbGlobal(var2);
-            ub2 = SCIPvarGetUbGlobal(var2);
-
-            (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "X%d#%d", i, j);
-
-            lb = MIN3(lb1 * lb2, lb1 * ub2, ub1 * lb2);
-            lb = MIN(lb, ub1 * ub2);
-            ub = MAX3(lb1 * lb2, lb1 * ub2, ub1 * lb2);
-            ub = MAX(ub, ub1 * ub2);
-
-            if ( SCIPvarIsBinary(var1) && SCIPvarIsBinary(var2) )
-               vartype = SCIP_VARTYPE_BINARY;
-            else if ( SCIPvarIsIntegral(var1) && SCIPvarIsIntegral(var2) )
-               vartype = SCIP_VARTYPE_INTEGER;
-            else
-               vartype = SCIP_VARTYPE_CONTINUOUS;
-
-            SCIP_CALL( SCIPcreateVarBasic(scip, &(conshdlrdata->sdpconshdlrdata->X[i][j]), name, lb, ub, 0.0, vartype) );
-            SCIP_CALL( SCIPaddVar(scip, conshdlrdata->sdpconshdlrdata->X[i][j]) );
-         }
-      }
-
-      /* fill SDP data */
-      nnonz = nsdpvars + nsdpvars * (nsdpvars + 1) / 2;
-      SCIP_CALL( SCIPallocBufferArray(scip, &cols, nnonz) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &rows, nnonz) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &vals, nnonz) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &vars, nnonz) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &nvarnonz, nnonz) );
-
-      /* first the terms for the original variables */
-      for (j = 0; j < nsdpvars; ++j)
-      {
-         SCIP_CALL( SCIPallocBufferArray(scip, &cols[j], 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &rows[j], 1) );
-         SCIP_CALL( SCIPallocBufferArray(scip, &vals[j], 1) );
-         nvarnonz[j] = 1;
-         cols[j][0] = 0;
-         rows[j][0] = 1 + j;
-         vals[j][0] = 1.0;
-         vars[j] = conshdlrdata->sdpconshdlrdata->quadconsvars[j];
-      }
-
-      /* now the terms for the bilinear terms */
-      nvarscnt = nsdpvars;
-      for (i = 0; i < nsdpvars; ++i)
-      {
-         for (j = 0; j <= i; ++j)
-         {
-            SCIP_CALL( SCIPallocBufferArray(scip, &cols[nvarscnt], 1) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &rows[nvarscnt], 1) );
-            SCIP_CALL( SCIPallocBufferArray(scip, &vals[nvarscnt], 1) );
-            nvarnonz[nvarscnt] = 1;
-            cols[nvarscnt][0] = 1 + j;
-            rows[nvarscnt][0] = 1 + i;
-            vals[nvarscnt][0] = 1.0;
-            vars[nvarscnt] = conshdlrdata->sdpconshdlrdata->X[i][j];
-            ++nvarscnt;
-         }
-      }
-      assert( nvarscnt == nsdpvars + nsdpvars * (nsdpvars + 1)/2 );
-
-      /* create corresponding rank 1 SDP constraint */
-      if ( conshdlrdata->sdpconshdlrdata->upgradeaddrank1 )
-      {
-         SCIP_CALL( SCIPcreateConsSdpRank1(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPrank1cons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
-               cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
-         SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
-      }
-      else
-      {
-         SCIP_CALL( SCIPcreateConsSdp(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPcons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
-               cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
-         SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
-      }
-
-#ifdef SCIP_MORE_DEBUG
-      SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDPrank1 constraint has been added:\n");
-      SCIP_CALL( SCIPprintCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons, NULL) );
-      SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-      /* free local memory */
-      for (j = nvarscnt - 1; j >= 0; --j)
-      {
-         SCIPfreeBufferArray(scip, &vals[j]);
-         SCIPfreeBufferArray(scip, &rows[j]);
-         SCIPfreeBufferArray(scip, &cols[j]);
-      }
-      SCIPfreeBufferArray(scip, &nvarnonz);
-      SCIPfreeBufferArray(scip, &vars);
-      SCIPfreeBufferArray(scip, &vals);
-      SCIPfreeBufferArray(scip, &rows);
-      SCIPfreeBufferArray(scip, &cols);
-   }
-
-   if ( conshdlrdata->sdpconshdlrdata->upgradelinconss )
-   {
-      int cnt = 0;
-
-      /* create linear constraint for quadratic constraint */
-      nlinvarterms = SCIPgetNLinearVarsQuadratic(scip, cons);
-      linvarsterms = SCIPgetLinearVarsQuadratic(scip, cons);
-      linvalsterms = SCIPgetCoefsLinearVarsQuadratic(scip, cons);
-      nquadvarterms = SCIPgetNQuadVarTermsQuadratic(scip, cons);
-      quadvarterms = SCIPgetQuadVarTermsQuadratic(scip, cons);
-      nbilinterms = SCIPgetNBilinTermsQuadratic(scip, cons);
-      bilinterms =  SCIPgetBilinTermsQuadratic(scip, cons);
-
-      /* a quadvarterm consists of a variable x and two coefficients, one for the linear term x and one for the quadratic
-         term x^2, where at least one of the two coefficients is nonzero  */
-      nlinconsterms = nlinvarterms + 2 * nquadvarterms + nbilinterms;
-      SCIP_CALL( SCIPallocBufferArray(scip, &linconsvars, nlinconsterms) );
-      SCIP_CALL( SCIPallocBufferArray(scip, &linconsvals, nlinconsterms) );
-
-      /* fill in constraint */
-      for (j = 0; j < nlinvarterms; ++j)
-      {
-         linconsvals[cnt] = linvalsterms[j];
-         linconsvars[cnt] = linvarsterms[j];
-         assert( linconsvars[cnt] != NULL );
-         ++cnt;
-      }
-      assert( cnt == nlinvarterms );
-      for (j = 0; j < nquadvarterms; ++j)
-      {
-         int idx;
-
-         idx = SCIPvarGetIndex(quadvarterms[j].var);
-         idx = conshdlrdata->sdpconshdlrdata->quadconsidx[idx];
-         assert( 0 <= idx && idx < conshdlrdata->sdpconshdlrdata->nsdpvars );
-
-         /* add coefficient for linear term corresponding to the current variable (may be zero) */
-         if ( ! SCIPisZero(scip, quadvarterms[j].lincoef) )
-         {
-            linconsvals[cnt] = quadvarterms[j].lincoef;
-            linconsvars[cnt] = quadvarterms[j].var;
-            assert( linconsvars[cnt] != NULL );
-            ++cnt;
-         }
-
-         /* add coefficient for quadratic term corresponding to the current variable (may be zero) */
-         if ( ! SCIPisZero(scip, quadvarterms[j].sqrcoef) )
-         {
-            linconsvals[cnt] = quadvarterms[j].sqrcoef;
-            linconsvars[cnt] = conshdlrdata->sdpconshdlrdata->X[idx][idx];
-            assert( linconsvars[cnt] != NULL );
-            ++cnt;
-         }
-
-         SCIPdebugMsg(scip, "New variable %s corresponds to squared original variable %s\n",
-            SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx][idx]), SCIPvarGetName(quadvarterms[j].var));
-      }
-      assert( cnt <= nlinvarterms + 2 * nquadvarterms );
-
-      for (j = 0; j < nbilinterms; ++j)
-      {
-         int idx1;
-         int idx2;
-
-         idx1 = SCIPvarGetIndex(bilinterms[j].var1);
-         idx1 = conshdlrdata->sdpconshdlrdata->quadconsidx[idx1];
-         assert( 0 <= idx1 && idx1 < conshdlrdata->sdpconshdlrdata->nsdpvars );
-
-         idx2 = SCIPvarGetIndex(bilinterms[j].var2);
-         idx2 = conshdlrdata->sdpconshdlrdata->quadconsidx[idx2];
-         assert( 0 <= idx2 && idx2 < conshdlrdata->sdpconshdlrdata->nsdpvars );
-
-         if ( idx2 > idx1 )
-            SCIPswapInts(&idx1, &idx2);
-
-         linconsvals[cnt] = bilinterms[j].coef;
-         linconsvars[cnt] = conshdlrdata->sdpconshdlrdata->X[idx1][idx2];
-         assert( linconsvars[cnt] != NULL );
-         ++cnt;
-
-         SCIPdebugMsg(scip, "New variable %s corresponds to product of original variables %s and %s\n",
-            SCIPvarGetName(conshdlrdata->sdpconshdlrdata->X[idx1][idx2]), SCIPvarGetName(bilinterms[j].var1), SCIPvarGetName(bilinterms[j].var2));
-      }
-      assert( cnt <= nlinvarterms + 2 * nquadvarterms + nbilinterms );
-
-      (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "lin_%s", SCIPconsGetName(cons));
-      SCIP_CALL( SCIPcreateConsLinear(scip, &lincons, name, cnt, linconsvars, linconsvals, SCIPgetLhsQuadratic(scip, cons), SCIPgetRhsQuadratic(scip, cons),
-            SCIPconsIsInitial(cons), SCIPconsIsSeparated(cons), SCIPconsIsEnforced(cons), SCIPconsIsChecked(cons), SCIPconsIsPropagated(cons), SCIPconsIsLocal(cons),
-            FALSE, SCIPconsIsDynamic(cons), SCIPconsIsRemovable(cons), FALSE) );
-
-#ifdef SCIP_MORE_DEBUG
-      SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following linear constraint has been added:\n");
-      SCIP_CALL( SCIPprintCons(scip, lincons, NULL) );
-      SCIPinfoMessage(scip, NULL, "\n");
-#endif
-
-      /* fill in upgdconss - do not mention SDP constraint, since this has been added already */
-      upgdconss[0] = lincons;
-      *nupgdconss = 1;
-
-      SCIPfreeBufferArray(scip, &linconsvals);
-      SCIPfreeBufferArray(scip, &linconsvars);
-   }
-   else
-   {
-      /* todo: Check whether adding the linear constraints helps */
-      *nupgdconss = 0;          /* the original quadratic constraint should be kept in the problem */
-   }
-
-   /* turn off upgrading in order to avoid a possibly infinite loop */
-   conshdlrdata->sdpconshdlrdata->upgradequadconss = FALSE;
-
-   return SCIP_OKAY;
-}
-
-#endif
 
 
 #if SCIP_VERSION >= 900
@@ -6958,6 +6575,9 @@ SCIP_DECL_CONSEXIT(consExitSdp)
       if ( conshdlrdata->sdpconshdlrdata->prop3minortime != NULL )
          SCIP_CALL( SCIPfreeClock(scip, &conshdlrdata->sdpconshdlrdata->prop3minortime) );
    }
+   assert( conshdlrdata->sdpconshdlrdata->nquadconsidx <= 0 );
+   assert( conshdlrdata->sdpconshdlrdata->quadconsidx == NULL );
+   assert( conshdlrdata->sdpconshdlrdata->quadconsvars == NULL );
 
    return SCIP_OKAY;
 }
@@ -6972,16 +6592,6 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
 
    assert( scip != NULL );
    assert( conshdlr != NULL );
-
-   if ( conss == NULL )
-      return SCIP_OKAY;
-
-   SCIPdebugMsg(scip, "Exitpre method of conshdlr <%s>.\n", SCIPconshdlrGetName(conshdlr));
-
-   if ( SCIPgetStatus(scip) != SCIP_STATUS_OPTIMAL && SCIPgetStatus(scip) != SCIP_STATUS_INFEASIBLE )
-   {
-      SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
-   }
 
    conshdlrdata = SCIPconshdlrGetData(conshdlr);
    assert( conshdlrdata != NULL );
@@ -7006,6 +6616,16 @@ SCIP_DECL_CONSEXITPRE(consExitpreSdp)
    {
       SCIPdebugMsg(scip, "Releasing constraint %s from upgrading method\n", SCIPconsGetName(conshdlrdata->sdpconshdlrdata->sdpcons) );
       SCIP_CALL( SCIPreleaseCons(scip, &conshdlrdata->sdpconshdlrdata->sdpcons) );
+   }
+
+   if ( conss == NULL )
+      return SCIP_OKAY;
+
+   SCIPdebugMsg(scip, "Exitpre method of conshdlr <%s>.\n", SCIPconshdlrGetName(conshdlr));
+
+   if ( SCIPgetStatus(scip) != SCIP_STATUS_OPTIMAL && SCIPgetStatus(scip) != SCIP_STATUS_INFEASIBLE )
+   {
+      SCIP_CALL( fixAndAggrVars(scip, conss, nconss, TRUE) );
    }
 
    return SCIP_OKAY;
@@ -9175,7 +8795,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPallocMemory(scip, &conshdlrdata) );
    conshdlrdata->quadconsidx = NULL;
    conshdlrdata->quadconsvars = NULL;
-   conshdlrdata->nquadconsidx = 0;
+   conshdlrdata->nquadconsidx = -1;
    conshdlrdata->X = NULL;
    conshdlrdata->nsdpvars = 0;
    conshdlrdata->sdpcons = NULL;
@@ -9210,7 +8830,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    conshdlrdata->nproppreintrnd3m = 0;
    conshdlrdata->npropprobub = 0;
    conshdlrdata->npropprobtb = 0;
-
 
    /* include constraint handler */
    SCIP_CALL( SCIPincludeConshdlrBasic(scip, &conshdlr, CONSHDLR_NAME, CONSHDLR_DESC,
@@ -9320,10 +8939,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradeaddrank1",
          "Add rank1 SDP constraint during upgrading?",
          &(conshdlrdata->upgradeaddrank1), TRUE, DEFAULT_UPGRADEADDRANK1, NULL, NULL) );
-
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradelinconss",
-         "Add linear constraints expressed in lifted variables in upgrading?",
-         &(conshdlrdata->upgradelinconss), TRUE, DEFAULT_UPGRADELINCONSS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/separateonecut",
          "Should only one cut corresponding to the most negative eigenvalue be separated?",
@@ -9449,7 +9064,6 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->quadconsrank1 = FALSE;
    conshdlrdata->upgradequadconss = FALSE;
    conshdlrdata->upgradeaddrank1 = FALSE;
-   conshdlrdata->upgradelinconss = FALSE;
    conshdlrdata->separateonecut = FALSE;
    conshdlrdata->cutstopool = FALSE;
    conshdlrdata->sparsifycut = FALSE;
@@ -9489,7 +9103,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
 
    conshdlrdata->quadconsidx = NULL;
    conshdlrdata->quadconsvars = NULL;
-   conshdlrdata->nquadconsidx = 0;
+   conshdlrdata->nquadconsidx = -1;
    conshdlrdata->X = NULL;
    conshdlrdata->nsdpvars = 0;
    conshdlrdata->sdpcons = NULL;
