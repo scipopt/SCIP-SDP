@@ -4,6 +4,9 @@ SCIP-SDP version 4.5
 fixed bugs:
 - fixed bug with upgrading quadratic constraints that avoided the upgrading of most constraints
 
+parameters:
+- change constraints/SDP/upgradekeepquad to constraints/SDP/upgradeaddrank1 to determine whether rank 1 SDP conss should be added
+- add constraints/SDP/upgradelinconss to determine whether linear constraints should be added
 
 SCIP-SDP version 4.4
 ====================

@@ -127,7 +127,8 @@
 #define DEFAULT_TWOMINORVARBOUNDS  TRUE /**< Should linear cuts corresponding to variable bounds for 2 by 2 minors be added? */
 #define DEFAULT_QUADCONSRANK1      TRUE /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
 #define DEFAULT_UPGRADEQUADCONSS  FALSE /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
-#define DEFAULT_UPGRADEKEEPQUAD   FALSE /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
+#define DEFAULT_UPGRADEADDRANK1   FALSE /**< Keep quadratic constraints and add non-rank1 SDP constraint after upgrading? */
+#define DEFAULT_UPGRADELINCONSS    TRUE /**< Add linear constraints expressed in lifted variables in upgrading? */
 #define DEFAULT_MAXNVARSQUADUPGD   1000 /**< maximal number of quadratic constraints and appearing variables so that the QUADCONSUPGD is performed */
 #define DEFAULT_RANK1APPROXHEUR   FALSE /**< Should the heuristic that computes the best rank-1 approximation for a given solution be executed? */
 #define DEFAULT_SEPARATEONECUT    FALSE /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
@@ -225,7 +226,8 @@ struct SCIP_ConshdlrData
    SCIP_Bool             twominorvarbounds;  /**< Should linear cuts corresponding to variable bounds for 2 by 2 minors be added? */
    SCIP_Bool             quadconsrank1;      /**< Should quadratic cons for 2x2 minors be added in the rank-1 case? */
    SCIP_Bool             upgradequadconss;   /**< Should quadratic constraints be upgraded to a rank 1 SDP? */
-   SCIP_Bool             upgradekeepquad;    /**< Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint? */
+   SCIP_Bool             upgradeaddrank1;    /**< Add rank1 SDP constraint during upgrading? */
+   SCIP_Bool             upgradelinconss;    /**< Add linear constraints expressed in lifted variables in upgrading? */
    SCIP_Bool             separateonecut;     /**< Should only one cut corresponding to the most negative eigenvalue be separated? */
    SCIP_Bool             cutstopool;         /**< Should the cuts be added to the pool? */
    SCIP_Bool             sparsifycut;        /**< Should the eigenvector cuts be sparsified? */
@@ -5827,7 +5829,7 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
       /* do not perform upgrade, if no sdpvars have been added */
       if ( nsdpvars == 0 )
       {
-         SCIPdebugMsg(scip, "No sdp variables have been added\n");
+         SCIPdebugMsg(scip, "No sdp variables have been added.\n");
          SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
          SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
          return SCIP_OKAY;
@@ -5837,7 +5839,7 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
        * sdpvars * sdpvars many variables for the (dual) SDPrank1 constraint */
       if ( nsdpvars > conshdlrdata->sdpconshdlrdata->maxnvarsquadupgd )
       {
-         SCIPdebugMsg(scip, "There are %d many variables present in the quadratic constraints, thus do not upgrade quadratic constraints to an SDPrank1 constraint\n", nsdpvars);
+         SCIPdebugMsg(scip, "There are %d many variables present in the quadratic constraints, thus do not upgrade quadratic constraints to an SDPrank1 constraint.\n", nsdpvars);
          SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsvars, nvars);
          SCIPfreeBlockMemoryArray(scip, &conshdlrdata->sdpconshdlrdata->quadconsidx, nvars);
          return SCIP_OKAY;
@@ -5934,21 +5936,21 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
       assert( nvarscnt == nsdpvars + nsdpvars * (nsdpvars + 1)/2 );
 
       /* create corresponding rank 1 SDP constraint */
-      if ( conshdlrdata->sdpconshdlrdata->upgradekeepquad )
-      {
-         SCIP_CALL( SCIPcreateConsSdp(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPcons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
-               cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
-         SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
-      }
-      else
+      if ( conshdlrdata->sdpconshdlrdata->upgradeaddrank1 )
       {
          SCIP_CALL( SCIPcreateConsSdpRank1(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPrank1cons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
                cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
       }
+      else
+      {
+         SCIP_CALL( SCIPcreateConsSdp(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPcons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
+               cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
+         SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
+      }
 
 #ifdef SCIP_MORE_DEBUG
-      SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDPrank1 constraint has been added:\n");
+      SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDP constraint has been added:\n");
       SCIP_CALL( SCIPprintCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons, NULL) );
       SCIPinfoMessage(scip, NULL, "\n");
 #endif
@@ -5968,7 +5970,7 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
    }
 
    /* create linear constraint for quadratic constraint */
-   if ( ! conshdlrdata->sdpconshdlrdata->upgradekeepquad )
+   if ( conshdlrdata->sdpconshdlrdata->upgradelinconss )
    {
       SCIP_EXPR** linexprs;
       SCIP_EXPR* expr;
@@ -6386,15 +6388,15 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       assert( nvarscnt == nsdpvars + nsdpvars * (nsdpvars + 1)/2 );
 
       /* create corresponding rank 1 SDP constraint */
-      if ( conshdlrdata->sdpconshdlrdata->upgradekeepquad )
+      if ( conshdlrdata->sdpconshdlrdata->upgradeaddrank1 )
       {
-         SCIP_CALL( SCIPcreateConsSdp(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPcons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
+         SCIP_CALL( SCIPcreateConsSdpRank1(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPrank1cons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
                cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
       }
       else
       {
-         SCIP_CALL( SCIPcreateConsSdpRank1(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPrank1cons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
+         SCIP_CALL( SCIPcreateConsSdp(scip, &conshdlrdata->sdpconshdlrdata->sdpcons, "QuadraticSDPcons", nvarscnt, nvarscnt, 1 + nsdpvars, nvarnonz,
                cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
          SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
       }
@@ -6419,7 +6421,7 @@ SCIP_DECL_QUADCONSUPGD(consQuadConsUpgdSdp)
       SCIPfreeBufferArray(scip, &cols);
    }
 
-   if ( ! conshdlrdata->sdpconshdlrdata->upgradekeepquad )
+   if ( conshdlrdata->sdpconshdlrdata->upgradelinconss )
    {
       int cnt = 0;
 
@@ -9321,9 +9323,13 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
          "Should quadratic constraints be upgraded to a rank 1 SDP?",
          &(conshdlrdata->upgradequadconss), TRUE, DEFAULT_UPGRADEQUADCONSS, NULL, NULL) );
 
-   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradekeepquad",
-         "Should the quadratic constraints be kept in the problem after upgrading and the corresponding SDP constraint be added without the rank 1 constraint?",
-         &(conshdlrdata->upgradekeepquad), TRUE, DEFAULT_UPGRADEKEEPQUAD, NULL, NULL) );
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradeaddrank1",
+         "Add rank1 SDP constraint during upgrading?",
+         &(conshdlrdata->upgradeaddrank1), TRUE, DEFAULT_UPGRADEADDRANK1, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/upgradelinconss",
+         "Add linear constraints expressed in lifted variables in upgrading?",
+         &(conshdlrdata->upgradelinconss), TRUE, DEFAULT_UPGRADELINCONSS, NULL, NULL) );
 
    SCIP_CALL( SCIPaddBoolParam(scip, "constraints/SDP/separateonecut",
          "Should only one cut corresponding to the most negative eigenvalue be separated?",
@@ -9448,7 +9454,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    conshdlrdata->twominorvarbounds = FALSE;
    conshdlrdata->quadconsrank1 = FALSE;
    conshdlrdata->upgradequadconss = FALSE;
-   conshdlrdata->upgradekeepquad = FALSE;
+   conshdlrdata->upgradeaddrank1 = FALSE;
+   conshdlrdata->upgradelinconss = FALSE;
    conshdlrdata->separateonecut = FALSE;
    conshdlrdata->cutstopool = FALSE;
    conshdlrdata->sparsifycut = FALSE;
