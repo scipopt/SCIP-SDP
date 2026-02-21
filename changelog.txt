@@ -8,6 +8,9 @@ parameters:
 - change constraints/SDP/upgradekeepquad to constraints/SDP/upgradeaddrank1 to determine whether rank 1 SDP conss should be added
 - add constraints/SDP/upgradelinconss to determine whether linear constraints should be added
 
+(c)make:
+- remove old workaround for symemtry and only allow at least SCIP version 10
+
 SCIP-SDP version 4.4
 ====================
 

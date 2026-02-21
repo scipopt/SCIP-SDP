@@ -147,11 +147,6 @@ LINKSMARKERFILE	=	$(LIBDIR)/linkscreated.$(LPS)-$(LPSOPT).$(OSTYPE).$(ARCH).$(CO
 SDPOBJSUBDIRS	=	$(OBJDIR)/scipsdp \
 			$(OBJDIR)/sdpi
 
-# add symmetry code for older SCIP versions
-ifneq ($(SCIP_VERSION_MAJOR),9)
-SDPOBJSUBDIRS	+=	$(OBJDIR)/symmetry
-endif
-
 #-----------------------------------------------------------------------------
 # OMPSETTINGS (used to set number of threads for OMP)
 #-----------------------------------------------------------------------------
@@ -198,18 +193,6 @@ SCIPSDPCOBJ	=	scipsdp/SdpVarmapper.o \
 			sdpi/arpack_interface.o \
 			sdpi/sdpiclock.o \
 			scipsdpgithash.o
-
-# add symmetry code for older SCIP versions
-ifneq ($(SCIP_VERSION_MAJOR),9)
-SCIPSDPCOBJ	+=	scipsdp/prop_sdpsymmetry.o \
-			scipsdp/sdpsymmetry.o
-ifeq ($(SYM),bliss)
-SCIPSDPCCOBJ 	=	symmetry/compute_symmetry_bliss.o
-FLAGS		+=	-I$(SCIPDIR)/src/bliss/src -I$(SCIPDIR)/src/bliss/include
-else
-SCIPSDPCCOBJ 	+=	symmetry/compute_symmetry_none.o
-endif
-endif
 
 SCIPSDPCSRC	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCOBJ:.o=.c))
 SCIPSDPCCSRC 	=	$(addprefix $(SRCDIR)/,$(SCIPSDPCCOBJ:.o=.cpp))
@@ -405,11 +388,6 @@ ifneq ($(OBJDIR),)
 		@-rm -f $(OBJDIR)/*.d
 		@-rmdir $(OBJDIR)/scipsdp
 	 	@-rmdir $(OBJDIR)/sdpi
-ifneq ($(SCIP_VERSION_MAJOR),9)
-		@-rm -f $(OBJDIR)/symmetry/*.o
-		@-rm -f $(OBJDIR)/symmetry/*.d
-	 	@-rmdir $(OBJDIR)/symmetry
-endif
 		@-rmdir $(OBJDIR)
 endif
 		-rm -f $(SCIPSDPBINFILE)
