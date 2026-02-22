@@ -103,6 +103,7 @@
 #define DEFAULT_CONFLICTINFEAS      TRUE     /**< whether conflict constraints should be generated for infeasible subproblems */
 #define DEFAULT_CONFLICTCMIR        FALSE    /**< whether conflict constraints should be strengthened by the CMIR procedure */
 #define DEFAULT_CONFLICTCANCEL      FALSE    /**< whether continuous variables should be canceled from a conflict constraint */
+#define DEFAULT_CONFLICTCONSSEPA    FALSE    /**< whether conflict constraints sould be separated and added to relaxation */
 
 #define WARMSTART_MINVAL            0.01     /**< minimal value for warmstarting (currently only for the linear part when combining with analytic center) */
 #define WARMSTART_PROJ_MINRHSOBJ    1        /**< minimal value for rhs/obj when computing minimum eigenvalue for warmstart-projection */
@@ -154,6 +155,7 @@ struct SCIP_RelaxData
    SCIP_Bool             conflictinfeas;     /**< whether conflict constraints should be generated for infeasible subproblems */
    SCIP_Bool             conflictcmir;       /**< whether conflict constraints should be strengthened by the CMIR procedure */
    SCIP_Bool             conflictcancel;     /**< whether continuous variables should be canceled from a conflict constraint */
+   SCIP_Bool             conflictconssepa;   /**< whether conflict constraints sould be separated and added to relaxation */
    int                   slatercheck;        /**< Should the Slater condition for the dual problem be checked ahead of solving every SDP ? */
    SCIP_Bool             sdpinfo;            /**< Should the SDP solver output information to the screen? */
    SCIP_Bool             displaystat;        /**< Should statistics about SDP iterations and solver settings/success be printed after quitting SCIP-SDP ? */
@@ -1476,22 +1478,38 @@ SCIP_RETCODE generateConflictCons(
       SCIP_CONS* cons;
       SCIP_VAR** consvars;
       SCIP_Real* consvals;
+      SCIP_Real maxabsval;
       int cnt = 0;
 
       SCIP_CALL( SCIPallocBufferArray(scip, &consvars, nvars) );
       SCIP_CALL( SCIPallocBufferArray(scip, &consvals, nvars) );
 
+      maxabsval = REALABS(conflictcutlhs);
       for (i = 0; i < nvars; ++i)
       {
          if ( ! SCIPisZero(scip, conflictcut[i]) )
          {
             consvars[cnt] = vars[i];
             consvals[cnt++] = conflictcut[i];
+            if ( REALABS(conflictcut[i]) > maxabsval )
+               maxabsval = REALABS(conflictcut[i]);
          }
       }
+
       (void) SCIPsnprintf(consname, SCIP_MAXSTRLEN, "conflictcut#%d", SCIPrelaxGetNCalls(relax));
-      SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
-            FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+
+      /* for numerical stability when separating: only accept cut if maximal absolute value of coefficients is not too large */
+      if ( relaxdata->conflictconssepa && cmirsuccess && maxabsval < 0.01 / SCIPsumepsilon(scip) )
+      {
+         /* we only add the linear constraint if CMIR was applied and successful, otherwise the constraint is redundant */
+         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
+               TRUE, TRUE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+      }
+      else
+      {
+         SCIP_CALL( SCIPcreateConsLinear(scip, &cons, consname, cnt, consvars, consvals, conflictcutlhs, SCIPinfinity(scip),
+               FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE) );
+      }
 
 #ifdef SCIP_MORE_DEBUG
       SCIPinfoMessage(scip, NULL, "Added dual cut:\n");
@@ -5492,6 +5510,10 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictcancel",
          "whether continuous variables should be canceled from a conflict constraint",
          &(relaxdata->conflictcancel), TRUE, DEFAULT_CONFLICTCANCEL, NULL, NULL) );
+
+   SCIP_CALL( SCIPaddBoolParam(scip, "relaxing/SDP/conflictconssepa",
+         "whether conflict constraints sould be separated and added to relaxation",
+         &(relaxdata->conflictconssepa), TRUE, DEFAULT_CONFLICTCONSSEPA, NULL, NULL) );
 
    SCIP_CALL( SCIPaddRealParam(scip, "relaxing/SDP/warmstartipfactor",
          "factor for interior point in convex combination of IP and parent solution, if warmstarts are enabled",

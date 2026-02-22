@@ -3,6 +3,7 @@ SCIP-SDP version 4.5
 
 features:
 - for rank 1 constraints only one side of the quadratic constraints is enforced, because the other is ensured by the SDP
+- allow to add conflict constraint to problem
 
 fixed bugs:
 - fixed bug with upgrading quadratic constraints that avoided the upgrading of most constraints
@@ -11,6 +12,7 @@ fixed bugs:
 parameters:
 - change constraints/SDP/upgradekeepquad to constraints/SDP/upgradeaddrank1 to determine whether rank 1 SDP conss should be added
 - add constraints/SDP/upgradelinconss to determine whether linear constraints should be added
+- add relaxing/SDP/conflictconssepa to determine whether the conflict constraints should be separated and added to the problem
 
 (c)make:
 - remove old workaround for symemtry and only allow at least SCIP version 10
