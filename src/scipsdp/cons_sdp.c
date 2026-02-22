@@ -3766,6 +3766,7 @@ SCIP_RETCODE checkRank1QuadConss(
             {
                SCIPinfoMessage(scip, NULL, "SDPrank1-constraint <%s> is not rank1 (quadratic 2x2 minor for (%d,%d): %f).\n", SCIPconsGetName(cons), i, j, minor);
                SCIP_CALL( SCIPprintCons(scip, cons, NULL) );
+               SCIPinfoMessage(scip, NULL, "\n");
             }
          }
          if ( sol != NULL )

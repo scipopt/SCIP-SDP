@@ -1098,8 +1098,11 @@ SCIP_RETCODE computeConflictCut(
             SCIP_CALL( SCIPlapackComputeIthEigenvalue(SCIPbuffer(scip), FALSE, blocksize, primalmatrices[b], 1, &eigenvalue, NULL) );
 
             /* possibly correct the fact that the primal matrix might be psd only up to a certain precision */
-            SCIPdebugMsg(scip, "Correcting lhs of generated cut by %g.\n", MIN(eigenvalue, 0.0));
-            SCIPquadprecSumQD(cutlhs, cutlhs, MIN(eigenvalue, 0.0));
+            if ( eigenvalue < 0.0 )
+            {
+               SCIPdebugMsg(scip, "Correcting lhs of generated cut by %g.\n", eigenvalue);
+               SCIPquadprecSumQD(cutlhs, cutlhs, eigenvalue);
+            }
          }
       }
       assert( ! SCIPisInfinity(scip, REALABS(QUAD_TO_DBL(cutlhs))) );
