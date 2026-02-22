@@ -1869,9 +1869,23 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
       return FALSE;
    case MSK_SOL_STA_OPTIMAL:
    case MSK_SOL_STA_PRIM_AND_DUAL_FEAS:
-   case MSK_SOL_STA_PRIM_INFEAS_CER:
    case MSK_SOL_STA_DUAL_INFEAS_CER:
       return TRUE;
+
+   case MSK_SOL_STA_PRIM_INFEAS_CER:
+   {
+      SCIP_Real dviolcon;
+      SCIP_Real dviolvar;
+      SCIP_Real dviolbarvar;
+      MOSEK_CALL_BOOL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+      /* we know the feasibility status if the violations are all small enough */
+      if ( dviolcon < sdpisolver->feastol && dviolvar < sdpisolver->feastol && dviolbarvar < sdpisolver->feastol )
+         return TRUE;
+      return FALSE;
+   }
+
    default:
       SCIPdebugMessage("Unknown return code in SCIPsdpiSolverFeasibilityKnown\n"); /* TODO: add illposed_cer */
       return FALSE;
@@ -1927,9 +1941,14 @@ SCIP_Bool SCIPsdpiSolverIsPrimalUnbounded(
    {
    case MSK_SOL_STA_DUAL_INFEAS_CER:
    {
-      SCIP_Real pfeas;
-      MOSEK_CALL_BOOL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_INTPNT_PRIMAL_FEAS, &pfeas) );
-      if ( pfeas < sdpisolver->feastol )
+      SCIP_Real pviolcon;
+      SCIP_Real pviolvar;
+      SCIP_Real pviolbarvar;
+      MOSEK_CALL_BOOL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, NULL, &pviolcon, &pviolvar, &pviolbarvar, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL) );
+
+      /* primal unbounded if there is a primal ray (= dual infeasibility certificate) and the primal violations are all small enough */
+      if ( pviolcon < sdpisolver->feastol && pviolvar < sdpisolver->feastol && pviolbarvar < sdpisolver->feastol )
          return TRUE;
       break;
    }
@@ -2009,9 +2028,14 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
    {
-      SCIP_Real dfeas;
-      MOSEK_CALL_BOOL( MSK_getdouinf(sdpisolver->msktask, MSK_DINF_INTPNT_DUAL_FEAS, &dfeas) );
-      if ( dfeas < sdpisolver->feastol )
+      SCIP_Real dviolcon;
+      SCIP_Real dviolvar;
+      SCIP_Real dviolbarvar;
+      MOSEK_CALL_BOOL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+      /* dual unbounded if there is a dual ray (= primal infeasibility certificate) and the dual violations are all small enough */
+      if ( dviolcon < sdpisolver->feastol && dviolvar < sdpisolver->feastol && dviolbarvar < sdpisolver->feastol )
          return TRUE;
       break;
    }

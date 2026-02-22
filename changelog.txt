@@ -8,6 +8,7 @@ features:
 fixed bugs:
 - fixed bug with upgrading quadratic constraints that avoided the upgrading of most constraints
 - avoid upgrading quadratic constraints several times using upgrade locks
+- improve handling of feasibility status determination for sdpisolver_mosek
 
 parameters:
 - change constraints/SDP/upgradekeepquad to constraints/SDP/upgradeaddrank1 to determine whether rank 1 SDP conss should be added
