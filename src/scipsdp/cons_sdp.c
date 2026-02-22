@@ -3529,7 +3529,7 @@ SCIP_RETCODE addRank1QuadConss(
          SCIP_Real* quadcoefs;
          SCIP_Real* constmatrix;
          SCIP_Real** matrixAk;
-         SCIP_Real lhs;
+         SCIP_Real rhs;
          SCIP_Real aiik;
          SCIP_Real ajjk;
          SCIP_Real aijk;
@@ -3644,12 +3644,11 @@ SCIP_RETCODE addRank1QuadConss(
                assert( quadcnt <= consdata->nvars * consdata->nvars );
                assert( lincnt <= consdata->nvars );
 
-               lhs = cij * cij - cii * cjj;
+               rhs = cij * cij - cii * cjj;
 
                (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "quadcons#%d#%d#%d", i, j, c);
 
                /* create quadratic constraint */
-#if ( SCIP_VERSION >= 800 || ( SCIP_VERSION < 800 && SCIP_APIVERSION >= 100 ) )
                SCIP_CALL( SCIPcreateConsQuadraticNonlinear(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
                      TRUE,      /* initial */
                      TRUE,      /* separate */
@@ -3660,18 +3659,6 @@ SCIP_RETCODE addRank1QuadConss(
                      FALSE,     /* modifiable */
                      FALSE,     /* dynamic */
                      TRUE) );   /* removable */
-#else
-               SCIP_CALL( SCIPcreateConsQuadratic(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
-                     TRUE,      /* initial */
-                     TRUE,      /* separate */
-                     TRUE,      /* enforce */
-                     TRUE,      /* check */
-                     TRUE,      /* propagate */
-                     FALSE,     /* local */
-                     FALSE,     /* modifiable */
-                     FALSE,     /* dynamic */
-                     TRUE) );   /* removable */
-#endif
 
 #ifdef SCIP_MORE_DEBUG
                SCIP_CALL( SCIPprintCons(scip, quadcons, NULL) );
