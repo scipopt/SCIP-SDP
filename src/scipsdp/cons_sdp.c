@@ -4331,7 +4331,6 @@ SCIP_RETCODE multiaggrVar(
    int nvarnonz;
    int aggrind;
    int aggrtargetlength;
-   int globalnvars;
    int i;
 
    assert( scip != NULL );
@@ -4422,19 +4421,22 @@ SCIP_RETCODE multiaggrVar(
          SCIPdebugMsg(scip, "adding variable %s to SDP constraint %s because of (multi-)aggregation\n", SCIPvarGetName(aggrvars[aggrind]), SCIPconsGetName(cons));
 
          /* check if we have to enlarge the arrays */
-         if ( consdata->nvars == *vararraylength )
+         if ( consdata->nvars >= *vararraylength )
          {
-            globalnvars = SCIPgetNVars(scip);
+            int newsize;
+
+            newsize = MAX(SCIPgetNVars(scip), consdata->nvars + 1);
 
             /* we don't want to enlarge this by one for every variable added, so we immediately set it to the maximum possible size */
-            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col, *vararraylength, globalnvars) );
-            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row, *vararraylength, globalnvars) );
-            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, *vararraylength, globalnvars) );
-            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->nvarnonz, *vararraylength, globalnvars) );
-            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, *vararraylength, globalnvars) );
-            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->locks, *vararraylength, globalnvars) );
-            *vararraylength = globalnvars;
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->col, *vararraylength, newsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->row, *vararraylength, newsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->val, *vararraylength, newsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->nvarnonz, *vararraylength, newsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->vars, *vararraylength, newsize) );
+            SCIP_CALL( SCIPreallocBlockMemoryArray(scip, &consdata->locks, *vararraylength, newsize) );
+            *vararraylength = newsize;
          }
+         assert( consdata->nvars + 1 <= *vararraylength );
 
          /* we insert this variable at the last position, as the ordering doesn't matter */
          SCIP_CALL( SCIPcaptureVar(scip, aggrvars[aggrind]) );
