@@ -4371,7 +4371,7 @@ SCIP_RETCODE multiaggrVar(
    /* free issymunique, because it is invalid */
    SCIPfreeBlockMemoryArrayNull(scip, &consdata->issymunique, consdata->nvars);
 
-   (consdata->nvars)--;
+   --(consdata->nvars);
 
    /* iterate over all variables that variable v was aggregated to and insert the corresponding nonzeros */
    for (aggrind = 0; aggrind < naggrvars; aggrind++)
@@ -4390,7 +4390,7 @@ SCIP_RETCODE multiaggrVar(
          }
       }
 
-      if ( aggrconsind > -1 )
+      if ( aggrconsind >= 0 )
       {
          /* if the variable to aggregate to is already part of this sdp-constraint, just add the nonzeros of the old variable to it */
 
@@ -4473,7 +4473,7 @@ SCIP_RETCODE multiaggrVar(
          savedcol[*nfixednonz] = cols[i];
          savedrow[*nfixednonz] = rows[i];
          savedval[*nfixednonz] = vals[i] * constant; /* multiply with constant, since this is added to the constant matrix */
-         (*nfixednonz)++;
+         ++(*nfixednonz);
       }
    }
 
