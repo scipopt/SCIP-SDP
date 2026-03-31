@@ -67,18 +67,12 @@
 
 #include "scip/cons_linear.h"           /* for SCIPcreateConsLinear */
 #include "scip/cons_nonlinear.h"        /* for newer SCIP versions */
-#if SCIP_VERSION < 1000
-#include "scip/cons_quadratic.h"        /* for SCIPcreateConsBasicQuadratic */
-#include "scip/cons_soc.h"              /* for SCIPcreateConsSOC */
-#endif
 #include "scip/cons_linear.h"           /* for separateSol() */
 #include "scip/scip_cons.h"             /* for SCIPgetConsVars */
 #include "scip/scip.h"                  /* for SCIPallocBufferArray, etc */
 #include "scip/def.h"
-#if SCIP_VERSION >= 900
 #include "scip/symmetry_graph.h"
 #include "symmetry/struct_symmetry.h"
-#endif
 
 #ifdef OMP
 #include "omp.h"                        /* for changing the number of threads */
@@ -2986,16 +2980,11 @@ SCIP_RETCODE addTwoMinorSOCConstraints(
             /* add SOC constraint (if not solving LPs only propagate) */
             (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "2x2minorSOC#%d#%d#%d", c, s, t);
 
-#if ( SCIP_VERSION >= 800 || ( SCIP_VERSION < 800 && SCIP_APIVERSION >= 100 ) )
             consvals[0] = 4.0; /* correct to 4, because coefficient is outside of square */
             consvars[2] = matrixsumvar;
             consvals[2] = -1.0;
             SCIP_CALL( SCIPcreateConsQuadraticNonlinear(scip, &cons, name, 0, NULL, NULL, 3, consvars, consvars, consvals,
                   - SCIPinfinity(scip), 0.0, TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE) );
-#else
-            SCIP_CALL( SCIPcreateConsSOC(scip, &cons, name, 2, consvars, consvals, NULL, 0.0, matrixsumvar, 1.0, 0.0,
-                  TRUE, ! solvesdps, ! solvesdps, ! solvesdps, TRUE, FALSE, FALSE, TRUE, TRUE) );
-#endif
             SCIP_CALL( SCIPaddCons(scip, cons) );
 
 #ifdef SCIP_MORE_DEBUG
@@ -3649,7 +3638,7 @@ SCIP_RETCODE addRank1QuadConss(
                (void) SCIPsnprintf(name, SCIP_MAXSTRLEN, "quadcons#%d#%d#%d", i, j, c);
 
                /* create quadratic constraint */
-               SCIP_CALL( SCIPcreateConsQuadraticNonlinear(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, lhs, lhs,
+               SCIP_CALL( SCIPcreateConsQuadraticNonlinear(scip, &quadcons, name, lincnt, linvars, lincoefs, quadcnt, quadvars1, quadvars2, quadcoefs, -SCIPinfinity(scip), rhs,
                      TRUE,      /* initial */
                      TRUE,      /* separate */
                      TRUE,      /* enforce */
@@ -4643,11 +4632,7 @@ SCIP_RETCODE fixAndAggrVars(
             }
 
             /* get the variables this var was aggregated to */
-#if SCIP_VERSION_MAJOR >= 10
             SCIP_CALL( SCIPgetProbvarLinearSum(scip, aggrvars, scalars, &naggrvars, globalnvars, &constant, &requiredsize) );
-#else
-            SCIP_CALL( SCIPgetProbvarLinearSum(scip, aggrvars, scalars, &naggrvars, globalnvars, &constant, &requiredsize, TRUE) );
-#endif
             assert( requiredsize <= globalnvars ); /* requiredsize is the number of empty spots in aggrvars needed, globalnvars is the number
                                                     * of spots we provided */
 
@@ -5625,6 +5610,7 @@ SCIP_RETCODE propagate3Minors(
    return SCIP_OKAY;
 }
 
+
 /** collect all nonlinear quadratic constraints and create variables and SDP constraint */
 static
 SCIP_RETCODE collectQuadraticVariables(
@@ -5923,6 +5909,7 @@ SCIP_RETCODE collectQuadraticVariables(
 }
 
 
+
 /** upgrade quadratic constraints to an SDP constraint with rank 1 */
 static
 SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
@@ -6146,8 +6133,6 @@ SCIP_DECL_NONLINCONSUPGD(consQuadConsUpgdSdp)
 }
 
 
-#if SCIP_VERSION >= 900
-
 /* define indices for operator nodes in symmetry graph */
 #define OP_SDP_DIMENSION 1
 
@@ -6287,7 +6272,7 @@ SCIP_RETCODE addSymmetryInformation(
 
    return SCIP_OKAY;
 }
-#endif
+
 
 
 /*
@@ -8753,7 +8738,6 @@ SCIP_DECL_CONSGETNVARS(consGetNVarsSdp)
    return SCIP_OKAY;
 }
 
-#if SCIP_VERSION >= 900
 /** constraint handler method which returns the permutation symmetry detection graph of a constraint */
 static
 SCIP_DECL_CONSGETPERMSYMGRAPH(consGetPermsymGraphSdp)
@@ -8770,7 +8754,6 @@ SCIP_DECL_CONSGETSIGNEDPERMSYMGRAPH(consGetSignedPermsymGraphSdp)
    *success = FALSE;
    return SCIP_OKAY;
 }
-#endif
 
 /** creates the handler for SDP constraints and includes it in SCIP */
 SCIP_RETCODE SCIPincludeConshdlrSdp(
@@ -8848,10 +8831,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdp(
    SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
-#if SCIP_VERSION >= 900
    SCIP_CALL( SCIPsetConshdlrGetPermsymGraph(scip, conshdlr, consGetPermsymGraphSdp) );
    SCIP_CALL( SCIPsetConshdlrGetSignedPermsymGraph(scip, conshdlr, consGetSignedPermsymGraphSdp) );
-#endif
 
    /* add parameter */
 #ifdef OMP
@@ -9155,11 +9136,7 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
 
    /* include upgrading function for quadratic constraints */
-#if ( SCIP_VERSION >= 800 || ( SCIP_VERSION < 800 && SCIP_APIVERSION >= 100 ) )
    SCIP_CALL( SCIPincludeConsUpgradeNonlinear(scip, consQuadConsUpgdSdp, 0, TRUE, CONSHDLRRANK1_NAME) );
-#else
-   SCIP_CALL( SCIPincludeQuadconsUpgrade(scip, consQuadConsUpgdSdp, 0, TRUE, CONSHDLRRANK1_NAME) );
-#endif
 
    return SCIP_OKAY;
 }
