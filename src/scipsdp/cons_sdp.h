@@ -262,7 +262,7 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    SCIP_Real*            val                 /**< pointer to store values of SDP-matrix */
    );
 
-/** returns wheter matrix should be rank one */
+/** returns whether matrix should be rank one */
 SCIP_EXPORT
 SCIP_Bool SCIPconsSdpShouldBeRankOne(
    SCIP_CONS*            cons                /**< the constraint for which the existence of a rank one constraint should be checked */
