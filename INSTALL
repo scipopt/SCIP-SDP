@@ -4,8 +4,8 @@ Installing SCIP-SDP
 Additional Software
 -------------------
 
-For using SCIP-SDP you need an installed and fully working version of SCIP (http://scipopt.de/)
-version 8 or higher. Additionally, you should install at least one of the following SDP-Solvers:
+For using SCIP-SDP you need an installed and fully working version of SCIP (http://scipopt.org/)
+version 10 or higher. Additionally, you should install at least one of the following SDP-Solvers:
 
 DSDP 5.8 (http://www.mcs.anl.gov/hs/software/DSDP/).
 MOSEK at least version 8.1 (https://www.mosek.com/)
@@ -25,10 +25,10 @@ lib-subdirectory after unpacking the files, this can for example be done via
 
 mkdir lib
 cd lib
-ln -s /home/username/scipoptsuite-9.0.0/scip/ scip
+ln -s /home/username/scipoptsuite-10.0.0/scip/ scip
 cd ..
 
-where /home/username/scipoptsuite-9.0.0/scip is the path to your SCIP directory.  Afterwards you can
+where /home/username/scipoptsuite-10.0.0/scip is the path to your SCIP directory.  Afterwards you can
 use "make" to compile the plugin. For SCIP-SDP the makefile option SDPS is mandatory. It defines the
 SDP-solver that should be used. You can choose between "dsdp", "msk", "sdpa", and "none". (In the
 latter case, you can only use LP-relaxations with additional cutting planes enforcing the positive
@@ -257,5 +257,5 @@ So, for example to build SCIP-SDP via cmake using Mosek the call could be
 
 mkdir build
 cd build
-cmake .. -DSCIP_DIR=/home/username/scipoptsuite-9.0.0/scip/build/ -DSDPS=msk -DMOSEK_DIR=/home/username/mosek/10/tools/platform/linux64x86/
+cmake .. -DSCIP_DIR=/home/username/scipoptsuite-10.0.0/scip/build/ -DSDPS=msk -DMOSEK_DIR=/home/username/mosek/10/tools/platform/linux64x86/
 make
