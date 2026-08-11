@@ -115,10 +115,10 @@ SCIP_Bool SCIPsdpiSolverDoesWarmstartNeedPrimal(
 
 
 /*
- * SDPI Creation and Destruction Methods
+ * SDP Solver Interface Creation and Destruction Methods
  */
 
-/**@name SDPI Creation and Destruction Methods */
+/**@name SDP Solver Interface Creation and Destruction Methods */
 /**@{ */
 
 /** creates an SDP solver interface */
@@ -136,13 +136,13 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    SCIP_SDPISOLVER**     sdpisolver          /**< SDP-solver interface */
    );
 
-/** increases the SDP-Counter */
+/** increases the SDP counter */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    );
 
-/** reset the SDP-Counter to zero */
+/** reset the SDP counter to zero */
 SCIP_EXPORT
 SCIP_RETCODE SCIPsdpiSolverResetCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
@@ -169,7 +169,7 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independent of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */
 SCIP_EXPORT
@@ -251,7 +251,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independent of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */
 SCIP_EXPORT

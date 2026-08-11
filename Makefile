@@ -116,6 +116,19 @@ SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o
 endif
 
 #-----------------------------------------------------------------------------
+# Clarabel solver
+SDPIOPTIONS	+=	cbl
+ifeq ($(SDPS),cbl)
+SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/clarabelinc
+SDPICSRC 	= 	src/sdpi/sdpisolver_clarabel.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_clarabel.o
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/clarabelinc
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libclarabel.$(STATICLIBEXT)
+SDPIINSTMSG	=	" -> \"clarabelinc\" is the path to the Clarabel \"include\" directory, e.g., \"<Clarabel-path>/include\".\n"
+SDPIINSTMSG	+=	" -> \"libclarabel.*\" is the path to the Clarabel library, e.g., \"<Clarabel-path>/rust_wrapper/target/[debug|release]/libclarabel_c.$(STATICLIBEXT)\".\n"
+endif
+
+#-----------------------------------------------------------------------------
 # no solver
 SDPIOPTIONS	+=	none
 ifeq ($(SDPS),none)

@@ -504,10 +504,10 @@ SCIP_Bool SCIPsdpiSolverDoesWarmstartNeedPrimal(
 
 
 /*
- * SDPI Creation and Destruction Methods
+ * SDP Solver Interface Creation and Destruction Methods
  */
 
-/**@name SDPI Creation and Destruction Methods */
+/**@name SDP Solver Interface Creation and Destruction Methods */
 /**@{ */
 
 /** creates an SDP solver interface */
@@ -522,7 +522,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    assert( blkmem != NULL );
    assert( bufmem != NULL );
 
-   SCIPdebugMessage("Calling SCIPsdpiCreate \n");
+   SCIPdebugMessage("Calling SCIPsdpiSolverCreate \n");
 
    BMS_CALL( BMSallocBlockMemory(blkmem, sdpisolver) );
 
@@ -618,7 +618,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    return SCIP_OKAY;
 }
 
-/** increases the SDP-Counter */
+/** increases the SDP counter */
 SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    )
@@ -630,7 +630,7 @@ SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    return SCIP_OKAY;
 }
 
-/** reset the SDP-Counter to zero */
+/** reset the SDP counter to zero */
 SCIP_RETCODE SCIPsdpiSolverResetCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP-solver interface */
    )
@@ -665,7 +665,7 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independent of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
@@ -753,7 +753,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independent of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */ /*lint -e{715}*/
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
@@ -2141,7 +2141,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** gets objective value of solution */
@@ -2440,7 +2440,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** returns the primal matrix X
@@ -2460,7 +2460,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** returns the primal solution matrix (without LP rows) */
@@ -2550,7 +2550,7 @@ SCIP_Real SCIPsdpiSolverGetMaxPrimalEntry(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** gets the time for the last SDP optimization call of solver */
@@ -2887,7 +2887,7 @@ SCIP_RETCODE SCIPsdpiSolverReadSDP(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** writes SDP to a file */ /*lint -e{715}*/
@@ -2897,7 +2897,7 @@ SCIP_RETCODE SCIPsdpiSolverWriteSDP(
    )
 {  /*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /**@} */

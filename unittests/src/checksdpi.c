@@ -371,7 +371,7 @@ SCIP_RETCODE performLPTest(
    int*                  ind,                /**< column-indices of constraint-matrix entries */
    SCIP_Real*            val,                /**< values of constraint-matrix entries */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
-   SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
+   SCIPFEASSTATUS        exp_dualfeas,       /**< expected dual feasibility status */
    SCIP_Real*            exp_dualsol,        /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
    SCIP_Real*            exp_primallbvals,   /**< expected primal solution for lower bounds or NULL */
    SCIP_Real*            exp_primalubvals,   /**< expected primal solution for upper bounds or NULL */
@@ -426,7 +426,7 @@ SCIP_RETCODE performSDPTest(
    int*                  ind,                /**< column-indices of LP constraint-matrix entries */
    SCIP_Real*            val,                /**< values of LP constraint-matrix entries */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
-   SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
+   SCIPFEASSTATUS        exp_dualfeas,       /**< expected dual feasibility status */
    SCIP_Real*            exp_dualsol,        /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
    SCIP_Real*            exp_primallbvals,   /**< expected primal solution for lower bounds or NULL */
    SCIP_Real*            exp_primalubvals,   /**< expected primal solution for upper bounds or NULL */

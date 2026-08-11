@@ -25,8 +25,8 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules)
 find_package(SCIP REQUIRED VARIABLES SHARED)
 include_directories(${SCIP_INCLUDE_DIRS})
 
-set(SDPS none CACHE STRING "options for SDP solver")          # create the variable
-set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp none)  # define list of values GUI will offer for the variable
+set(SDPS none CACHE STRING "options for SDP solver")              # create the variable
+set_property(CACHE SDPS PROPERTY STRINGS msk sdpa dsdp cbl none)  # define list of values GUI will offer for the variable
 
 # we need SCIP 10
 if(SCIP_VERSION_MAJOR LESS 10)
@@ -36,57 +36,56 @@ endif()
 # if we want long long ints for Lapack, e.g., for Matlab
 option(LAPACKLONG "use long long int for Lapack" ON)
 
-#set the correct rpath for OS X
+# set the correct rpath for OS X
 set(CMAKE_MACOSX_RPATH ON)
 
 if(LAPACKLONG)
   add_definitions(-DLAPACKLONG)
 endif()
 
-#set defines for Windows
+# set defines for Windows
 if(WIN32)
     add_definitions(-DNO_SIGACTION)
     add_definitions(-DNO_STRTOK_R)
 endif()
 if(MSVC)
-#    add_definitions(/W4)
-    add_definitions(/wd4100)
-    add_definitions(/wd4244)
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+#  add_definitions(/W4)
+  add_definitions(/wd4100)
+  add_definitions(/wd4244)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
 
 # Visual Studio compiler with static runtime libraries
 if(MSVC AND MT)
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
 endif()
 
 # create a target for updating the current git hash
 file(WRITE ${CMAKE_BINARY_DIR}/scip_update_githash.cmake "
 find_program(GIT git)
 if(EXISTS \${DST})
-   file(STRINGS \${DST} GITHASH_OLD)
-   string(REGEX REPLACE \"#define SCIPSDP_GITHASH \\\"(.*)\\\"\" \"\\\\1\" GITHASH_OLD \${GITHASH_OLD})
+  file(STRINGS \${DST} GITHASH_OLD)
+  string(REGEX REPLACE \"#define SCIPSDP_GITHASH \\\"(.*)\\\"\" \"\\\\1\" GITHASH_OLD \${GITHASH_OLD})
 endif()
 if((GIT) AND (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/.git))
-   execute_process(
-      COMMAND \${GIT} describe --always --dirty
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-      OUTPUT_VARIABLE GITHASH OUTPUT_STRIP_TRAILING_WHITESPACE)
-   string(REGEX REPLACE \"^.*-g\" \"\" GITHASH \${GITHASH})
-   if(NOT \${GITHASH} STREQUAL \"\${GITHASH_OLD}\")
-      file(WRITE \${DST} \"#define SCIPSDP_GITHASH \\\"\${GITHASH}\\\"\n\")
-   endif()
+  execute_process(
+    COMMAND \${GIT} describe --always --dirty
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE GITHASH OUTPUT_STRIP_TRAILING_WHITESPACE)
+  string(REGEX REPLACE \"^.*-g\" \"\" GITHASH \${GITHASH})
+  if(NOT \${GITHASH} STREQUAL \"\${GITHASH_OLD}\")
+    file(WRITE \${DST} \"#define SCIPSDP_GITHASH \\\"\${GITHASH}\\\"\n\")
+  endif()
 else()
-   set(GITHASH \${GITHASH_OLD})
+  set(GITHASH \${GITHASH_OLD})
 endif()
 message(STATUS \"Git hash: \" \${GITHASH})
 ")
-add_custom_target(scip_update_githash
-                  COMMAND ${CMAKE_COMMAND} -DDST=${PROJECT_SOURCE_DIR}/scipsdpgithash.c
-                                           -P ${CMAKE_BINARY_DIR}/scip_update_githash.cmake)
+
+add_custom_target(scip_update_githash COMMAND ${CMAKE_COMMAND} -DDST=${PROJECT_SOURCE_DIR}/scipsdpgithash.c -P ${CMAKE_BINARY_DIR}/scip_update_githash.cmake)
 
 # find lapack and blas
 find_package(LAPACK REQUIRED)
@@ -109,6 +108,8 @@ elseif(SDPS STREQUAL "sdpa")
     find_package(SDPA REQUIRED)
 elseif(SDPS STREQUAL "dsdp")
     find_package(DSDP REQUIRED)
+elseif(SDPS STREQUAL "cbl")
+    find_package(CLARABEL REQUIRED)
 elseif(SDPS STREQUAL "none")
     set(sdpi sdpi/sdpisolver_none.c)
 else()
@@ -136,6 +137,14 @@ if(DSDP_FOUND)
     set(SDPS_PIC_LIBRARIES ${SDPS_LIBRARIES})
 endif()
 
+if(CLARABEL_FOUND)
+    include_directories(${CLARABEL_INCLUDE_DIRS})
+    set(sdpi sdpi/sdpisolver_clarabel.c)
+    set(SDPS_LIBRARIES ${CLARABEL_LIBRARIES})
+    set(SDPS_PIC_LIBRARIES ${SDPS_LIBRARIES})
+    add_compile_options(-DFEATURE_SDP -DFEATURE_SERDE)  # this should be parsed from the cmake file of Clarabel
+endif()
+
 # go to src/ and compile the code
 add_subdirectory(src)
 
@@ -156,6 +165,8 @@ elseif(SDPS STREQUAL "sdpa")
   file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DSDPA_DIR=${SDPA_DIR}")
 elseif(SDPS STREQUAL "dsdp")
   file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DDSDP_DIR=${DSDP_DIR}")
+elseif(SDPS STREQUAL "cbl")
+  file(APPEND ${CMAKE_BINARY_DIR}/cmake.log " -DCBL_DIR=${CLARABEL_DIR}")
 endif()
 file(APPEND ${CMAKE_BINARY_DIR}/cmake.log "\n")
 message(STATUS "Written log file to ${CMAKE_BINARY_DIR}/cmake.log.")

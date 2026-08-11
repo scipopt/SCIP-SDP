@@ -220,6 +220,17 @@ endif
 endif
 
 #-----------------------------------------------------------------------------
+# Clarabel solver
+ifeq ($(SDPS),cbl)
+CFLAGS		=	-DFEATURE_SDP -DFEATURE_SERDE
+ifeq ($(SHARED),true)
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lclarabel -lgfortran -Wl,-rpath,$(SCIPSDPLIBDIR)/shared
+else
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lclarabel -lgfortran -Wl,-rpath,$(SCIPSDPLIBDIR)/static
+endif
+endif
+
+#-----------------------------------------------------------------------------
 # no solver
 ifeq ($(SDPS),none)
 SDPILIB		= 	-L$(SCIPSDPLIBDIR) -llapack -lblas
@@ -256,7 +267,7 @@ SCIPSDPLIBFILE 		= 	$(SCIPSDPLIBDIR)/$(LIBTYPE)/lib$(SCIPSDPLIB).$(LIBEXT)
 #-----------------------------------------------------------------------------
 
 # link SCIPSDP for C++ projects
-LINKCXXSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(SDPILIB) $(LINKCXXSCIPALL)
+LINKCXXSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXXSCIPALL) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(SDPILIB)
 
 # link SCIP for C projects (including libobjscip)
-LINKCCSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(SDPILIB) $(LINKCCSCIPALL)
+LINKCCSCIPSDPALL	=	$(LINKCXX_L)$(SCIPSDPDIR)/lib/$(LIBTYPE) $(LINKCCSCIPALL) $(LINKCXX_l)$(SCIPSDPLIB)$(LINKLIBSUFFIX) $(SDPILIB)
