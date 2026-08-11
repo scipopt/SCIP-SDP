@@ -530,6 +530,7 @@ test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/prepare_execname.sh);
 		cd check; \
 		$(SHELL) ./check.sh $(TEST) $(SCIPSDPBINFILE) $(SETTINGS) $(notdir $(SCIPSDPBINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
 			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) \
@@ -551,6 +552,7 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/prepare_execname.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
 		cd check; \
 		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPBINFILE) $(SETTINGS) $(notdir $(SCIPSDPBINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
