@@ -5885,6 +5885,7 @@ SCIP_RETCODE collectQuadraticVariables(
             cols, rows, vals, vars, 1, &constcol, &constrow, &constval, FALSE) );
       SCIP_CALL( SCIPaddCons(scip, conshdlrdata->sdpconshdlrdata->sdpcons) );
    }
+   SCIP_CALL( checkSymUniqueMatrices(scip, 1, &conshdlrdata->sdpconshdlrdata->sdpcons) );
 
 #ifdef SCIP_MORE_DEBUG
    SCIPinfoMessage(scip, NULL, "In upgrade of quadratic constraint the following SDP constraint has been added:\n");
@@ -6206,7 +6207,7 @@ SCIP_RETCODE addSymmetryInformation(
       /* connect variables with unique matrices to constraint node with unique color to signify that they should be fixed */
       if ( consdata->issymunique[v] )
       {
-         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, varnodeidx, consnodeidx, TRUE, conshdlrdata->symuniqueid++) );
+         SCIP_CALL( SCIPaddSymgraphEdge(scip, graph, varnodeidx, consnodeidx, TRUE, conshdlrdata->sdpconshdlrdata->symuniqueid++) );
          continue;
       }
       assert( dimnodeidx != NULL );
@@ -9134,6 +9135,8 @@ SCIP_RETCODE SCIPincludeConshdlrSdpRank1(
    SCIP_CALL( SCIPsetConshdlrParse(scip, conshdlr, consParseSdp) );
    SCIP_CALL( SCIPsetConshdlrGetVars(scip, conshdlr, consGetVarsSdp) );
    SCIP_CALL( SCIPsetConshdlrGetNVars(scip, conshdlr, consGetNVarsSdp) );
+   SCIP_CALL( SCIPsetConshdlrGetPermsymGraph(scip, conshdlr, consGetPermsymGraphSdp) );
+   SCIP_CALL( SCIPsetConshdlrGetSignedPermsymGraph(scip, conshdlr, consGetSignedPermsymGraphSdp) );
 
    /* include upgrading function for quadratic constraints */
    SCIP_CALL( SCIPincludeConsUpgradeNonlinear(scip, consQuadConsUpgdSdp, 0, TRUE, CONSHDLRRANK1_NAME) );
