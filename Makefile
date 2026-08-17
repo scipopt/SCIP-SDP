@@ -39,11 +39,6 @@ include $(SCIPSDPDIR)/make/make.scipsdpproj
 
 SCIPREALPATH	=	$(realpath $(SCIPDIR))
 
-# check version
-ifneq ($(SCIP_VERSION_MAJOR),10)
-$(error This version of SCIPSDP needs at least version 10 of SCIP.)
-endif
-
 # overwrite flags for dependencies
 DFLAGS		=       -MMD
 
