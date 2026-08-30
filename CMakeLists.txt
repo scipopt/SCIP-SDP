@@ -184,6 +184,7 @@ set_tests_properties(applications-${EXECUTABLE_NAME}-build
 #
 set(instances
     example_small.dat-s
+    example_small_multiLP.dat-s
     example_small_cbf.cbf
     example_inf.dat-s
     example_TT.dat-s.gz
