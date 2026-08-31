@@ -362,3 +362,9 @@ Test(readwrite, sign)
 
    cr_assert_float_eq(obj1, obj2, EPS, "Optimal values differ: %g (SDPA from CBF with L-) != %g (SDPA from CBF with L+)\n", obj1, obj2);
 }
+
+/** Test 20 */
+Test(readwrite, test20)
+{
+   SCIP_CALL_STOP( runTests("../instances", "example_small_multiLP", "dat-s", 1, EPS, 1, TRUE) );
+}
