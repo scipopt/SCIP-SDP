@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2025 Discrete Optimization, TU Darmstadt               */
+/*               2014-2026 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2025 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2026 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -371,7 +371,7 @@ SCIP_RETCODE performLPTest(
    int*                  ind,                /**< column-indices of constraint-matrix entries */
    SCIP_Real*            val,                /**< values of constraint-matrix entries */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
-   SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
+   SCIPFEASSTATUS        exp_dualfeas,       /**< expected dual feasibility status */
    SCIP_Real*            exp_dualsol,        /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
    SCIP_Real*            exp_primallbvals,   /**< expected primal solution for lower bounds or NULL */
    SCIP_Real*            exp_primalubvals,   /**< expected primal solution for upper bounds or NULL */
@@ -426,7 +426,7 @@ SCIP_RETCODE performSDPTest(
    int*                  ind,                /**< column-indices of LP constraint-matrix entries */
    SCIP_Real*            val,                /**< values of LP constraint-matrix entries */
    SCIPFEASSTATUS        exp_primalfeas,     /**< expected primal feasibility status */
-   SCIPFEASSTATUS        exp_dualfeas,       /**< expected primal feasibility status */
+   SCIPFEASSTATUS        exp_dualfeas,       /**< expected dual feasibility status */
    SCIP_Real*            exp_dualsol,        /**< expected dual optimal solution or dual ray if dual is unbounded or NULL */
    SCIP_Real*            exp_primallbvals,   /**< expected primal solution for lower bounds or NULL */
    SCIP_Real*            exp_primalubvals,   /**< expected primal solution for upper bounds or NULL */
@@ -678,7 +678,7 @@ Test(checksdpi, test4)
       lhs[0] = -SCIPsdpiInfinity(sdpi);
       lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPinfeas,  SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
+      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPinfeas, SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
       /* check that data stored in sdpi is still the same */
       SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );

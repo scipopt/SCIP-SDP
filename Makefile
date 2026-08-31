@@ -5,7 +5,7 @@
 #/*                                                                           */
 #/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 #/*                         EDOM, FAU Erlangen-Nürnberg                       */
-#/*               2014-2025 Discrete Optimization, TU Darmstadt               */
+#/*               2014-2026 Discrete Optimization, TU Darmstadt               */
 #/*                                                                           */
 #/*                                                                           */
 #/* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 #/*                                                                           */
 #/*                                                                           */
 #/* Based on SCIP - Solving Constraint Integer Programs                       */
-#/* Copyright (C) 2002-2025 Zuse Institute Berlin                             */
+#/* Copyright (C) 2002-2026 Zuse Institute Berlin                             */
 #/*                                                                           */
 #/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -38,11 +38,6 @@ SCIPSDPINTERNAL	=	true
 include $(SCIPSDPDIR)/make/make.scipsdpproj
 
 SCIPREALPATH	=	$(realpath $(SCIPDIR))
-
-# check version
-ifneq ($(SCIP_VERSION_MAJOR),10)
-$(error This version of SCIPSDP needs at least version 10 of SCIP.)
-endif
 
 # overwrite flags for dependencies
 DFLAGS		=       -MMD
@@ -113,6 +108,19 @@ SDPIINSTMSG	=	"  -> \"mosekh\" is the path to the MOSEK \"h\" directory, e.g., \
 SDPIINSTMSG	+=	" -> \"libmosek$(BITEXT).*\" is the path to the MOSEK library, e.g., \"<MOSEK-path>/8/tools/platform/linux64x86/bin/libmosek$(BITEXT).$(SHAREDLIBEXT)\".\n"
 SDPICSRC 	= 	src/sdpi/sdpisolver_mosek.c
 SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_mosek.o
+endif
+
+#-----------------------------------------------------------------------------
+# Clarabel solver
+SDPIOPTIONS	+=	cbl
+ifeq ($(SDPS),cbl)
+SDPIINC		= 	-I$(SCIPSDPLIBDIR)/include/clarabelinc
+SDPICSRC 	= 	src/sdpi/sdpisolver_clarabel.c
+SDPIOBJ 	= 	$(OBJDIR)/sdpi/sdpisolver_clarabel.o
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/include/clarabelinc
+SOFTLINKS	+=	$(SCIPSDPLIBDIR)/static/libclarabel.$(STATICLIBEXT)
+SDPIINSTMSG	=	" -> \"clarabelinc\" is the path to the Clarabel \"include\" directory, e.g., \"<Clarabel-path>/include\".\n"
+SDPIINSTMSG	+=	" -> \"libclarabel.*\" is the path to the Clarabel library, e.g., \"<Clarabel-path>/rust_wrapper/target/[debug|release]/libclarabel_c.$(STATICLIBEXT)\".\n"
 endif
 
 #-----------------------------------------------------------------------------
@@ -530,10 +538,11 @@ test:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/prepare_execname.sh);
 		cd check; \
 		$(SHELL) ./check.sh $(TEST) $(SCIPSDPBINFILE) $(SETTINGS) $(notdir $(SCIPSDPBINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(DISPFREQ) \
 			$(CONTINUE) $(LOCK) $(SCIPSDPVERSION) $(SDPS) $(DEBUGTOOL) $(CLIENTTMPDIR) $(REOPT) $(OPTCOMMAND) $(SETCUTOFF) $(MAXJOBS) $(VISUALIZE) \
-			$(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM) $(PYTHON) $(EMPHBENCHMARK) $(CLOCKTYPE) $(WITHCERTIFICATE);
+			$(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM) $(PYTHON) $(EMPHBENCHMARK) $(CLOCKTYPE) $(WITHCERTIFICATE) $(KEEPSOL);
 
 # include local targets
 -include make/local/make.targets
@@ -551,11 +560,12 @@ testcluster:
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_cluster.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_set.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/configuration_logfiles.sh);
+		@-(cd check && ln -fs $(SCIPREALPATH)/check/prepare_execname.sh);
 		@-(cd check && ln -fs $(SCIPREALPATH)/check/run.sh);
 		cd check; \
 		$(SHELL) ./check_cluster.sh $(TEST) $(PWD)/$(SCIPSDPBINFILE) $(SETTINGS) $(notdir $(SCIPSDPBINFILE)) $(OUTPUTDIR) $(TIME) $(NODES) $(MEM) $(THREADS) $(FEASTOL) $(SDPS) $(DISPFREQ) \
 			$(CONTINUE) $(QUEUETYPE) $(QUEUE) $(PPN) $(CLIENTTMPDIR) $(NOWAITCLUSTER) $(EXCLUSIVE) $(PERMUTE) $(SEEDS) $(GLBSEEDSHIFT) $(STARTPERM) $(DEBUGTOOL) $(REOPT) $(OPTCOMMAND) \
-			$(SETCUTOFF) $(VISUALIZE) $(CLUSTERNODES) $(EXCLUDENODES) $(SLURMACCOUNT) $(PYTHON) $(EMPHBENCHMARK) $(CLOCKTYPE) $(WITHCERTIFICATE);
+			$(SETCUTOFF) $(VISUALIZE) $(CLUSTERNODES) $(EXCLUDENODES) $(SLURMACCOUNT) $(PYTHON) $(EMPHBENCHMARK) $(CLOCKTYPE) $(WITHCERTIFICATE) $(KEEPSOL);
 
 #-----------------------------------------------------------------------------
 

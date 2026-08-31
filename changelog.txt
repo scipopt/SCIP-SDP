@@ -4,6 +4,8 @@ SCIP-SDP version 4.5
 features:
 - for rank 1 constraints only one side of the quadratic constraints is enforced, because the other is ensured by the SDP
 - allow to add conflict constraint to problem
+- allow symmetry detection for rank 1 SDP constraints
+- add interface to the SDP solver Clarabel (beta)
 
 fixed bugs:
 - fixed bug with upgrading quadratic constraints that avoided the upgrading of most constraints
@@ -18,6 +20,7 @@ parameters:
 
 (c)make:
 - remove old workaround for symemtry and only allow at least SCIP version 10
+- increase minimum version for cmake to 5.11 (equal to SCIP)
 
 SCIP-SDP version 4.4
 ====================

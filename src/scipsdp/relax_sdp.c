@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2025 Discrete Optimization, TU Darmstadt               */
+/*               2014-2026 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2025 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2026 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -5450,6 +5450,7 @@ SCIP_RETCODE SCIPincludeRelaxSdp(
    SCIP_CALL( SCIPsetRelaxCopy(scip, relax, relaxCopySdp) );
 
    /* add the following general parameter here, so it is copied to sub-SCIPs */
+   /* This parameter has type int, because we might want to add an "auto" option. */
    SCIP_CALL( SCIPaddIntParam(scip, "misc/solvesdps", "solve SDPs (1) or LPs (0)", NULL, FALSE, 1, 0, 1, SCIPparamChgdSolvesdps, NULL) );
 
    /* add parameters for SDP-solver */

@@ -5,7 +5,7 @@
 #/*                                                                           */
 #/* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 #/*                         EDOM, FAU Erlangen-Nürnberg                       */
-#/*               2014-2025 Discrete Optimization, TU Darmstadt               */
+#/*               2014-2026 Discrete Optimization, TU Darmstadt               */
 #/*                                                                           */
 #/*                                                                           */
 #/* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 #/*                                                                           */
 #/*                                                                           */
 #/* Based on SCIP - Solving Constraint Integer Programs                       */
-#/* Copyright (C) 2002-2025 Zuse Institute Berlin                             */
+#/* Copyright (C) 2002-2026 Zuse Institute Berlin                             */
 #/*                                                                           */
 #/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -216,6 +216,17 @@ ifeq ($(OPENBLAS),true)
 SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -lc $(BDYNAMIC) -lopenblas -pthread -lgfortran -lm #-lgomp
 else
 SDPILIB		=       -m$(BITEXT) -L$(SCIPSDPLIBDIR)/shared -lmosek$(BITEXT) -Wl,-rpath,$(dir $(realpath $(SCIPSDPLIBDIR)/shared/libmosek$(BITEXT).$(SHAREDLIBEXT))) $(BSTATIC) -llapack -lblas -lc $(BDYNAMIC) -pthread -lgfortran -lm
+endif
+endif
+
+#-----------------------------------------------------------------------------
+# Clarabel solver
+ifeq ($(SDPS),cbl)
+CFLAGS		=	-DFEATURE_SDP -DFEATURE_SERDE
+ifeq ($(SHARED),true)
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lclarabel -lgfortran -Wl,-rpath,$(SCIPSDPLIBDIR)/shared
+else
+SDPILIB		=      	-L$(SCIPSDPLIBDIR)/$(LIBEXTTYPE) -lclarabel -lgfortran -Wl,-rpath,$(SCIPSDPLIBDIR)/static
 endif
 endif
 
