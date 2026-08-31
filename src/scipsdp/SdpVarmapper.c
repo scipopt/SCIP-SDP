@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2025 Discrete Optimization, TU Darmstadt               */
+/*               2014-2026 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2025 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2026 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -36,8 +36,8 @@
 #include "SdpVarmapper.h"
 
 /* check SCIP version */
-#if ( SCIP_VERSION < 702 )
-#error Need SCIP version at least 7.0.2.
+#if SCIP_VERSION < 1000
+#error This version of SCIPSDP needs at least version 10 of SCIP.
 #endif
 
 /* turn off lint warnings for whole file: */

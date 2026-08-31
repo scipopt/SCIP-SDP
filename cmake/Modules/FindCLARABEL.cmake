@@ -1,0 +1,15 @@
+find_path(CLARABEL_INCLUDE_DIR
+    NAMES clarabel.h
+    HINTS ${CLARABEL_DIR} $ENV{CLARABEL_DIR}
+    PATH_SUFFIXES include)
+
+find_library(CLARABEL_LIBRARY
+    NAMES clarabel_c
+    HINTS ${CLARABEL_DIR} $ENV{CLARABEL_DIR}
+    PATH_SUFFIXES rust_wrapper/target/release/)
+
+set(CLARABEL_LIBRARIES ${CLARABEL_LIBRARY})
+set(CLARABEL_INCLUDE_DIRS ${CLARABEL_INCLUDE_DIR})
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(CLARABEL DEFAULT_MSG CLARABEL_INCLUDE_DIRS CLARABEL_LIBRARIES)

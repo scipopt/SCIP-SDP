@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2025 Discrete Optimization, TU Darmstadt               */
+/*               2014-2026 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2025 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2026 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -262,7 +262,7 @@ SCIP_RETCODE SCIPconsSdpComputeSparseSdpMatrix(
    SCIP_Real*            val                 /**< pointer to store values of SDP-matrix */
    );
 
-/** returns wheter matrix should be rank one */
+/** returns whether matrix should be rank one */
 SCIP_EXPORT
 SCIP_Bool SCIPconsSdpShouldBeRankOne(
    SCIP_CONS*            cons                /**< the constraint for which the existence of a rank one constraint should be checked */

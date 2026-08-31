@@ -5,7 +5,7 @@
 /*                                                                           */
 /* Copyright (C) 2011-2013 Discrete Optimization, TU Darmstadt,              */
 /*                         EDOM, FAU Erlangen-Nürnberg                       */
-/*               2014-2025 Discrete Optimization, TU Darmstadt               */
+/*               2014-2026 Discrete Optimization, TU Darmstadt               */
 /*                                                                           */
 /*                                                                           */
 /* Licensed under the Apache License, Version 2.0 (the "License");           */
@@ -22,7 +22,7 @@
 /*                                                                           */
 /*                                                                           */
 /* Based on SCIP - Solving Constraint Integer Programs                       */
-/* Copyright (C) 2002-2025 Zuse Institute Berlin                             */
+/* Copyright (C) 2002-2026 Zuse Institute Berlin                             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -434,10 +434,10 @@ SCIP_Bool SCIPsdpiSolverDoesWarmstartNeedPrimal(
 
 
 /*
- * SDPI Creation and Destruction Methods
+ * SDP Solver Interface Creation and Destruction Methods
  */
 
-/**@name SDPI Creation and Destruction Methods */
+/**@name SDP Solver Interface Creation and Destruction Methods */
 /**@{ */
 
 /** creates an SDP solver interface */
@@ -452,7 +452,7 @@ SCIP_RETCODE SCIPsdpiSolverCreate(
    assert( blkmem != NULL );
    assert( bufmem != NULL );
 
-   SCIPdebugMessage("Calling SCIPsdpiCreate \n");
+   SCIPdebugMessage("Calling SCIPsdpiSolverCreate \n");
 
    BMS_CALL( BMSallocBlockMemory(blkmem, sdpisolver) );
 
@@ -554,7 +554,7 @@ SCIP_RETCODE SCIPsdpiSolverFree(
    return SCIP_OKAY;
 }
 
-/** increases the SDP-Counter */
+/** increases the SDP counter */
 SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    )
@@ -566,7 +566,7 @@ SCIP_RETCODE SCIPsdpiSolverIncreaseCounter(
    return SCIP_OKAY;
 }
 
-/** reset the SDP-Counter to zero */
+/** reset the SDP counter to zero */
 SCIP_RETCODE SCIPsdpiSolverResetCounter(
    SCIP_SDPISOLVER*      sdpisolver          /**< SDP interface solver structure */
    )
@@ -601,7 +601,7 @@ SCIP_RETCODE SCIPsdpiSolverResetCounter(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independent of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
@@ -689,7 +689,7 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolve(
  *
  *  @warning Depending on the solver, the given lp arrays might get sorted in their original position.
  *  @note starting point needs to be given with original indices (before any local presolving), last block should be the LP block with indices
- *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independant of some lhs/rhs being infinity (the starting point
+ *  lhs(row0), rhs(row0), lhs(row1), ..., lb(var1), ub(var1), lb(var2), ... independent of some lhs/rhs being infinity (the starting point
  *  will later be adjusted accordingly)
  */ /*lint --e{715}*/
 SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
@@ -872,15 +872,15 @@ SCIP_RETCODE SCIPsdpiSolverLoadAndSolveWithPenalty(
       MOSEK_CALL( MSK_putintparam(sdpisolver->msktask, MSK_IPAR_NUM_THREADS, sdpisolver->nthreads) );/*lint !e641*/
    }
 
-   /* only increase the counter if we don't use the penalty formulation to stay in line with the numbers in the general interface (where this is still the
-    * same SDP) */
+   /* Increase SDP-counter if we do not use the penalty formulation because for the outside this is still the same SDP. */
    if ( penaltyparam < sdpisolver->epsilon )
    {
-      SCIPdebugMessage("Inserting data into MOSEK for SDP (%d) \n", ++sdpisolver->sdpcounter);
+      ++sdpisolver->sdpcounter;
+      SCIPdebugMessage("Inserting data into MOSEK for SDP (%d).\n", sdpisolver->sdpcounter);
    }
    else
    {
-      SCIPdebugMessage("Inserting Data again into MOSEK for penalty formulation of SDP (%d) \n", sdpisolver->sdpcounter);
+      SCIPdebugMessage("Inserting Data again into MOSEK for penalty formulation of SDP (%d).\n", sdpisolver->sdpcounter);
    }
 
    /* set the penalty and rbound flags accordingly */
@@ -1883,13 +1883,15 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
       /* we know the feasibility status if the violations are all small enough */
       if ( dviolcon < sdpisolver->feastol && dviolvar < sdpisolver->feastol && dviolbarvar < sdpisolver->feastol )
          return TRUE;
-      return FALSE;
+
+      break;
    }
 
    default:
       SCIPdebugMessage("Unknown return code in SCIPsdpiSolverFeasibilityKnown\n"); /* TODO: add illposed_cer */
-      return FALSE;
    }/*lint !e788*/
+
+   return FALSE;
 }
 
 /** gets information about primal and dual feasibility of the current SDP solution */
@@ -2028,15 +2030,22 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
    {
    case MSK_SOL_STA_PRIM_INFEAS_CER:
    {
-      SCIP_Real dviolcon;
-      SCIP_Real dviolvar;
-      SCIP_Real dviolbarvar;
-      MOSEK_CALL_BOOL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+      int niterations;
+      MOSEK_CALL( MSK_getnaintinf(sdpisolver->msktask, "MSK_IINF_INTPNT_ITER", &niterations) );/*lint !e641*/
 
-      /* dual unbounded if there is a dual ray (= primal infeasibility certificate) and the dual violations are all small enough */
-      if ( dviolcon < sdpisolver->feastol && dviolvar < sdpisolver->feastol && dviolbarvar < sdpisolver->feastol )
-         return TRUE;
+      /* if the number of iterations is 0, feasibility was detected in presolving -> cannot trust dual violation values */
+      if ( niterations > 0 )
+      {
+         SCIP_Real dviolcon;
+         SCIP_Real dviolvar;
+         SCIP_Real dviolbarvar;
+         MOSEK_CALL_BOOL( MSK_getsolutioninfo(sdpisolver->msktask, MSK_SOL_ITR, NULL, NULL, NULL, NULL, NULL, NULL,
+               NULL, &dviolcon, &dviolvar, &dviolbarvar, NULL) );
+
+         /* dual unbounded if there is a dual ray (= primal infeasibility certificate) and the dual violations are all small enough */
+         if ( dviolcon < sdpisolver->feastol && dviolvar < sdpisolver->feastol && dviolbarvar < sdpisolver->feastol )
+            return TRUE;
+      }
       break;
    }
 
@@ -2048,6 +2057,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
       SCIPdebugMessage("MOSEK does not know about feasibility of solutions\n");
       break;
    }/*lint !e788*/
+
    return FALSE;
 }
 
@@ -2274,7 +2284,7 @@ SCIP_RETCODE SCIPsdpiSolverIgnoreInstability(
    )
 {/*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** gets objective value of solution */
@@ -2425,7 +2435,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPreoptimalSol(
    )
 {/*lint !e1784*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }/*lint !e715*/
 
 /** gets the solution corresponding to the lower and upper variable-bounds in the primal problem
@@ -2558,7 +2568,7 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalNonzeros(
    )
 {/*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** returns the primal matrix X
@@ -2578,13 +2588,13 @@ SCIP_RETCODE SCIPsdpiSolverGetPrimalMatrix(
    )
 {/*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** returns the primal solution matrix (without LP rows)
  *
  *  The solution of Mosek is given as an array in lower triangular column-wise stacked form. The position of entry (i,j)
- *  (with i >= j) in this array is given by \sum_{k=0}^{j-1} (n - k) + (i - j), because:
+ *  (with i >= j) in this array is given by \f$\sum_{k=0}^{j-1} (n - k) + (i - j)\f$, because:
  *  - The number of entries before column j is given by the first sum (from first column: 0, n, n + (n-1), ...).
  *  - Then we add the number of entries in column j, which is i - j.
  */
@@ -3016,7 +3026,7 @@ SCIP_RETCODE SCIPsdpiSolverReadSDP(
    )
 {/*lint --e{715}*/
    SCIPdebugMessage("Not implemented yet\n");
-   return SCIP_LPERROR;
+   return SCIP_NOTIMPLEMENTED;
 }
 
 /** writes SDP to a file */
