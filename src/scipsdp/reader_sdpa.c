@@ -1001,7 +1001,15 @@ SCIP_RETCODE SDPAreadBlocks(
       --row;
       --col;
 
-      /* check if this entry belongs to an LP block (FALSE) or to an SDP block (TRUE)*/
+      if ( b < 0 || b >= data->nconsblocks )
+      {
+         SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT " for block %d which does not exist!\n",
+            *linecount, file_b);
+         goto TERMINATE;
+      }
+      assert( 0 <= b && b < data->nconsblocks );
+
+      /* check if this entry belongs to an LP block (FALSE) or to an SDP block (TRUE) */
       if ( data->newblockidx[b] >= 0 )
       {
       	 /* check if the LP block was already read and adjust the counter as well as the offset for error messages */
@@ -1643,6 +1651,12 @@ SCIP_RETCODE SDPAreadRank1(
       {
          SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for the LP block which is not valid.\n",
             *linecount);
+         goto TERMINATE;
+      }
+      if ( v >= data->nconsblocks )
+      {
+         SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for block %d which does not exist!\n",
+            *linecount, file_v);
          goto TERMINATE;
       }
 
