@@ -635,8 +635,6 @@ SCIP_RETCODE SDPAreadBlockSize(
    int* blocksizes;
    int nsdpblocks = 0;
    int nblocks;
-   int* blockoffsets;
-   int* newblockidx;
    int lpoffset = 0; /* accumulator for the offset of the next lp-block */
    int cnt = 0;
    int b;
@@ -649,8 +647,9 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    SCIP_CALL( SCIPallocBufferArray(scip, &blocksizes, data->nconsblocks) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocksizes, data->nconsblocks) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &blockoffsets, data->nconsblocks) );
-   SCIP_CALL( SCIPallocBufferArray(scip, &newblockidx, data->nconsblocks) );
+
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->blockoffsets), data->nconsblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->newblockidx), data->nconsblocks) );
 
    assert( scip != NULL );
    assert( file != NULL );
@@ -676,8 +675,8 @@ SCIP_RETCODE SDPAreadBlockSize(
       if ( *(blocksizes + i) < 0 )
       {
          data->nlinconss += - *(blocksizes + i);
-         newblockidx[i] = -1;
-         blockoffsets[i] = lpoffset;
+         data->newblockidx[i] = -1;
+         data->blockoffsets[i] = lpoffset;
          lpoffset += - *(blocksizes + i);
       }
       else
@@ -688,8 +687,8 @@ SCIP_RETCODE SDPAreadBlockSize(
                *linecount);
                goto TERMINATE;
          }
-         newblockidx[i] = nsdpblocks;
-         blockoffsets[i] = 0;
+         data->newblockidx[i] = nsdpblocks;
+         data->blockoffsets[i] = 0;
          *(sdpblocksizes + nsdpblocks) = *(blocksizes + i);
          ++nsdpblocks;
       }
@@ -713,8 +712,6 @@ SCIP_RETCODE SDPAreadBlockSize(
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblocksizes), data->nsdpblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->sdpblockrank1), data->nsdpblocks) );
    SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->createdconss), data->nlinconss) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->blockoffsets), data->nconsblocks) );
-   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->newblockidx), data->nconsblocks) );
 
    for (b = 0; b < nsdpblocks; b++)
    {
@@ -724,11 +721,6 @@ SCIP_RETCODE SDPAreadBlockSize(
 
       /* initialize rank-1 information to FALSE, will eventually be changed in SDPAreadRank1 */
       data->sdpblockrank1[b] = FALSE;
-   }
-
-   for (b = 0; b < data->nconsblocks; b++) {
-      data->blockoffsets[b] = *(blockoffsets + b);
-      data->newblockidx[b] = *(newblockidx + b);
    }
 
    /* create corresponding constraints */
@@ -755,16 +747,12 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    SCIPfreeBufferArray(scip, &sdpblocksizes);
    SCIPfreeBufferArray(scip, &blocksizes);
-   SCIPfreeBufferArray(scip, &blockoffsets);
-   SCIPfreeBufferArray(scip, &newblockidx);
 
    return SCIP_OKAY;
 
  TERMINATE:
    SCIPfreeBufferArray(scip, &sdpblocksizes);
    SCIPfreeBufferArray(scip, &blocksizes);
-   SCIPfreeBufferArray(scip, &blockoffsets);
-   SCIPfreeBufferArray(scip, &newblockidx);
 
    SCIP_CALL( SDPAfreeData(scip, file, data) );
    return SCIP_READERROR;
