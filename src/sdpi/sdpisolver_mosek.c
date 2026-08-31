@@ -1883,13 +1883,15 @@ SCIP_Bool SCIPsdpiSolverFeasibilityKnown(
       /* we know the feasibility status if the violations are all small enough */
       if ( dviolcon < sdpisolver->feastol && dviolvar < sdpisolver->feastol && dviolbarvar < sdpisolver->feastol )
          return TRUE;
-      return FALSE;
+
+      break;
    }
 
    default:
       SCIPdebugMessage("Unknown return code in SCIPsdpiSolverFeasibilityKnown\n"); /* TODO: add illposed_cer */
-      return FALSE;
    }/*lint !e788*/
+
+   return FALSE;
 }
 
 /** gets information about primal and dual feasibility of the current SDP solution */
@@ -2055,6 +2057,7 @@ SCIP_Bool SCIPsdpiSolverIsDualUnbounded(
       SCIPdebugMessage("MOSEK does not know about feasibility of solutions\n");
       break;
    }/*lint !e788*/
+
    return FALSE;
 }
 
