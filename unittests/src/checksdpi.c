@@ -678,7 +678,7 @@ Test(checksdpi, test4)
       lhs[0] = -SCIPsdpiInfinity(sdpi);
       lhs[1] = -SCIPsdpiInfinity(sdpi);
 
-      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPinfeas,  SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
+      SCIP_CALL( performLPTest(2, obj, lb, ub, 2, lhs, rhs, 4, beg, ind, val, SCIPinfeas, SCIPinfeas, NULL, NULL, NULL, NULL, NULL) );
 
       /* check that data stored in sdpi is still the same */
       SCIP_CALL( checkData(2, obj, lb, ub, 2, lhs, rhs, 4) );
