@@ -769,6 +769,7 @@ SCIP_RETCODE SDPAreadObjVals(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
+   SCIP_RETCODE retcode;
    SCIP_Real* objvals;
    int v;
    int nreadvals;
@@ -789,9 +790,8 @@ SCIP_RETCODE SDPAreadObjVals(
    }
    assert( data->nvars >= 0 );
 
-   SCIP_CALL( readLineDoubles(scip, file, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals, &nreadvals) );
-
-   if ( nreadvals == -1 )
+   retcode = readLineDoubles(scip, file, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals, &nreadvals);
+   if ( retcode == SCIP_READERROR || nreadvals == -1 )
       goto TERMINATE;
    else if ( nreadvals != data->nvars )
    {
