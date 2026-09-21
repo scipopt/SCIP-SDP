@@ -91,7 +91,8 @@ struct SDPA_Data
    int                   nconsblocks;        /**< number of constraint blocks specified in the input file */
    int*                  sdpmemsize;         /**< size of memory allocated for the nonconstant part of each SDP constraint */
    int*                  sdpconstmemsize;    /**< size of memory allocated for the constant part of each SDP constraint */
-   int                   idxlinconsblock;    /**< the index of the linear constraint block */
+   int*                  blockoffsets;       /**< row and columns offsets for merged LP blocks (0 for SDP blocks) */
+   int*                  newblockidx;        /**< mapping of file block index to new internal index, skipping LP blocks */
    char*                 buffer;             /**< input buffer */
    int                   bufferlen;          /**< length of buffer */
 };
@@ -483,6 +484,8 @@ SCIP_RETCODE SDPAfreeData(
    SCIPfreeBlockMemoryArrayNull(scip, &data->createdconss, data->nlinconss);
    SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblockrank1, data->nsdpblocks);
    SCIPfreeBlockMemoryArrayNull(scip, &data->sdpblocksizes, data->nsdpblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &data->blockoffsets, data->nconsblocks);
+   SCIPfreeBlockMemoryArrayNull(scip, &data->newblockidx, data->nconsblocks);
    SCIPfreeBlockMemoryArrayNull(scip, &data->createdvars, data->nvars);
 
    SCIPfreeBufferNull(scip, &data);
@@ -632,6 +635,7 @@ SCIP_RETCODE SDPAreadBlockSize(
    int* blocksizes;
    int nsdpblocks = 0;
    int nblocks;
+   int lpoffset = 0; /* accumulator for the offset of the next lp-block */
    int cnt = 0;
    int b;
    int c;
@@ -643,6 +647,9 @@ SCIP_RETCODE SDPAreadBlockSize(
 
    SCIP_CALL( SCIPallocBufferArray(scip, &blocksizes, data->nconsblocks) );
    SCIP_CALL( SCIPallocBufferArray(scip, &sdpblocksizes, data->nconsblocks) );
+
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->blockoffsets), data->nconsblocks) );
+   SCIP_CALL( SCIPallocBlockMemoryArray(scip, &(data->newblockidx), data->nconsblocks) );
 
    assert( scip != NULL );
    assert( file != NULL );
@@ -667,15 +674,10 @@ SCIP_RETCODE SDPAreadBlockSize(
       /* if the entry is less than zero it describes the LP blocks */
       if ( *(blocksizes + i) < 0 )
       {
-         if ( data->idxlinconsblock == -1 )
-            data->idxlinconsblock = i;
-         else
-         {
-            SCIPerrorMessage("Only one LP block can be defined in line %" SCIP_LONGINT_FORMAT
-               " but at least two blocksizes are negative.\n", *linecount);
-            goto TERMINATE;
-         }
-         data->nlinconss = - *(blocksizes + i);
+         data->nlinconss += - *(blocksizes + i);
+         data->newblockidx[i] = -1;
+         data->blockoffsets[i] = lpoffset;
+         lpoffset += - *(blocksizes + i);
       }
       else
       {
@@ -685,13 +687,15 @@ SCIP_RETCODE SDPAreadBlockSize(
                *linecount);
                goto TERMINATE;
          }
+         data->newblockidx[i] = nsdpblocks;
+         data->blockoffsets[i] = 0;
          *(sdpblocksizes + nsdpblocks) = *(blocksizes + i);
          ++nsdpblocks;
       }
    }
 
-   assert( data->idxlinconsblock < 0 || data->nlinconss > 0 );
-   assert( data->idxlinconsblock >= 0 || data->nlinconss == 0 );
+   assert( lpoffset == 0 || data->nlinconss > 0 );
+   assert( lpoffset > 0  || data->nlinconss == 0 );
 
    if ( data->nlinconss < 0 )
    {
@@ -765,6 +769,7 @@ SCIP_RETCODE SDPAreadObjVals(
    SDPA_DATA*            data                /**< data pointer to save the results in */
    )
 {  /*lint --e{818}*/
+   SCIP_RETCODE retcode;
    SCIP_Real* objvals;
    int v;
    int nreadvals;
@@ -785,9 +790,8 @@ SCIP_RETCODE SDPAreadObjVals(
    }
    assert( data->nvars >= 0 );
 
-   SCIP_CALL( readLineDoubles(scip, file, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals, &nreadvals) );
-
-   if ( nreadvals == -1 )
+   retcode = readLineDoubles(scip, file, &data->buffer, &data->bufferlen, linecount, data->nvars, objvals, &nreadvals);
+   if ( retcode == SCIP_READERROR || nreadvals == -1 )
       goto TERMINATE;
    else if ( nreadvals != data->nvars )
    {
@@ -865,9 +869,10 @@ SCIP_RETCODE SDPAreadBlocks(
    int emptysdpblocks = 0;
    int emptylinconsblocks = 0;
    int nindcons = 0;
-   int blockidxoffset = 0;
    int row;
    int col;
+   int file_b;                               /* block index of file */
+   int file_row;                             /* row index of file */
    int b;                                    /* current block */
    int v;                                    /* current variable */
    int c;                                    /* current linear constraint */
@@ -977,23 +982,26 @@ SCIP_RETCODE SDPAreadBlocks(
       }
 
       /* switch from SDPA counting (starting from 1) to SCIP counting (starting from 0) */
+      file_b = b; /* the original block index of error messages */
+      file_row = row;
       --v;
       --b;
       --row;
       --col;
 
-      /* reset LP block offset */
-      blockidxoffset = 0;
+      if ( b < 0 || b >= data->nconsblocks )
+      {
+         SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT " for block %d which does not exist!\n",
+            *linecount, file_b);
+         goto TERMINATE;
+      }
+      assert( 0 <= b && b < data->nconsblocks );
 
-      /* check if this entry belongs to the LP block (FALSE) or to an SDP block (TRUE)*/
-      if ( b != data->idxlinconsblock )
+      /* check if this entry belongs to an LP block (FALSE) or to an SDP block (TRUE) */
+      if ( data->newblockidx[b] >= 0 )
       {
       	 /* check if the LP block was already read and adjust the counter as well as the offset for error messages */
-         if ( b > data->idxlinconsblock && data->idxlinconsblock >= 0 )
-         {
-            --b;
-            blockidxoffset = 1;
-         }
+         b = data->newblockidx[b];
 
          if ( v < - 1 || v >= data->nvars )
          {
@@ -1005,7 +1013,7 @@ SCIP_RETCODE SDPAreadBlocks(
          if ( b < 0 || b >= data->nsdpblocks )
          {
             SCIPerrorMessage("Given coefficient in line %" SCIP_LONGINT_FORMAT " for SDP block %d which does not exist!\n",
-               *linecount, b + 1 + blockidxoffset);
+               *linecount, file_b);
             goto TERMINATE;
          }
          assert( 0 <= b && b < data->nsdpblocks );
@@ -1106,7 +1114,7 @@ SCIP_RETCODE SDPAreadBlocks(
                if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val) )
                {
                   SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not allowed.\n",
-                     *linecount, b+1);
+                     *linecount, file_b);
                   goto TERMINATE;
                }
 
@@ -1144,6 +1152,9 @@ SCIP_RETCODE SDPAreadBlocks(
       }
       else /* LP block */
       {
+         /* add the row/column offset for this block */
+         row += data->blockoffsets[b];
+         col += data->blockoffsets[b];
          /* indicator variables have a negative variable index */
          if ( v >= data->nvars )
          {
@@ -1165,7 +1176,7 @@ SCIP_RETCODE SDPAreadBlocks(
          if ( row < 0 || row >= data->nlinconss )
          {
             SCIPerrorMessage("Given linear coefficient in line %" SCIP_LONGINT_FORMAT " for linear constraint %d which does not exist!\n",
-               *linecount, row + 1);
+               *linecount, file_row);
             goto TERMINATE;
          }
 
@@ -1254,7 +1265,7 @@ SCIP_RETCODE SDPAreadBlocks(
                if ( SCIPisInfinity(scip, val) ||  SCIPisInfinity(scip, -val))
                {
                   SCIPerrorMessage("Given constant part in line %" SCIP_LONGINT_FORMAT " of block %d is infinity, which is not allowed.\n",
-                     *linecount, b+1);
+                     *linecount, file_b);
                   goto TERMINATE;
                }
 
@@ -1280,20 +1291,14 @@ SCIP_RETCODE SDPAreadBlocks(
       SCIP_CALL( readNextLine(scip, file, &data->buffer, &data->bufferlen, linecount, &success) );
    }
 
-   /* reset LP block offset */
-   blockidxoffset = 0;
-
-   for (b = 0; b < data->nsdpblocks; b++)
+   for (file_b = 1; file_b <= data->nconsblocks; file_b++)
    {
-      if ( nentriessdp[b] == 0 )
+      b = data->newblockidx[file_b - 1];
+      if ( b >= 0 && nentriessdp[b] == 0 )
       {
          emptysdpblocks++;
 
-         /* account for a possible LP block */
-         if ( data->idxlinconsblock >= 0 && b >= data->idxlinconsblock )
-            blockidxoffset = 1;
-
-         SCIPerrorMessage("SDP block number %d does not contain any nonzero entries!\n", b + 1 + blockidxoffset);
+         SCIPerrorMessage("SDP block number %d does not contain any nonzero entries!\n", file_b);
       }
    }
 
@@ -1582,7 +1587,7 @@ SCIP_RETCODE SDPAreadRank1(
    )
 {  /*lint --e{818}*/
    SCIP_Bool success;
-   int blockidxoffset = 0;
+   int file_v;
    int v;
 
    assert( scip != NULL );
@@ -1627,29 +1632,28 @@ SCIP_RETCODE SDPAreadRank1(
       }
 
       /* switch from SDPA counting (starting from 1) to SCIP counting (starting from 0) */
+      file_v = v;
       --v;
 
-      /* reset LP block offset */
-      blockidxoffset = 0;
-
-      if ( v == data->idxlinconsblock )
+      if ( data->newblockidx[v] < 0 )
       {
          SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for the LP block which is not valid.\n",
             *linecount);
          goto TERMINATE;
       }
-
-      /* check if the LP block was already read and adjust the counter as well as the offset for error messages */
-      if ( data->idxlinconsblock >= 0 && v > data->idxlinconsblock )
+      if ( v >= data->nconsblocks )
       {
-         v -= 1;
-         blockidxoffset = 1;
+         SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for block %d which does not exist!\n",
+            *linecount, file_v);
+         goto TERMINATE;
       }
+
+      v = data->newblockidx[v];
 
       if ( v < 0 || v >= data->nsdpblocks )
       {
          SCIPerrorMessage("Given rank1 in line %" SCIP_LONGINT_FORMAT " for SDP block %d which does not exist!\n",
-            *linecount, v + 1 + blockidxoffset);
+            *linecount, file_v);
          goto TERMINATE;
       }
 
@@ -1711,7 +1715,8 @@ SCIP_DECL_READERREAD(readerReadSdpa)
    data->nlinconss = 0;
    data->nvars = -1;
    data->nconsblocks = -1;
-   data->idxlinconsblock = -1;
+   data->blockoffsets = NULL;
+   data->newblockidx = NULL;
    data->bufferlen = 0;
    data->sdpblockrank1 = NULL;
    data->createdvars = NULL;
