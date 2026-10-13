@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out ${{ env.SPKG }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: build/pkgs/${{ env.SPKG }}/src
       - name: Install prerequisites
@@ -76,15 +76,13 @@ jobs:
           && echo 'sed -i.bak s/4-9/5-9/ ../build/pkgs/gcc/spkg-configure.m4' >> upstream/update-pkgs.sh \
           && echo 'sed -i.bak s/PAPILO=on/PAPILO=off/ ../build/pkgs/{scip*,soplex}/spkg-install.in; sed -i.bak s/papilo// ../build/pkgs/{scip*,soplex}/dependencies' >> upstream/update-pkgs.sh \
           && ls -l upstream/
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: upstream
           name: upstream
 
   linux:
-    # Use https://github.com/sagemath/sage/pull/37494
-    # uses: sagemath/sage/.github/workflows/docker.yml@develop
-    uses: mkoeppe/sage/.github/workflows/docker.yml@scip_9
+    uses: passagemath/passagemath/.github/workflows/docker.yml@main
     with:
       # Extra system packages to install. See available packages at
       # https://github.com/sagemath/sage/tree/develop/build/pkgs
@@ -93,9 +91,9 @@ jobs:
       # Only warn, do not stop, on soplex test suite failures
       # https://github.com/scipopt/soplex/issues/35
       targets: SAGE_CHECK=no SAGE_CHECK_PACKAGES="?soplex,scipoptsuite,dsdp,scip_sdp" scip_sdp
-      # Standard setting: Test the current beta release of Sage:
-      sage_repo:         sagemath/sage
-      sage_ref:          refs/pull/37494/head
+      # Standard setting: Test the current HEAD of passagemath:
+      sage_repo: passagemath/passagemath
+      sage_ref: main
       upstream_artifact: upstream
       # Docker targets (stages) to tag
       docker_targets: "with-targets"
@@ -105,16 +103,15 @@ jobs:
     needs: [dist]
 
   macos:
-    # Use https://github.com/sagemath/sage/pull/37494
-    uses: mkoeppe/sage/.github/workflows/macos.yml@scip_9
+    uses: passagemath/passagemath/.github/workflows/macos.yml@main
     with:
       # Only warn, do not stop, on soplex test suite failures
       # https://github.com/scipopt/soplex/issues/35
       targets:           SAGE_CHECK=no SAGE_CHECK_PACKAGES="?soplex,scipoptsuite,dsdp,scip_sdp" scip_sdp
       # Naming the stage "1...anything" triggers "sage-local" artifacts to be uploaded
       stage:             1-with-custom-targets
-      # Use https://github.com/sagemath/sage/pull/37494
-      sage_repo:         sagemath/sage
-      sage_ref:          refs/pull/37494/head
+      # Standard setting: Test the current HEAD of passagemath:
+      sage_repo: passagemath/passagemath
+      sage_ref: main
       upstream_artifact: upstream
     needs: [dist]
